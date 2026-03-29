@@ -12,6 +12,10 @@ export default {
         "2xl": "1400px",
       },
     },
+    fontFamily: {
+      display: ['"Playfair Display"', 'Georgia', 'serif'],
+      body: ['"Montserrat"', 'system-ui', 'sans-serif'],
+    },
     extend: {
       colors: {
         border: "hsl(var(--border))",
