@@ -1,5 +1,5 @@
 import { Canvas } from '@react-three/fiber';
-import { Environment } from '@react-three/drei';
+
 import MorphingObject from './MorphingObject';
 
 interface Scene3DProps {
@@ -19,7 +19,7 @@ const Scene3D = ({ scrollProgress }: Scene3DProps) => {
         <directionalLight position={[5, 5, 5]} intensity={0.6} />
         <directionalLight position={[-3, -3, 2]} intensity={0.3} />
         <pointLight position={[0, 3, 4]} intensity={0.4} color="#ffffff" />
-        <Environment preset="studio" environmentIntensity={0.3} />
+        {/* Removed Environment preset to avoid HDR fetch errors */}
         <MorphingObject scrollProgress={scrollProgress} />
       </Canvas>
     </div>
