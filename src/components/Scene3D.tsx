@@ -1,5 +1,5 @@
 import { Canvas } from '@react-three/fiber';
-import { Environment } from '@react-three/drei';
+
 import MorphingObject from './MorphingObject';
 
 interface Scene3DProps {
