@@ -13,8 +13,8 @@ export default {
       },
     },
     fontFamily: {
-      display: ['"Montserrat"', 'system-ui', 'sans-serif'],
-      body: ['"Inter"', 'system-ui', 'sans-serif'],
+      display: ['"Playfair Display"', 'Georgia', 'serif'],
+      body: ['"Montserrat"', 'system-ui', 'sans-serif'],
     },
     extend: {
       colors: {
