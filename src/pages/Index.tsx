@@ -1,3 +1,4 @@
+import MapboxMap from "@/components/MapboxMap";
 import SceneCanvas from "@/components/3d/SceneCanvas";
 import { useScrollStory } from "@/hooks/use-scroll-story";
 import CTASection from "@/sections/CTASection";
@@ -34,6 +35,7 @@ const Index = () => {
 
   return (
     <div className="relative min-h-screen bg-background text-foreground">
+      <MapboxMap />
       <SceneCanvas scrollYProgress={scrollYProgress} cameraX={cameraX} cameraY={cameraY} />
 
       <main className="relative z-10 w-full md:w-[40%]">
