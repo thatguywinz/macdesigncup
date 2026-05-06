@@ -86,7 +86,7 @@ const MapLibreMap = ({ scrollProgress }: MapLibreMapProps) => {
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
 
-    const key = import.meta.env.VITE_MAPTILER_KEY;
+    const key = yGoQbpsDpz77HOnzaUgA;
     if (!key) {
       console.error(
         "MapLibreMap: VITE_MAPTILER_KEY is not set. " +
