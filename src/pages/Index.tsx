@@ -1,5 +1,4 @@
 import MapLibreMap from "@/components/MapLibreMap";
-import SceneCanvas from "@/components/3d/SceneCanvas";
 import { useScrollStory } from "@/hooks/use-scroll-story";
 import CTASection from "@/sections/CTASection";
 import DomainSection from "@/sections/DomainSection";
@@ -31,12 +30,11 @@ const domainSections = [
 ];
 
 const Index = () => {
-  const { scrollYProgress, cameraX, cameraY } = useScrollStory();
+  const { scrollYProgress } = useScrollStory();
 
   return (
-    <div className="relative min-h-[400vh] bg-background text-foreground">
+    <div className="relative min-h-[400vh] text-foreground">
       <MapLibreMap scrollProgress={scrollYProgress} />
-      <SceneCanvas scrollYProgress={scrollYProgress} cameraX={cameraX} cameraY={cameraY} />
 
       <main className="relative z-10 w-full md:w-[40%]">
         <HeroSection />
