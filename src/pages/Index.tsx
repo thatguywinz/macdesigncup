@@ -34,8 +34,8 @@ const Index = () => {
   const { scrollYProgress, cameraX, cameraY } = useScrollStory();
 
   return (
-    <div className="relative min-h-screen bg-background text-foreground">
-      <MapLibreMap />
+    <div className="relative min-h-[400vh] bg-background text-foreground">
+      <MapLibreMap scrollProgress={scrollYProgress} />
       <SceneCanvas scrollYProgress={scrollYProgress} cameraX={cameraX} cameraY={cameraY} />
 
       <main className="relative z-10 w-full md:w-[40%]">
