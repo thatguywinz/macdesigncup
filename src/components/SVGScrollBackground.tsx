@@ -2,7 +2,9 @@ import { useEffect, useRef } from "react";
 import { useMotionValue, useMotionValueEvent } from "framer-motion";
 import type { MotionValue } from "framer-motion";
 
-// Toronto blueprint/ocean map layers ordered from highest to lowest altitude
+// Toronto blueprint/ocean map layers ordered from highest to lowest altitude.
+// Each SVG contains 22 matched layer groups (identical IDs across all files),
+// representing a progressive zoom-in sequence of Toronto's waterfront.
 const LAYERS = [
   "/toronto_ocean_20260512_110217.svg",
   "/toronto_ocean_20260512_110305.svg",
@@ -12,20 +14,26 @@ const LAYERS = [
 ] as const;
 
 // Per-layer scroll windows: [fadeInStart, peakStart, peakEnd, fadeOutEnd]
-// Overlapping ranges ensure continuous visibility and smooth crossfades.
+// Adjacent layers share crossfade ranges to ensure continuous visibility.
+// All crossfade spans are 0.16 scroll-units for consistent blend durations.
 const LAYER_WINDOWS: [number, number, number, number][] = [
   [0,    0,    0.12, 0.28], // layer 0: full from start, fades out 0.12–0.28
-  [0.12, 0.28, 0.37, 0.53], // layer 1
-  [0.37, 0.53, 0.62, 0.78], // layer 2
-  [0.62, 0.78, 0.87, 0.97], // layer 3
-  [0.87, 0.97, 1.0,  1.0 ], // layer 4: fades in, stays at full
+  [0.12, 0.28, 0.37, 0.53], // layer 1: fades in 0.12–0.28, peak 0.28–0.37
+  [0.37, 0.53, 0.62, 0.78], // layer 2: fades in 0.37–0.53, peak 0.53–0.62
+  [0.62, 0.78, 0.84, 1.0 ], // layer 3: fades in 0.62–0.78, peak 0.78–0.84, fades 0.84–1.0
+  [0.84, 1.0,  1.0,  1.0 ], // layer 4: fades in 0.84–1.0, stays at full
 ];
 
-// Subtle zoom applied per-layer across its visible range (1.0 → 1.08)
-const ZOOM_AMOUNT = 0.08;
+// Total zoom applied globally across the full scroll range (1.0 → 1.0 + TOTAL_ZOOM).
+// A single continuous curve eliminates the scale discontinuity that would occur
+// if each layer independently reset to scale 1.0 when entering the scene.
+const TOTAL_ZOOM = 0.15;
 
-function easeInOut(t: number): number {
-  return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+// Perlin's improved smoothstep (5th-degree polynomial).
+// Unlike quadratic easeInOut, this has zero velocity AND zero acceleration at
+// both endpoints (C² continuous), producing noticeably smoother fade transitions.
+function smootherstep(t: number): number {
+  return t * t * t * (t * (t * 6 - 15) + 10);
 }
 
 function computeOpacity(i: number, p: number): number {
@@ -34,20 +42,17 @@ function computeOpacity(i: number, p: number): number {
   if (p > foe) return i === LAYERS.length - 1 ? 1 : 0;
   if (p < fe) {
     const span = fe - fi;
-    return easeInOut(span > 0 ? (p - fi) / span : 1);
+    return smootherstep(span > 0 ? (p - fi) / span : 1);
   }
   if (p <= fo) return 1;
   const span = foe - fo;
-  return easeInOut(span > 0 ? 1 - (p - fo) / span : 0);
+  return smootherstep(span > 0 ? 1 - (p - fo) / span : 0);
 }
 
-function computeScale(i: number, p: number): number {
-  const [fi, , , foe] = LAYER_WINDOWS[i];
-  const end = i === LAYERS.length - 1 ? 1.0 : foe;
-  if (p <= fi) return 1.0;
-  const span = end - fi;
-  const t = span > 0 ? Math.min((p - fi) / span, 1) : 1;
-  return 1.0 + ZOOM_AMOUNT * easeInOut(t);
+// Global continuous scale: all layers share the same zoom at any scroll position,
+// so there is no visible scale jump when the active layer changes.
+function computeScale(p: number): number {
+  return 1.0 + TOTAL_ZOOM * smootherstep(Math.min(p, 1));
 }
 
 interface SVGScrollBackgroundProps {
@@ -71,10 +76,11 @@ const SVGScrollBackground = ({ scrollProgress }: SVGScrollBackgroundProps) => {
   // useMotionValueEvent fires at most once per animation frame (rAF-synced),
   // so no additional throttling is needed.
   useMotionValueEvent(activeProgress, "change", (latest) => {
+    const scale = computeScale(latest);
     layerRefs.current.forEach((el, i) => {
       if (!el) return;
       el.style.opacity = String(computeOpacity(i, latest));
-      el.style.transform = `scale(${computeScale(i, latest)})`;
+      el.style.transform = `scale(${scale})`;
     });
   });
 
