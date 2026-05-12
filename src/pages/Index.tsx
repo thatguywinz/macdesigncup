@@ -1,4 +1,4 @@
-import MapLibreMap from "@/components/MapLibreMap";
+import SVGScrollBackground from "@/components/SVGScrollBackground";
 import { useScrollStory } from "@/hooks/use-scroll-story";
 import CTASection from "@/sections/CTASection";
 import DomainSection from "@/sections/DomainSection";
@@ -34,7 +34,7 @@ const Index = () => {
 
   return (
     <div className="relative min-h-[400vh] text-foreground">
-      <MapLibreMap scrollProgress={scrollYProgress} />
+      <SVGScrollBackground scrollProgress={scrollYProgress} />
 
       <main className="relative z-10 w-full md:w-[40%]">
         <HeroSection />
