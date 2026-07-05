@@ -12,15 +12,15 @@ const FAQS = [
 
 export default function FAQSection() {
   return (
-    <section id="faq" className="relative z-10 border-t border-border bg-background/85 px-5 py-24 backdrop-blur-sm md:px-10 md:py-32">
+    <section id="faq" className="relative z-10 border-t border-border px-5 py-24 md:px-10 md:py-32">
       <div className="mx-auto grid max-w-[1200px] gap-12 md:grid-cols-[0.8fr_1.2fr]">
         <div>
           <div className="mb-8 flex items-baseline gap-4">
             <span className="font-mono text-xs tracking-[0.2em] text-muted-foreground">[ FAQ ]</span>
           </div>
-          <h2 className="display-scene text-gradient text-glow">Questions,<br />answered.</h2>
+          <h2 className="display-scene text-foreground">Questions,<br /><span className="wire-text">answered.</span></h2>
           <p className="mt-6 max-w-xs font-body text-sm font-light leading-relaxed text-muted-foreground">
-            Everything a first-timer needs to know.
+            Everything a first-timer needs to know. <span className="hand ml-1">no dumb questions here</span>
           </p>
           <div className="mt-8">
             <RegisterButton className="px-7 py-3.5 text-xs">Register</RegisterButton>

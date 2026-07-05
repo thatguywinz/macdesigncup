@@ -16,13 +16,13 @@ export default function TimelineSection() {
   const inView = useInView(ref, { once: true, amount: 0.2 });
 
   return (
-    <section id="timeline" ref={ref} className="relative z-10 border-t border-border bg-background/85 px-5 py-24 backdrop-blur-sm md:px-10 md:py-32">
+    <section id="timeline" ref={ref} className="relative z-10 border-t border-border px-5 py-24 md:px-10 md:py-32">
       <div className="mx-auto max-w-[1200px]">
         <div className="mb-14 flex items-baseline gap-4">
           <span className="font-mono text-xs tracking-[0.2em] text-muted-foreground">[ THE DAY ]</span>
           <span className="h-px flex-1 bg-border" />
         </div>
-        <h2 className="display-scene mb-16 text-gradient text-glow">One day,<br />start to finish.</h2>
+        <h2 className="display-scene mb-16 text-foreground">One day,<br />start to <span className="wire-text">finish.</span></h2>
 
         <ol className="relative ml-1 border-l border-border">
           {STEPS.map((s, i) => (
@@ -45,9 +45,12 @@ export default function TimelineSection() {
           ))}
         </ol>
 
-        <p className="mt-6 font-mono text-[10px] uppercase tracking-[0.28em] text-muted-foreground">
-          Full run-of-day announced closer to the event.
-        </p>
+        <div className="mt-8 flex flex-wrap items-center gap-4">
+          <span className="font-mono text-[10px] uppercase tracking-[0.28em] text-muted-foreground">
+            Full run-of-day announced closer to the event.
+          </span>
+          <span className="hand text-sm">exact times TBA — trust us, it's a full day</span>
+        </div>
       </div>
     </section>
   );

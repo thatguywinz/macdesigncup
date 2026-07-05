@@ -7,15 +7,15 @@ export const EVENT_NAME = "Mac Design Cup 2026";
 export const EVENT_SHORT = "MDC 2026";
 export const CLUB = "WLMAC 3D Design Club";
 export const MODEL_NO = "MDC_2026";
-export const TAGLINE = "ORIGIN · BUILD · BEYOND";
+export const TAGLINE = "SKETCH · BUILD · SHIP";
 
 // In-app placeholder route so every CTA resolves to something real.
 // Replace with an external registration form URL when available.
 export const REGISTRATION_URL = "/register";
 
 export const NAV_LINKS = [
-  { label: "Overview", href: "#scene-01" },
-  { label: "Timeline", href: "#timeline" },
+  { label: "Why", href: "#why" },
+  { label: "The Day", href: "#timeline" },
   { label: "FAQ", href: "#faq" },
 ] as const;
 

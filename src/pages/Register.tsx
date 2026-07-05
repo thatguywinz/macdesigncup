@@ -8,8 +8,9 @@ import { EVENT_NAME, MODEL_NO, TAGLINE } from "@/config/site";
 export default function Register() {
   return (
     <main className="relative min-h-screen bg-background px-5 py-16 text-foreground md:px-10">
+      <div className="paper-grid pointer-events-none fixed inset-0 opacity-60" aria-hidden="true" />
       <div className="grain-overlay" aria-hidden="true" />
-      <div className="mx-auto max-w-xl">
+      <div className="relative z-10 mx-auto max-w-xl">
         <Link
           to="/"
           className="font-mono text-[11px] uppercase tracking-[0.22em] text-muted-foreground transition-colors hover:text-foreground"
@@ -47,7 +48,7 @@ export default function Register() {
                 id={f.id}
                 type={f.type}
                 placeholder={f.ph}
-                className="rounded-sm border border-border bg-graphite px-4 py-3 font-body text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground/60 focus:border-sketch focus:ring-1 focus:ring-sketch"
+                className="rounded-sm border border-border bg-panel px-4 py-3 font-body text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground/50 focus:border-marker focus:ring-1 focus:ring-marker"
               />
             </div>
           ))}
