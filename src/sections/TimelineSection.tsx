@@ -1,12 +1,14 @@
 import { motion, useInView } from "framer-motion";
 import { useRef } from "react";
 
+// The shape of the day. Exact clock times are announced closer to the event,
+// so we describe the phases rather than invent a schedule.
 const STEPS = [
-  { n: "01", title: "Brief Reveal", time: "[ 09:00 ]" },
-  { n: "02", title: "Design & Build", time: "[ 09:30 ]" },
-  { n: "03", title: "Submit", time: "[ 18:00 ]" },
-  { n: "04", title: "Judging", time: "[ 18:30 ]" },
-  { n: "05", title: "Awards", time: "[ 20:00 ]" },
+  { n: "01", title: "Doors Open", desc: "Check in, meet your team, grab food." },
+  { n: "02", title: "Theme Drop", desc: "The brief is revealed. The clock starts." },
+  { n: "03", title: "Design Sprint", desc: "Build your 3D response, start to finish." },
+  { n: "04", title: "Submissions", desc: "Tools down. Lock in your final build." },
+  { n: "05", title: "Judging & Awards", desc: "Judges review. Winners take the prizes." },
 ];
 
 export default function TimelineSection() {
@@ -17,10 +19,10 @@ export default function TimelineSection() {
     <section id="timeline" ref={ref} className="relative z-10 border-t border-border bg-background/85 px-5 py-24 backdrop-blur-sm md:px-10 md:py-32">
       <div className="mx-auto max-w-[1200px]">
         <div className="mb-14 flex items-baseline gap-4">
-          <span className="font-mono text-xs tracking-[0.2em] text-muted-foreground">[ TIMELINE ]</span>
+          <span className="font-mono text-xs tracking-[0.2em] text-muted-foreground">[ THE DAY ]</span>
           <span className="h-px flex-1 bg-border" />
         </div>
-        <h2 className="display-scene mb-16 text-gradient text-glow">How the day works</h2>
+        <h2 className="display-scene mb-16 text-gradient text-glow">One day,<br />start to finish.</h2>
 
         <ol className="relative ml-1 border-l border-border">
           {STEPS.map((s, i) => (
@@ -37,14 +39,14 @@ export default function TimelineSection() {
               <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
                 <span className="font-mono text-xs tracking-[0.2em] text-muted-foreground">{s.n}</span>
                 <h3 className="font-display text-2xl font-semibold tracking-tight text-foreground md:text-3xl">{s.title}</h3>
-                <span className="font-mono text-[11px] tracking-[0.15em] text-sketch">{s.time}</span>
               </div>
+              <p className="mt-2 font-body text-sm font-light leading-relaxed text-muted-foreground md:text-base">{s.desc}</p>
             </motion.li>
           ))}
         </ol>
 
         <p className="mt-6 font-mono text-[10px] uppercase tracking-[0.28em] text-muted-foreground">
-          Times are placeholder — final schedule announced closer to the event.
+          Full run-of-day announced closer to the event.
         </p>
       </div>
     </section>

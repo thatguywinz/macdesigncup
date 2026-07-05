@@ -8,7 +8,9 @@ interface CADOverlayProps {
 const S = [0, 1, 2, 3, 4, 5, 6, 7].map((i) => i / 7);
 
 // Object anchor in the viewport (matches HeroScene object offset / vignette center).
-const ANCHOR = { left: "63%", top: "46%" };
+// Object is centered horizontally; the 3D layer is shifted up ~15vh, placing the
+// object's screen center near 35% (50% of the shifted canvas).
+const ANCHOR = { left: "50%", top: "35%" };
 
 /** Screen-space CAD annotations that track the object as scroll morphs it. */
 export default function CADOverlay({ progress }: CADOverlayProps) {

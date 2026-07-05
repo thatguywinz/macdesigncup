@@ -2,11 +2,12 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import RegisterButton from "@/components/RegisterButton";
 
 const FAQS = [
-  { q: "Who can enter?", a: "Open to students — beginners welcome, no experience needed. [Eligibility placeholder]" },
-  { q: "Do I need to know 3D software?", a: "No. Use any tool — Blender, Fusion 360, Tinkercad, or your choice." },
-  { q: "Solo or team?", a: "Either. [Team size confirmed closer to the event.]" },
-  { q: "What do I build?", a: "You get a theme on the day and design a 3D response to it." },
-  { q: "What does it cost?", a: "[Cost placeholder — shared on the registration page.]" },
+  { q: "Who can enter?", a: "Any TDSB high schooler across the Greater Toronto Area. Beginners are welcome — no experience needed." },
+  { q: "What does it cost?", a: "Nothing. It's free to enter, and food and swag are on us." },
+  { q: "Do I need to know 3D software?", a: "Nope. Use whatever you like — Blender, Fusion 360, Tinkercad, or any tool of your choice." },
+  { q: "Where does it happen?", a: "At George Brown College's downtown Toronto campus, alongside our sponsors." },
+  { q: "Solo or team?", a: "Either works. Team details are announced closer to the day." },
+  { q: "What will I build?", a: "You get a theme on the day and design a 3D response to it, start to finish." },
 ];
 
 export default function FAQSection() {

@@ -10,9 +10,9 @@ import { useIsMobile } from "@/hooks/use-mobile";
 // 8 scene stops across scroll 0→1
 const S = [0, 1, 2, 3, 4, 5, 6, 7].map((i) => i / 7);
 
-// Push the object right-of-centre (desktop) so it clears the left text column
-// and aligns with the CAD overlay anchor (~63%). Centered on mobile.
-const OBJECT_X = 1.15;
+// The object is the hero of the frame: centered horizontally and lifted into
+// the upper band so the centered copy sits cleanly beneath it.
+const OBJECT_X = 0;
 
 interface SceneProps {
   progress: MotionValue<number>;
@@ -22,7 +22,7 @@ interface SceneProps {
 
 function Objects({ progress, reducedMotion, isMobile }: SceneProps) {
   const objX = isMobile ? 0 : OBJECT_X;
-  const objY = isMobile ? 1.4 : 0; // lift the object into the upper band on phones
+  const objY = 0; // object stays canvas-centered; the whole 3D layer is shifted up via CSS instead
   const rotRef = useRef<THREE.Group>(null);
   const isoSolidRef = useRef<THREE.Mesh>(null);
   const isoWireRef = useRef<THREE.LineSegments>(null);
@@ -168,7 +168,7 @@ function Objects({ progress, reducedMotion, isMobile }: SceneProps) {
 /** Camera dolly driven by scroll. */
 function Rig({ progress, reducedMotion, isMobile }: SceneProps) {
   const { camera } = useThree();
-  const zMul = isMobile ? 1.85 : 1;
+  const zMul = isMobile ? 1.9 : 1.34; // pull back so the object fits the upper band across every dolly stop
   useFrame((_, delta) => {
     const p = reducedMotion ? snap(progress.get()) : progress.get();
     const z = keyframe(p, [[0, 6.2], [S[3], 5.4], [S[4], 5.7], [S[5], 5.6], [S[6], 6.4], [1, 6.6]]) * zMul;
@@ -200,21 +200,26 @@ interface HeroSceneProps {
 
 export default function HeroScene({ progress, reducedMotion = false }: HeroSceneProps) {
   const isMobile = useIsMobile();
+  // Shift the whole 3D layer up so the canvas-centered object sits in the upper
+  // band, leaving the lower band clear for the centered copy. Decoupled from the
+  // camera dolly, so framing stays constant across every scene.
+  const shiftVh = isMobile ? -7 : -15;
   return (
     <div className="fixed inset-0 z-0" aria-hidden="true">
-      <div
-        className="absolute inset-0"
-        style={{
-          background: isMobile
-            ? "radial-gradient(120% 55% at 50% 28%, rgba(45,80,155,0.32) 0%, rgba(20,30,60,0.1) 38%, rgba(6,7,14,0) 58%, rgba(5,6,12,0.96) 100%)"
-            : "radial-gradient(85% 80% at 63% 44%, rgba(45,80,160,0.34) 0%, rgba(22,34,72,0.12) 34%, rgba(6,7,14,0) 56%, rgba(4,5,11,0.94) 100%)",
-        }}
-      />
-      <Canvas
-        camera={{ position: [0, 0, 6.2], fov: 42 }}
-        dpr={[1, 2]}
-        gl={{ antialias: true, alpha: true, powerPreference: "high-performance" }}
-      >
+      <div className="absolute inset-0" style={{ transform: `translateY(${shiftVh}vh)` }}>
+        <div
+          className="absolute inset-0"
+          style={{
+            background: isMobile
+              ? "radial-gradient(120% 55% at 50% 46%, rgba(45,80,155,0.34) 0%, rgba(20,30,60,0.1) 38%, rgba(6,7,14,0) 58%, rgba(5,6,12,0.96) 100%)"
+              : "radial-gradient(70% 76% at 50% 50%, rgba(45,80,160,0.4) 0%, rgba(22,34,72,0.13) 34%, rgba(6,7,14,0) 56%, rgba(4,5,11,0) 100%)",
+          }}
+        />
+        <Canvas
+          camera={{ position: [0, 0, 6.2], fov: 42 }}
+          dpr={[1, 2]}
+          gl={{ antialias: true, alpha: true, powerPreference: "high-performance" }}
+        >
         <ambientLight intensity={0.3} />
         <directionalLight position={[5, 5, 6]} intensity={0.8} color="#dbe6ff" />
         <directionalLight position={[-5, -2, 3]} intensity={0.4} color="#5a8bff" />
@@ -224,9 +229,10 @@ export default function HeroScene({ progress, reducedMotion = false }: HeroScene
           <Lightformer intensity={1.0} position={[6, -1, -2]} scale={[4, 4, 1]} color="#1fd6ec" />
           <Lightformer intensity={0.8} position={[0, -5, 3]} scale={[5, 3, 1]} color="#8f6bff" />
         </Environment>
-        <Objects progress={progress} reducedMotion={reducedMotion} isMobile={isMobile} />
-        <Rig progress={progress} reducedMotion={reducedMotion} isMobile={isMobile} />
-      </Canvas>
+          <Objects progress={progress} reducedMotion={reducedMotion} isMobile={isMobile} />
+          <Rig progress={progress} reducedMotion={reducedMotion} isMobile={isMobile} />
+        </Canvas>
+      </div>
     </div>
   );
 }

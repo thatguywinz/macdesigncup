@@ -1,7 +1,12 @@
 // ─────────────────────────────────────────────
-// The 8-scene storyboard, transcribed 1:1 from `3d designathon reference.png`.
-// scrollYProgress (0→1) maps across these 8 scenes; the 3D object and CAD
-// overlay both key off the same normalized `stops`.
+// Mac Design Cup 2026 — the scroll story.
+//
+// One 3D object evolves from a single point → wireframe → solid → finished
+// build. Each scene fuses that design-process stage with a REAL fact about the
+// event, so the words and the object always say the same thing.
+//
+// scrollYProgress (0→1) maps across these 8 scenes; the 3D object, CAD overlay
+// and this copy all key off the same normalized stops.
 // ─────────────────────────────────────────────
 
 export type SceneKey =
@@ -14,20 +19,15 @@ export type SceneKey =
   | "yourturn"
   | "origin";
 
-export interface Dim {
-  value: string;
-  axis: "x" | "y";
-}
-
 export interface Scene {
   id: number;
   num: string; // "01"…"08"
   key: SceneKey;
   eyebrow?: string;
-  heading: string;
-  lines: string[];
-  dims?: Dim[];
-  note?: string; // e.g. MAT_01
+  heading: string; // may contain "\n" for a hard line break
+  sub?: string; // one short supporting line
+  tags?: string[]; // mono "spec chips" — bold, scannable facts
+  meta?: string; // small mono caption (e.g. a venue tag)
 }
 
 export const SCENES: Scene[] = [
@@ -35,67 +35,59 @@ export const SCENES: Scene[] = [
     id: 1,
     num: "01",
     key: "hero",
-    eyebrow: "Mac Design Cup 2026",
-    heading: "MAC DESIGN CUP 2026",
-    lines: ["From a single point,", "everything is built."],
+    eyebrow: "3D Design Hackathon",
+    heading: "MAC DESIGN\nCUP 2026",
+    sub: "One prompt. One day. Built entirely in 3D.",
   },
   {
     id: 2,
     num: "02",
     key: "sketch",
-    heading: "SKETCH",
-    lines: ["Ideas take shape.", "Lines have purpose."],
+    heading: "A HACKATHON,\nFOR 3D.",
+    sub: "Get a theme on the day and design your answer from scratch.",
   },
   {
     id: 3,
     num: "03",
     key: "form",
-    heading: "FORM",
-    lines: ["Structure defines", "what's possible."],
-    dims: [
-      { value: "72.18", axis: "y" },
-      { value: "98.32", axis: "x" },
-    ],
+    heading: "OPEN TO\nTHE GTA.",
+    sub: "Open to TDSB high schoolers, right across the Greater Toronto Area. No experience needed.",
   },
   {
     id: 4,
     num: "04",
     key: "material",
-    heading: "MATERIAL",
-    lines: ["Surface. Texture.", "Character emerges."],
-    note: "MAT_01",
+    heading: "AT GEORGE\nBROWN.",
+    sub: "Hosted at the downtown campus, backed by our sponsors.",
+    meta: "George Brown College · Downtown Toronto",
   },
   {
     id: 5,
     num: "05",
     key: "prototype",
-    heading: "PROTOTYPE",
-    lines: ["Refine. Test.", "Iterate."],
-    dims: [
-      { value: "120.00", axis: "y" },
-      { value: "85.00", axis: "x" },
-    ],
+    heading: "BUILD\nIT LIVE.",
+    sub: "Blender, Fusion, CAD — any tool. One day on the clock.",
   },
   {
     id: 6,
     num: "06",
     key: "resolved",
-    heading: "RESOLVED",
-    lines: ["Present your best.", "Make it real."],
+    heading: "REAL\nPRIZES.",
+    sub: "Cash on the line — and every part of the day is on us.",
+    tags: ["Cash Prizes", "Free Food", "Free Swag", "Free Entry"],
   },
   {
     id: 7,
     num: "07",
     key: "yourturn",
-    heading: "YOUR TURN",
-    lines: ["Build beyond", "what exists."],
+    heading: "YOUR TURN.",
+    sub: "Bring an idea. Leave with something you built.",
   },
   {
     id: 8,
     num: "08",
     key: "origin",
     heading: "THE ORIGIN\nIS YOURS.",
-    lines: [],
   },
 ];
 

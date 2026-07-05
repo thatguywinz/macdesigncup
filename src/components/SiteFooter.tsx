@@ -14,7 +14,7 @@ export default function SiteFooter() {
               </span>
             </div>
             <p className="mt-3 max-w-xs font-mono text-[11px] leading-relaxed tracking-wide text-muted-foreground">
-              A 12-hour 3D designathon by the {CLUB}.
+              A one-day 3D design hackathon for TDSB high schoolers across the GTA, by the {CLUB}. Hosted at George Brown College.
             </p>
           </div>
 
