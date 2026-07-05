@@ -2,11 +2,11 @@ import { motion, useInView } from "framer-motion";
 import { useRef } from "react";
 
 const STEPS = [
-  { n: "01", title: "Opening & Brief Reveal", time: "[ 09:00 ]", detail: "The competition theme is revealed. Teams check in and set up." },
-  { n: "02", title: "Design & Build", time: "[ 09:30 ]", detail: "Concept, model, and prototype your 3D response to the brief." },
-  { n: "03", title: "Submit Your Work", time: "[ 18:00 ]", detail: "Export and submit your final model, renders, and a short write-up." },
-  { n: "04", title: "Judging", time: "[ 18:30 ]", detail: "A panel evaluates originality, execution, and problem fit." },
-  { n: "05", title: "Awards Ceremony", time: "[ 20:00 ]", detail: "Winners announced. Prizes, recognition, and closing remarks." },
+  { n: "01", title: "Brief Reveal", time: "[ 09:00 ]" },
+  { n: "02", title: "Design & Build", time: "[ 09:30 ]" },
+  { n: "03", title: "Submit", time: "[ 18:00 ]" },
+  { n: "04", title: "Judging", time: "[ 18:30 ]" },
+  { n: "05", title: "Awards", time: "[ 20:00 ]" },
 ];
 
 export default function TimelineSection() {
@@ -20,7 +20,7 @@ export default function TimelineSection() {
           <span className="font-mono text-xs tracking-[0.2em] text-muted-foreground">[ TIMELINE ]</span>
           <span className="h-px flex-1 bg-border" />
         </div>
-        <h2 className="display-scene mb-16 text-foreground">How the day works</h2>
+        <h2 className="display-scene mb-16 text-gradient text-glow">How the day works</h2>
 
         <ol className="relative ml-1 border-l border-border">
           {STEPS.map((s, i) => (
@@ -36,10 +36,9 @@ export default function TimelineSection() {
               </span>
               <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
                 <span className="font-mono text-xs tracking-[0.2em] text-muted-foreground">{s.n}</span>
-                <h3 className="font-display text-xl font-medium tracking-tight text-foreground md:text-2xl">{s.title}</h3>
+                <h3 className="font-display text-2xl font-semibold tracking-tight text-foreground md:text-3xl">{s.title}</h3>
                 <span className="font-mono text-[11px] tracking-[0.15em] text-sketch">{s.time}</span>
               </div>
-              <p className="mt-2 max-w-xl font-body text-sm font-light leading-relaxed text-muted-foreground">{s.detail}</p>
             </motion.li>
           ))}
         </ol>
