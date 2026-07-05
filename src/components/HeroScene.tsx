@@ -174,12 +174,16 @@ function Rig({ progress, reducedMotion, isMobile }: SceneProps) {
     const z = keyframe(p, [[0, 6.2], [S[3], 5.4], [S[4], 5.7], [S[5], 5.6], [S[6], 6.4], [1, 6.6]]) * zMul;
     const y = keyframe(p, [[0, 0], [S[5], 0.15], [S[6], 0.35], [1, 0]]);
     const lookY = keyframe(p, [[0, 0], [S[5], -0.32], [S[6], -0.35], [1, 0]]);
-    const damp = reducedMotion ? 1 : 3;
     // Keep the camera looking at world origin so the object (offset to +OBJECT_X)
     // renders right-of-centre, clearing the left text column.
-    camera.position.x = THREE.MathUtils.damp(camera.position.x, 0, damp, delta);
-    camera.position.y = THREE.MathUtils.damp(camera.position.y, y, damp, delta);
-    camera.position.z = THREE.MathUtils.damp(camera.position.z, z, damp, delta);
+    if (reducedMotion) {
+      // fully static — snap to the (scene-snapped) target, no damping jitter
+      camera.position.set(0, y, z);
+    } else {
+      camera.position.x = THREE.MathUtils.damp(camera.position.x, 0, 3, delta);
+      camera.position.y = THREE.MathUtils.damp(camera.position.y, y, 3, delta);
+      camera.position.z = THREE.MathUtils.damp(camera.position.z, z, 3, delta);
+    }
     camera.lookAt(0, lookY, 0);
   });
   return null;
