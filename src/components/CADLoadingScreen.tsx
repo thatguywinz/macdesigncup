@@ -8,9 +8,9 @@ const PHASE_ROTATE      = 2200;   // line rotates 360° painting circle
 const PHASE_EXPAND      = 1400;   // circle blooms to fullscreen
 const PHASE_DONE        = 200;    // hold before unmount
 
-const CAD_BLUE  = '#7AC5E7';
-const CAD_DARK  = '#1a1a1a';
-const BG_COLOR  = '#F8F8F6';
+const CAD_BLUE  = '#4da3ff';
+const CAD_DARK  = '#cbd0d8';   // light annotations on the dark ground
+const BG_COLOR  = '#0a0a0a';
 
 /* ease helpers */
 const easeInOutCubic = (t: number) =>
@@ -41,7 +41,15 @@ const CADLoadingScreen = ({ onComplete }: CADLoadingScreenProps) => {
   const snapshotRef = useRef<HTMLCanvasElement | null>(null);
 
   const [phase, setPhase] = useState<Phase>('line');
-  const [expandScale, setExpandScale] = useState(1);
+  const doneRef = useRef(false);
+
+  // guard so onComplete only fires once (skip / animation / timeout / reduced-motion)
+  const finish = useCallback(() => {
+    if (doneRef.current) return;
+    doneRef.current = true;
+    try { sessionStorage.setItem('mdc_intro_seen', '1'); } catch { /* ignore */ }
+    onComplete();
+  }, [onComplete]);
 
   /* ── derive radius from viewport ── */
   const getRadius = () => {
@@ -180,28 +188,23 @@ const CADLoadingScreen = ({ onComplete }: CADLoadingScreenProps) => {
     }
 
     /* ══════════════════════════════
-       PHASE: expand
+       PHASE: expand — resolve the sketch by fading it out over the dark
+       ground so it cross-dissolves into the (dark) 3D hero. No cyan flash.
        ══════════════════════════════ */
     else if (phaseRef.current === 'expand') {
       const t    = Math.min(elapsed / PHASE_EXPAND, 1);
       const ease = easeInOutCubic2(t);
 
-      // Bloom from radius 0 at center → covers full diagonal
-      const diag = Math.sqrt(W * W + H * H);
-      const targetRadius = diag / 2 + 10;
-      const currentRadius = ease * targetRadius;
-
-      // draw snapshot underneath so the circle appears to grow over it
       if (snapshotRef.current) {
+        ctx.save();
+        ctx.globalAlpha = 1 - ease;
+        // subtle settle: the sketch lifts slightly toward the object
+        const s = 1 + ease * 0.04;
+        ctx.translate(cx, cy);
+        ctx.scale(s, s);
+        ctx.translate(-cx, -cy);
         ctx.drawImage(snapshotRef.current, 0, 0);
-      }
-
-      // expanding filled disc from center
-      if (currentRadius > 0) {
-        ctx.beginPath();
-        ctx.arc(cx, cy, currentRadius, 0, Math.PI * 2);
-        ctx.fillStyle = CAD_BLUE;
-        ctx.fill();
+        ctx.restore();
       }
 
       if (t >= 1) {
@@ -212,20 +215,18 @@ const CADLoadingScreen = ({ onComplete }: CADLoadingScreenProps) => {
     }
 
     /* ══════════════════════════════
-       PHASE: done — hold briefly
+       PHASE: done — hold on dark, then hand off
        ══════════════════════════════ */
     else if (phaseRef.current === 'done') {
       if (elapsed >= PHASE_DONE) {
-        onComplete();
+        finish();
         return; // stop RAF
       }
-      // keep solid blue
-      ctx.fillStyle = CAD_BLUE;
-      ctx.fillRect(0, 0, W, H);
+      // dark ground already painted at the top of draw()
     }
 
     rafRef.current = requestAnimationFrame(draw);
-  }, [onComplete]);
+  }, [finish]);
 
   /* ── resize handler ── */
   const resize = useCallback(() => {
@@ -236,17 +237,34 @@ const CADLoadingScreen = ({ onComplete }: CADLoadingScreenProps) => {
   }, []);
 
   useEffect(() => {
+    const reduced =
+      typeof window !== 'undefined' &&
+      window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    let seen = false;
+    try { seen = sessionStorage.getItem('mdc_intro_seen') === '1'; } catch { /* ignore */ }
+
     resize();
     window.addEventListener('resize', resize);
 
+    // Reduced motion or already seen this session: skip the ritual, hand off fast.
+    if (reduced || seen) {
+      const tid = setTimeout(finish, reduced ? 450 : 150);
+      return () => {
+        clearTimeout(tid);
+        window.removeEventListener('resize', resize);
+      };
+    }
+
     startRef.current = performance.now();
-    rafRef.current   = requestAnimationFrame(draw);
+    rafRef.current = requestAnimationFrame(draw);
+    const fallback = setTimeout(finish, 9000); // safety net if a frame stalls
 
     return () => {
       cancelAnimationFrame(rafRef.current);
+      clearTimeout(fallback);
       window.removeEventListener('resize', resize);
     };
-  }, [draw, resize]);
+  }, [draw, resize, finish]);
 
   return (
     <div
@@ -262,6 +280,29 @@ const CADLoadingScreen = ({ onComplete }: CADLoadingScreenProps) => {
         ref={canvasRef}
         style={{ display: 'block', width: '100%', height: '100%' }}
       />
+      <button
+        type="button"
+        onClick={finish}
+        aria-label="Skip intro"
+        style={{
+          position: 'absolute',
+          bottom: 22,
+          left: '50%',
+          transform: 'translateX(-50%)',
+          padding: '8px 18px',
+          fontFamily: '"Space Mono", ui-monospace, monospace',
+          fontSize: 10,
+          letterSpacing: '0.24em',
+          textTransform: 'uppercase',
+          color: 'rgba(226,229,234,0.55)',
+          background: 'transparent',
+          border: '1px solid rgba(226,229,234,0.18)',
+          borderRadius: 3,
+          cursor: 'pointer',
+        }}
+      >
+        Skip intro →
+      </button>
     </div>
   );
 };

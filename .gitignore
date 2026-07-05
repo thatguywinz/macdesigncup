@@ -25,3 +25,7 @@ dist-ssr
 
 .env
 
+# Verification artifacts (screenshots, playwright, design reference)
+/*.png
+.playwright-mcp/
+

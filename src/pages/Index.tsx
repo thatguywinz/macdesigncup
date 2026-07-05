@@ -1,53 +1,71 @@
-import SVGScrollBackground from "@/components/SVGScrollBackground";
-import { useScrollStory } from "@/hooks/use-scroll-story";
-import CTASection from "@/sections/CTASection";
-import DomainSection from "@/sections/DomainSection";
-import EventDetailsSection from "@/sections/EventDetailsSection";
-import HeroSection from "@/sections/HeroSection";
-import HowItWorksSection from "@/sections/HowItWorksSection";
-import IntroSection from "@/sections/IntroSection";
-import WhyJoinSection from "@/sections/WhyJoinSection";
-
-const domainSections = [
-  {
-    index: "02",
-    title: "Infrastructure",
-    subtitle: "Bridge the future.",
-    description: "Stretch the story from mobility into large-scale infrastructure with structural clarity.",
-  },
-  {
-    index: "03",
-    title: "Medical Design",
-    subtitle: "Precision prosthetics.",
-    description: "Reform the system into detailed medical components that emphasize accuracy and care.",
-  },
-  {
-    index: "04",
-    title: "Manufacturing",
-    subtitle: "Robotic assembly.",
-    description: "Scale the narrative into an industrial robotic arm with clean mechanical logic.",
-  },
-];
+import { useEffect, useRef, useState } from "react";
+import { useScroll, useReducedMotion } from "framer-motion";
+import { SCENES } from "@/config/scenes";
+import HeroScene from "@/components/HeroScene";
+import CADOverlay from "@/components/cad/CADOverlay";
+import ProgressRail from "@/components/cad/ProgressRail";
+import SiteNav from "@/components/SiteNav";
+import SiteFooter from "@/components/SiteFooter";
+import SceneStack from "@/components/SceneStack";
+import MobileRegisterBar from "@/components/MobileRegisterBar";
+import TimelineSection from "@/sections/TimelineSection";
+import FAQSection from "@/sections/FAQSection";
 
 const Index = () => {
-  const { scrollYProgress } = useScrollStory();
+  const stackRef = useRef<HTMLDivElement>(null);
+  const { scrollYProgress } = useScroll({
+    target: stackRef,
+    offset: ["start start", "end end"],
+  });
+  const reduced = !!useReducedMotion();
+
+  // Fade the scene chrome (rail, overlay) + dim the 3D scene once past the scrub.
+  const [inScrub, setInScrub] = useState(true);
+  useEffect(() => {
+    const onScroll = () => {
+      const el = stackRef.current;
+      if (!el) return;
+      const bottom = el.offsetTop + el.offsetHeight - window.innerHeight * 0.6;
+      setInScrub(window.scrollY < bottom);
+    };
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   return (
-    <div className="relative min-h-[400vh] text-foreground">
-      <SVGScrollBackground scrollProgress={scrollYProgress} />
+    <div className="relative bg-background">
+      <div className="grain-overlay" aria-hidden="true" />
 
-      <main className="relative z-10 w-full md:w-[40%]">
-        <HeroSection />
-        <IntroSection />
-        {domainSections.map((section) => (
-          <DomainSection key={section.index} {...section} />
-        ))}
-        <HowItWorksSection />
-        <EventDetailsSection />
-        <WhyJoinSection />
-        <CTASection />
-        <div className="h-24" />
+      <SiteNav />
+
+      {/* Fixed cinematic layers — fade out past the scrub */}
+      <div
+        className="transition-opacity duration-700"
+        style={{ opacity: inScrub ? 1 : 0.12, pointerEvents: "none" }}
+      >
+        <HeroScene progress={scrollYProgress} reducedMotion={reduced} />
+      </div>
+      <div
+        className="transition-opacity duration-500"
+        style={{ opacity: inScrub ? 1 : 0 }}
+      >
+        <CADOverlay progress={scrollYProgress} />
+        <ProgressRail progress={scrollYProgress} />
+      </div>
+
+      <main id="main">
+        {/* Cinematic scrub track — 8 scenes pinned while the object morphs */}
+        <div ref={stackRef} className="relative" style={{ height: `${SCENES.length * 100}vh` }}>
+          <SceneStack progress={scrollYProgress} />
+        </div>
+
+        <TimelineSection />
+        <FAQSection />
       </main>
+
+      <SiteFooter />
+      <MobileRegisterBar />
     </div>
   );
 };
