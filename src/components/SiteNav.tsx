@@ -16,22 +16,24 @@ export default function SiteNav() {
   return (
     <>
       <a
-        href="#scene-01"
-        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:rounded focus:bg-sketch focus:px-4 focus:py-2 focus:font-mono focus:text-xs focus:uppercase focus:tracking-widest focus:text-black"
+        href="#top"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:bg-ember focus:px-4 focus:py-2 focus:font-mono focus:text-xs focus:uppercase focus:tracking-widest focus:text-background"
       >
         Skip to content
       </a>
       <header
         className={cn(
-          "fixed inset-x-0 top-0 z-50 transition-colors duration-500",
-          scrolled ? "bg-background/70 backdrop-blur-md" : "bg-transparent",
+          "fixed inset-x-0 top-0 z-50 border-b transition-colors duration-500",
+          scrolled ? "border-line bg-background/70 backdrop-blur-md" : "border-transparent bg-transparent",
         )}
       >
         <nav className="mx-auto flex max-w-[1600px] items-center justify-between px-5 py-4 md:px-8">
           {/* wordmark */}
-          <a href="#scene-01" className="group flex items-baseline gap-3">
-            <span className="font-display text-lg font-bold tracking-tight text-foreground">MDC</span>
-            <span className="hidden font-mono text-[10px] uppercase tracking-[0.28em] text-muted-foreground sm:inline">
+          <a href="#top" className="group flex items-baseline gap-3">
+            <span className="font-display text-lg uppercase tracking-[0.01em] text-foreground transition-colors group-hover:text-ember">
+              MDC
+            </span>
+            <span className="hidden font-mono text-[10px] uppercase tracking-[0.28em] text-concrete sm:inline">
               {EVENT_NAME}
             </span>
           </a>
@@ -43,7 +45,7 @@ export default function SiteNav() {
                 <li key={l.label}>
                   <a
                     href={l.href}
-                    className="font-mono text-[11px] uppercase tracking-[0.22em] text-muted-foreground transition-colors hover:text-foreground"
+                    className="font-mono text-[11px] uppercase tracking-[0.22em] text-concrete transition-colors hover:text-ember"
                   >
                     {l.label}
                   </a>

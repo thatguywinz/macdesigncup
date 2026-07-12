@@ -19,7 +19,7 @@ export default function RegisterButton({
   className,
 }: RegisterButtonProps) {
   const isInternal = REGISTRATION_URL.startsWith("/");
-  const cls = cn(variant === "solid" ? "btn-register" : "btn-ghost", className);
+  const cls = cn(variant === "solid" ? "btn-portal" : "btn-ghost", className);
 
   if (isInternal) {
     return (

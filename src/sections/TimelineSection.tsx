@@ -1,5 +1,4 @@
-import { motion, useInView } from "framer-motion";
-import { useRef } from "react";
+import { motion, useReducedMotion } from "framer-motion";
 
 // The shape of the day. Exact clock times are announced closer to the event,
 // so we describe the phases rather than invent a schedule.
@@ -11,45 +10,74 @@ const STEPS = [
   { n: "05", title: "Judging & Awards", desc: "Judges review. Winners take the prizes." },
 ];
 
+const EASE = [0.22, 1, 0.36, 1];
+
 export default function TimelineSection() {
-  const ref = useRef(null);
-  const inView = useInView(ref, { once: true, amount: 0.2 });
+  const reduce = useReducedMotion();
 
   return (
-    <section id="timeline" ref={ref} className="relative z-10 border-t border-border px-5 py-24 md:px-10 md:py-32">
+    <section id="timeline" className="relative z-10 px-5 py-24 md:px-10 md:py-32">
       <div className="mx-auto max-w-[1200px]">
-        <div className="mb-14 flex items-baseline gap-4">
-          <span className="font-mono text-xs tracking-[0.2em] text-muted-foreground">[ THE DAY ]</span>
-          <span className="h-px flex-1 bg-border" />
+        {/* header */}
+        <div className="mb-6 flex items-baseline gap-4">
+          <span className="mono-label whitespace-nowrap !text-foreground/70">[ 02 — The Day ]</span>
+          <span className="ember-rule flex-1 opacity-40" aria-hidden="true" />
         </div>
-        <h2 className="display-scene mb-16 text-foreground">One day,<br />start to <span className="wire-text">finish.</span></h2>
+        <motion.h2
+          initial={reduce ? false : { opacity: 0, y: 22 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-80px" }}
+          transition={{ duration: 0.8, ease: EASE }}
+          className="display-scene mb-16 md:mb-20"
+        >
+          <span className="block">One day.</span>
+          <span className="block">
+            Start to <span className="wire-text">finish.</span>
+          </span>
+        </motion.h2>
 
-        <ol className="relative ml-1 border-l border-border">
+        {/* vertical timeline */}
+        <ol className="relative">
+          {/* molten guide line */}
+          <span
+            className="absolute inset-y-1 left-[5px] w-px bg-gradient-to-b from-ember via-ember/35 to-transparent"
+            aria-hidden="true"
+          />
           {STEPS.map((s, i) => (
             <motion.li
               key={s.n}
-              initial={{ opacity: 0, x: 20 }}
-              animate={inView ? { opacity: 1, x: 0 } : {}}
-              transition={{ duration: 0.6, delay: i * 0.08, ease: [0.25, 0.46, 0.45, 0.94] }}
-              className="relative mb-12 pl-8 md:pl-12"
+              initial={reduce ? false : { opacity: 0, x: 24 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true, margin: "-60px" }}
+              transition={{ duration: 0.6, ease: EASE, delay: i * 0.1 }}
+              className="relative pb-12 pl-10 last:pb-0 md:pl-14"
             >
-              <span className="absolute -left-[5px] top-1.5 h-2.5 w-2.5 rounded-full border border-sketch bg-background">
-                <span className="absolute inset-[3px] rounded-full bg-sketch shadow-[0_0_10px_hsl(212_100%_65%)]" />
+              {/* glowing waypoint */}
+              <span
+                className="absolute left-0 top-1.5 h-[11px] w-[11px] rotate-45 border border-ember bg-background shadow-[0_0_14px_hsl(24_100%_54%/0.65)]"
+                aria-hidden="true"
+              >
+                <span className="absolute inset-[2.5px] bg-ember" />
               </span>
+
               <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
-                <span className="font-mono text-xs tracking-[0.2em] text-muted-foreground">{s.n}</span>
-                <h3 className="font-display text-2xl font-semibold tracking-tight text-foreground md:text-3xl">{s.title}</h3>
+                <span className="font-mono text-xs tracking-[0.3em] text-ember">{s.n}</span>
+                <h3 className="font-display text-2xl uppercase leading-none tracking-[0.01em] text-foreground md:text-3xl">
+                  {s.title}
+                </h3>
               </div>
-              <p className="mt-2 font-body text-sm font-light leading-relaxed text-muted-foreground md:text-base">{s.desc}</p>
+              <p className="mt-2 max-w-lg font-body text-sm font-light leading-relaxed text-concrete md:text-base">
+                {s.desc}
+              </p>
             </motion.li>
           ))}
         </ol>
 
-        <div className="mt-8 flex flex-wrap items-center gap-4">
-          <span className="font-mono text-[10px] uppercase tracking-[0.28em] text-muted-foreground">
+        <div className="mt-14 flex items-center gap-3 border-t border-line pt-6">
+          <span className="h-1 w-1 bg-ember shadow-[0_0_8px_hsl(24_100%_54%/0.9)]" aria-hidden="true" />
+          <span className="font-mono text-[10px] uppercase tracking-[0.28em] text-concrete">
             Full run-of-day announced closer to the event.
           </span>
-          <span className="hand text-sm">exact times TBA — trust us, it's a full day</span>
         </div>
       </div>
     </section>

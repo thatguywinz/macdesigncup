@@ -2,31 +2,34 @@ import { EVENT_NAME, MODEL_NO, TAGLINE, SOCIALS, FOOTER_LINKS, CLUB } from "@/co
 
 export default function SiteFooter() {
   return (
-    <footer className="relative z-10 border-t border-border bg-background/80 backdrop-blur-sm">
-      <div className="mx-auto max-w-[1600px] px-5 py-10 md:px-8">
+    <footer className="relative z-10 bg-background">
+      {/* molten seam where the hall ends */}
+      <div className="ember-rule opacity-70" aria-hidden="true" />
+
+      <div className="mx-auto max-w-[1600px] px-5 py-12 md:px-8 md:py-14">
         {/* titleblock row */}
-        <div className="flex flex-col gap-8 md:flex-row md:items-start md:justify-between">
+        <div className="flex flex-col gap-10 md:flex-row md:items-start md:justify-between">
           <div>
             <div className="flex items-baseline gap-3">
-              <span className="font-display text-lg font-bold tracking-tight text-foreground">MDC</span>
-              <span className="font-mono text-[10px] uppercase tracking-[0.28em] text-muted-foreground">
+              <span className="font-display text-lg uppercase tracking-[0.01em] text-foreground">MDC</span>
+              <span className="font-mono text-[10px] uppercase tracking-[0.28em] text-concrete">
                 {EVENT_NAME}
               </span>
             </div>
-            <p className="mt-3 max-w-xs font-mono text-[11px] leading-relaxed tracking-wide text-muted-foreground">
+            <p className="mt-4 max-w-xs font-mono text-[11px] leading-relaxed tracking-wide text-concrete">
               A one-day 3D design hackathon for TDSB high schoolers across the GTA, by the {CLUB}. Hosted at George Brown College.
             </p>
           </div>
 
-          <div className="flex flex-wrap gap-x-10 gap-y-6">
+          <div className="flex flex-wrap gap-x-12 gap-y-8">
             <div>
-              <div className="mono-label mb-3">Connect</div>
-              <ul className="space-y-2">
+              <div className="mono-label mb-4 !text-ember/80">Connect</div>
+              <ul className="space-y-2.5">
                 {SOCIALS.map((s) => (
                   <li key={s.label}>
                     <a
                       href={s.href}
-                      className="font-mono text-[11px] uppercase tracking-[0.16em] text-foreground/70 transition-colors hover:text-foreground"
+                      className="font-mono text-[11px] uppercase tracking-[0.16em] text-foreground/70 transition-colors hover:text-ember"
                     >
                       {s.label}
                     </a>
@@ -35,13 +38,13 @@ export default function SiteFooter() {
               </ul>
             </div>
             <div>
-              <div className="mono-label mb-3">Legal</div>
-              <ul className="space-y-2">
+              <div className="mono-label mb-4 !text-ember/80">Legal</div>
+              <ul className="space-y-2.5">
                 {FOOTER_LINKS.map((s) => (
                   <li key={s.label}>
                     <a
                       href={s.href}
-                      className="font-mono text-[11px] uppercase tracking-[0.16em] text-foreground/70 transition-colors hover:text-foreground"
+                      className="font-mono text-[11px] uppercase tracking-[0.16em] text-foreground/70 transition-colors hover:text-ember"
                     >
                       {s.label}
                     </a>
@@ -53,16 +56,16 @@ export default function SiteFooter() {
         </div>
 
         {/* baseline */}
-        <div className="mt-10 flex flex-col gap-3 border-t border-border pt-5 md:flex-row md:items-center md:justify-between">
-          <span className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
+        <div className="mt-12 flex flex-col gap-3 border-t border-line pt-6 md:flex-row md:items-center md:justify-between">
+          <span className="font-mono text-[10px] uppercase tracking-[0.22em] text-concrete">
             © 2026 {EVENT_NAME}. All rights reserved.
           </span>
-          <span className="font-mono text-[10px] uppercase tracking-[0.28em] text-muted-foreground">
+          <span className="font-mono text-[10px] uppercase tracking-[0.28em] text-concrete">
             {MODEL_NO} · {TAGLINE}
           </span>
           <a
-            href="#scene-01"
-            className="font-mono text-[10px] uppercase tracking-[0.22em] text-foreground/70 transition-colors hover:text-foreground"
+            href="#top"
+            className="font-mono text-[10px] uppercase tracking-[0.22em] text-foreground/70 transition-colors hover:text-ember"
           >
             ↑ Back to top
           </a>

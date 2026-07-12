@@ -13,10 +13,9 @@ export default {
       },
     },
     fontFamily: {
-      display: ['"Space Grotesk"', 'system-ui', 'sans-serif'],
+      display: ['"Anton"', 'system-ui', 'sans-serif'],
       body: ['"Inter"', 'system-ui', 'sans-serif'],
       mono: ['"Space Mono"', 'ui-monospace', 'monospace'],
-      hand: ['"Caveat"', 'ui-rounded', 'cursive'],
     },
     extend: {
       colors: {
@@ -25,14 +24,15 @@ export default {
         ring: "hsl(var(--ring))",
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
-        sketch: "hsl(var(--marker))",
-        marker: "hsl(var(--marker))",
-        ink: "hsl(var(--ink))",
-        graphite: "hsl(var(--graphite))",
+        bone: "hsl(var(--bone))",
+        ember: {
+          DEFAULT: "hsl(var(--ember))",
+          deep: "hsl(var(--ember-deep))",
+        },
+        neon: "hsl(var(--neon))",
+        concrete: "hsl(var(--concrete))",
         line: "hsl(var(--line))",
         panel: "hsl(var(--panel))",
-        steel: "hsl(var(--graphite))",
-        grid: "hsl(var(--grid-line))",
         primary: {
           DEFAULT: "hsl(var(--primary))",
           foreground: "hsl(var(--primary-foreground))",

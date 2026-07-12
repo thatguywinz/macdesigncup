@@ -1,53 +1,55 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&family=Caveat:wght@500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@300;400;500;600&family=Space+Mono:wght@400;700&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 /* ─────────────────────────────────────────────
-   MAC DESIGN CUP 2026 — "PROTOTYPE IN PROGRESS"
-   A designer's drafting table: gray-black, hand-sketched, work-in-progress.
-   Monochrome chalk-on-graphite + a single warm marker accent, used sparingly.
+   MAC DESIGN CUP 2026 — "THE GALLERY"
+   A dark concrete exhibition hall. Bone-cream condensed type,
+   molten ember portal light, electric-blue neon floor lines.
+   Cinematic, pristine, 3D.
 ───────────────────────────────────────────── */
 @layer base {
   :root {
-    --background: 240 8% 5%;         /* #0c0c0e near-black graphite */
-    --foreground: 40 12% 90%;        /* #e8e4db warm bone / chalk    */
+    --background: 220 8% 4%;         /* #090a0c near-black concrete   */
+    --foreground: 42 38% 86%;        /* #eae2cc bone cream            */
 
-    --card: 240 7% 8%;
-    --card-foreground: 40 12% 90%;
+    --card: 220 7% 7%;
+    --card-foreground: 42 38% 86%;
 
-    --popover: 240 8% 7%;
-    --popover-foreground: 40 12% 90%;
+    --popover: 220 7% 6%;
+    --popover-foreground: 42 38% 86%;
 
-    --primary: 40 12% 90%;
-    --primary-foreground: 240 8% 5%;
+    --primary: 42 38% 86%;
+    --primary-foreground: 220 8% 4%;
 
-    --secondary: 240 6% 12%;
-    --secondary-foreground: 40 12% 90%;
+    --secondary: 220 6% 10%;
+    --secondary-foreground: 42 38% 86%;
 
-    --muted: 240 5% 13%;
-    --muted-foreground: 240 5% 56%;
+    --muted: 220 6% 11%;
+    --muted-foreground: 220 5% 58%;
 
-    --accent: 240 6% 15%;
-    --accent-foreground: 40 12% 90%;
+    --accent: 220 6% 13%;
+    --accent-foreground: 42 38% 86%;
 
     --destructive: 6 74% 52%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 240 6% 17%;
-    --input: 240 6% 17%;
-    --ring: 28 88% 55%;
+    --border: 220 6% 14%;
+    --input: 220 6% 14%;
+    --ring: 24 100% 54%;
 
-    --radius: 0.15rem;
+    --radius: 0.125rem;
 
-    /* Prototype ink system */
-    --ink: 40 12% 90%;               /* chalk / pencil primary mark */
-    --graphite: 240 5% 52%;          /* secondary graphite          */
-    --line: 240 6% 18%;              /* faint construction line      */
-    --panel: 240 7% 9%;              /* card ground                  */
-    --marker: 28 90% 55%;            /* #f0842b warm marker accent   */
-    --grid-line: 240 6% 12%;         /* drafting dot-grid            */
+    /* Gallery light system */
+    --bone: 42 38% 86%;              /* cream display type             */
+    --ember: 24 100% 54%;            /* #ff6a14 molten portal orange   */
+    --ember-deep: 14 92% 42%;        /* #cd3a09 embers at the edge     */
+    --neon: 217 100% 62%;            /* #3d7bff electric floor line    */
+    --concrete: 220 5% 55%;          /* mid-gray concrete text         */
+    --panel: 220 7% 7%;              /* raised slab ground             */
+    --line: 220 6% 14%;              /* faint seam in the concrete     */
 
     --noise-opacity: 0.05;
   }
@@ -70,8 +72,8 @@
   h1, h2, h3, h4, h5, h6 { @apply font-display; }
 
   ::selection {
-    background: hsl(var(--marker) / 0.9);
-    color: hsl(240 8% 5%);
+    background: hsl(var(--ember));
+    color: hsl(220 8% 4%);
   }
 }
 
@@ -82,127 +84,242 @@
     font-size: clamp(0.5625rem, 0.52rem + 0.2vw, 0.6875rem);
   }
 
+  /* The poster headline — Anton, tall and packed like carved signage */
+  .display-giant {
+    @apply font-display uppercase;
+    font-weight: 400;
+    letter-spacing: 0.01em;
+    line-height: 0.9;
+    color: hsl(var(--bone));
+  }
+
   .display-hero {
-    @apply font-display font-bold uppercase leading-[0.86] tracking-[-0.035em];
-    font-size: clamp(3rem, 1.2rem + 8vw, 8.5rem);
+    @apply display-giant;
+    font-size: clamp(3.2rem, 1rem + 9.5vw, 10.5rem);
   }
 
   .display-scene {
-    @apply font-display font-bold uppercase leading-[0.88] tracking-[-0.03em];
-    font-size: clamp(2.5rem, 1.1rem + 6vw, 6rem);
+    @apply display-giant;
+    font-size: clamp(2.4rem, 1rem + 6vw, 6.5rem);
   }
 
-  /* Wireframe / "unrendered" headline word — outlined, like a model in edit mode */
+  .text-ember  { color: hsl(var(--ember)); }
+  .text-neon   { color: hsl(var(--neon)); }
+
+  /* Outlined "unrendered" word */
   .wire-text {
     color: transparent;
-    -webkit-text-stroke: 1.5px hsl(var(--ink) / 0.8);
-    text-stroke: 1.5px hsl(var(--ink) / 0.8);
+    -webkit-text-stroke: 1.5px hsl(var(--bone) / 0.85);
   }
-  .wire-text-marker {
+  .wire-text-ember {
     color: transparent;
-    -webkit-text-stroke: 1.6px hsl(var(--marker));
-    text-stroke: 1.6px hsl(var(--marker));
+    -webkit-text-stroke: 1.5px hsl(var(--ember));
   }
 
-  .text-marker { color: hsl(var(--marker)); }
-
-  /* Legacy hook kept so nothing dangles — no gradient in this system */
-  .text-gradient { color: hsl(var(--ink)); }
-  .text-glow { text-shadow: none; }
-
-  /* Handwritten marker annotation */
-  .hand {
-    @apply font-hand;
-    color: hsl(var(--marker));
-    font-size: clamp(1.05rem, 0.9rem + 0.5vw, 1.45rem);
-    line-height: 1;
-    transform: rotate(-3deg);
-    display: inline-block;
+  /* Molten gradient word — like type lit by the portal */
+  .ember-text {
+    background: linear-gradient(180deg, hsl(38 100% 62%) 0%, hsl(var(--ember)) 45%, hsl(var(--ember-deep)) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
   }
-  .hand-ink { color: hsl(var(--graphite)); }
 
-  /* ── Drafting surfaces ──────────────────────── */
-  /* Dot grid — the drafting-table ground. Dense on purpose. */
-  .paper-grid {
-    background-image: radial-gradient(hsl(var(--grid-line)) 1px, transparent 1px);
-    background-size: 26px 26px;
-    background-position: -13px -13px;
-  }
-  .paper-grid-fine {
-    background-image:
-      linear-gradient(hsl(var(--grid-line) / 0.5) 1px, transparent 1px),
-      linear-gradient(90deg, hsl(var(--grid-line) / 0.5) 1px, transparent 1px);
-    background-size: 26px 26px;
-  }
+  /* Legacy hooks kept so nothing dangles */
+  .text-gradient { color: hsl(var(--bone)); }
+  .text-glow { text-shadow: 0 0 24px hsl(var(--ember) / 0.45); }
 
   /* ── Buttons ────────────────────────────────── */
-  .btn-register {
-    @apply relative inline-flex items-center justify-center gap-2 font-mono text-xs font-bold uppercase tracking-[0.18em] transition-all duration-200;
-    color: hsl(240 8% 6%);
-    background: hsl(var(--marker));
-    border: 1.5px solid hsl(var(--marker));
-    box-shadow: 4px 4px 0 0 hsl(var(--ink) / 0.85);
+  /* The portal CTA — molten door in miniature */
+  .btn-portal {
+    @apply relative inline-flex items-center justify-center gap-2 font-mono text-xs font-bold uppercase tracking-[0.2em] transition-all duration-300;
+    color: hsl(42 60% 94%);
+    background:
+      radial-gradient(120% 180% at 50% 120%, hsl(var(--ember-deep)) 0%, hsl(var(--ember)) 55%, hsl(32 100% 58%) 100%);
+    border: 1px solid hsl(32 100% 62% / 0.9);
+    box-shadow:
+      0 0 18px hsl(var(--ember) / 0.45),
+      0 0 60px hsl(var(--ember) / 0.2),
+      inset 0 0 14px hsl(45 100% 70% / 0.35);
+    text-shadow: 0 1px 6px hsl(14 90% 20% / 0.8);
   }
-  .btn-register:hover {
-    transform: translate(-1px, -1px);
-    box-shadow: 6px 6px 0 0 hsl(var(--ink));
+  .btn-portal:hover {
+    transform: translateY(-1px);
+    box-shadow:
+      0 0 26px hsl(var(--ember) / 0.65),
+      0 0 90px hsl(var(--ember) / 0.32),
+      inset 0 0 18px hsl(45 100% 72% / 0.5);
   }
-  .btn-register:active {
-    transform: translate(2px, 2px);
-    box-shadow: 1px 1px 0 0 hsl(var(--ink) / 0.7);
-  }
+  .btn-portal:active { transform: translateY(1px); }
 
   .btn-ghost {
-    @apply relative inline-flex items-center justify-center gap-2 font-mono text-xs uppercase tracking-[0.18em] text-foreground transition-all duration-200;
-    border: 1.5px solid hsl(var(--ink) / 0.5);
-    background: transparent;
-    box-shadow: 3px 3px 0 0 hsl(var(--ink) / 0.25);
+    @apply relative inline-flex items-center justify-center gap-2 font-mono text-xs uppercase tracking-[0.2em] text-foreground transition-all duration-300;
+    border: 1px solid hsl(var(--bone) / 0.35);
+    background: hsl(var(--bone) / 0.03);
   }
   .btn-ghost:hover {
-    border-color: hsl(var(--marker));
-    color: hsl(var(--marker));
-    box-shadow: 4px 4px 0 0 hsl(var(--marker) / 0.4);
-    transform: translate(-1px, -1px);
+    border-color: hsl(var(--ember));
+    color: hsl(var(--ember));
+    box-shadow: 0 0 20px hsl(var(--ember) / 0.25);
+  }
+
+  /* Back-compat alias — a few older components use .btn-register */
+  .btn-register { @apply btn-portal; }
+
+  /* ── Surfaces ───────────────────────────────── */
+  .concrete-panel {
+    background: linear-gradient(160deg, hsl(220 7% 8%) 0%, hsl(220 8% 5%) 100%);
+    border: 1px solid hsl(var(--line));
+  }
+
+  /* Thin electric floor line — section divider */
+  .neon-rule {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, hsl(var(--neon) / 0.9) 20%, hsl(var(--neon) / 0.9) 80%, transparent);
+    box-shadow: 0 0 12px hsl(var(--neon) / 0.55);
+  }
+  .ember-rule {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, hsl(var(--ember) / 0.9) 20%, hsl(var(--ember) / 0.9) 80%, transparent);
+    box-shadow: 0 0 12px hsl(var(--ember) / 0.5);
   }
 
   /* ── Textures ───────────────────────────────── */
   .grain-overlay {
     position: fixed; inset: 0;
     pointer-events: none; z-index: 60;
-    opacity: 0.06; mix-blend-mode: overlay;
+    opacity: 0.05; mix-blend-mode: overlay;
     background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
     background-size: 220px 220px;
   }
 
-  /* Hand-drawn edge quality for SVG/box graphics */
-  .sketch { filter: url(#roughen); }
-  .sketch-strong { filter: url(#roughen-strong); }
+  /* Cinematic letterbox vignette for full-bleed scenes */
+  .scene-vignette {
+    background:
+      radial-gradient(120% 90% at 50% 40%, transparent 55%, hsl(220 8% 2% / 0.9) 100%),
+      linear-gradient(180deg, hsl(220 8% 2% / 0.75) 0%, transparent 14%, transparent 82%, hsl(220 8% 2% / 0.85) 100%);
+  }
+}
+
+/* ── Hero gate CTA (lives inside the 3D canvas via drei <Html>) ──── */
+.hero-cta {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transition: opacity 0.5s ease;
+}
+.hero-cta[data-entering] { opacity: 0; pointer-events: none; }
+
+.hero-cta button {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.1em;
+  padding: 1.1rem 1.6rem;
+  font-family: "Anton", system-ui, sans-serif;
+  font-size: clamp(0.9rem, 1.5vw, 1.35rem);
+  line-height: 1.04;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: hsl(42 60% 95%);
+  background: transparent;
+  border: 1px solid hsl(42 60% 92% / 0.55);
+  cursor: pointer;
+  text-shadow: 0 2px 14px hsl(14 90% 18% / 0.9);
+  transition: background 0.3s ease, border-color 0.3s ease, transform 0.3s ease;
+  animation: ember-flicker 3.4s infinite;
+}
+.hero-cta button:hover,
+.hero-cta button:focus-visible {
+  background: hsl(42 60% 95% / 0.12);
+  border-color: hsl(42 60% 95%);
+  transform: scale(1.04);
+  outline: none;
+}
+
+/* pulsing guidance rings around the door */
+.hero-cta-ring {
+  position: absolute;
+  inset: -14px -22px;
+  border: 1px solid hsl(32 100% 68% / 0.9);
+  border-radius: 2px;
+  pointer-events: none;
+  animation: pulse-ring 2.4s cubic-bezier(0.2, 0.6, 0.4, 1) infinite;
+}
+.hero-cta-ring--late { animation-delay: 1.2s; }
+
+.hero-cta-hint {
+  position: absolute;
+  top: calc(100% + 2.4rem);
+  white-space: nowrap;
+  font-family: "Space Mono", ui-monospace, monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.28em;
+  color: hsl(42 38% 86% / 0.65);
+  opacity: 0;
+  animation: hint-in 0.8s ease 2.4s forwards;
+}
+.hero-cta-hint[data-nudged] {
+  color: hsl(24 100% 60%);
+  text-shadow: 0 0 16px hsl(24 100% 54% / 0.7);
+  animation: hint-in 0.2s ease forwards;
 }
 
 @layer utilities {
-  .rotate-tiny { transform: rotate(-1.4deg); }
-  .rotate-tiny-r { transform: rotate(1.4deg); }
+  .rotate-tiny { transform: rotate(-1deg); }
+  .rotate-tiny-r { transform: rotate(1deg); }
 }
 
 /* ── Keyframes ─────────────────────────────────── */
-@keyframes draw-in {
-  from { stroke-dashoffset: var(--dash, 1200); }
-  to   { stroke-dashoffset: 0; }
-}
 @keyframes blink { 0%, 60% { opacity: 1; } 61%, 100% { opacity: 0.15; } }
+
+@keyframes pulse-ring {
+  0%   { transform: scale(0.9); opacity: 0.8; }
+  70%  { transform: scale(1.5); opacity: 0; }
+  100% { transform: scale(1.5); opacity: 0; }
+}
+
+@keyframes ember-flicker {
+  0%, 100% { opacity: 1; }
+  42% { opacity: 0.86; }
+  44% { opacity: 1; }
+  78% { opacity: 0.92; }
+}
+
+@keyframes float-y {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
 @keyframes scroll-cue {
   0%, 100% { transform: translateY(0); opacity: 0.4; }
   50% { transform: translateY(6px); opacity: 1; }
 }
-@keyframes marker-pop {
-  0% { opacity: 0; transform: rotate(-3deg) scale(0.9); }
-  100% { opacity: 1; transform: rotate(-3deg) scale(1); }
+
+@keyframes hint-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes loader-sweep {
+  0%   { transform: translateX(-120%); }
+  100% { transform: translateX(420%); }
+}
+
+@keyframes gate-shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-4px); }
+  40% { transform: translateX(4px); }
+  60% { transform: translateX(-3px); }
+  80% { transform: translateX(3px); }
 }
 
 ::-webkit-scrollbar { width: 8px; }
-::-webkit-scrollbar-track { background: hsl(240 8% 5%); }
-::-webkit-scrollbar-thumb { background: hsl(240 6% 22%); }
-::-webkit-scrollbar-thumb:hover { background: hsl(28 88% 55%); }
+::-webkit-scrollbar-track { background: hsl(220 8% 4%); }
+::-webkit-scrollbar-thumb { background: hsl(220 6% 20%); }
+::-webkit-scrollbar-thumb:hover { background: hsl(24 100% 54%); }
 
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
