@@ -1,6 +1,6 @@
 import { Suspense, lazy, useCallback, useEffect, useRef, useState } from "react";
 import { useReducedMotion } from "framer-motion";
-import { CLUB, EVENT_NAME } from "@/config/site";
+import { CLUB, KICKER } from "@/config/site";
 import type { GatePhase } from "./GalleryScene";
 
 // The 3D chunk (three.js + postprocessing) is heavy — load it split from the shell.
@@ -44,7 +44,7 @@ function GateLoader() {
   return (
     <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-4 bg-background">
       <span className="font-mono text-[11px] uppercase tracking-[0.3em] text-muted-foreground">
-        MDC_2026 — opening the gallery
+        MDC_2026 · opening the gallery
       </span>
       <span className="block h-px w-40 overflow-hidden bg-border">
         <span className="block h-full w-1/3 animate-[loader-sweep_1.1s_ease-in-out_infinite] bg-[hsl(var(--ember))]" />
@@ -120,7 +120,7 @@ export default function HeroGate({ onEntered }: HeroGateProps) {
         onClick={onEntered}
         className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[80] focus:bg-[hsl(var(--ember))] focus:px-4 focus:py-2 focus:font-mono focus:text-xs focus:uppercase focus:tracking-widest focus:text-black"
       >
-        Skip intro — enter the site
+        Skip intro and enter the site
       </button>
 
       {/* 3D hall */}
@@ -146,26 +146,21 @@ export default function HeroGate({ onEntered }: HeroGateProps) {
         <div ref={typeRef} className="absolute left-[4vw] top-[9vh] will-change-transform md:left-[4.5vw] md:top-[10vh]">
           <p className="mono-label mb-4 flex items-center gap-3 !text-foreground/70">
             <span className="inline-block h-1.5 w-1.5 animate-[blink_1.6s_steps(1)_infinite] rounded-full bg-[hsl(var(--ember))]" />
-            {EVENT_NAME} · {CLUB}
+            {KICKER} · {CLUB}
           </p>
           <h1 className="display-giant text-[clamp(2.9rem,9.2vw,11.5rem)] leading-[0.88]">
-            3D Designathon
+            <span className="block">Mackenzie</span>
+            <span className="block">Design Cup</span>
           </h1>
           <p className="display-giant mt-3 text-[clamp(1rem,2.5vw,3.1rem)] tracking-[0.05em] text-foreground/90">
             Build the Impossible
           </p>
         </div>
 
-        {/* corner metadata — film-slate framing */}
-        <div className="absolute bottom-6 left-[4vw] hidden font-mono text-[10px] uppercase leading-relaxed tracking-[0.22em] text-muted-foreground sm:block">
-          <div>George Brown College — Toronto</div>
-          <div>TDSB high schoolers · free entry</div>
-        </div>
-        <div className="absolute bottom-6 right-[4vw] hidden text-right font-mono text-[10px] uppercase leading-relaxed tracking-[0.22em] text-muted-foreground sm:block">
-          <div>Cash prizes · food · swag</div>
-          <div>MDC_2026 · one day</div>
-        </div>
-        <div className="absolute right-[4vw] top-[9vh] hidden text-right font-mono text-[10px] uppercase leading-relaxed tracking-[0.22em] text-muted-foreground md:block">
+        <div
+          className="absolute right-[4vw] top-[9vh] hidden text-right font-mono text-[10px] uppercase leading-relaxed tracking-[0.22em] text-muted-foreground md:block"
+          aria-hidden="true"
+        >
           <div>Est. 2026</div>
           <div className="text-[hsl(var(--ember))]">⦿ gate locked</div>
         </div>

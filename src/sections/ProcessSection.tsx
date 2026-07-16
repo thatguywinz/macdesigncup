@@ -1,10 +1,10 @@
 import { motion, useReducedMotion } from "framer-motion";
 
-// The whole day, compressed to four moves.
+// The sprint, compressed to four moves. Rendered inside "The Day" section.
 const STEPS = [
   { n: "01", title: "Idea", desc: "A theme drops. You riff." },
   { n: "02", title: "Sketch", desc: "Block it out, rough and fast." },
-  { n: "03", title: "Model", desc: "Build it in 3D — any tool." },
+  { n: "03", title: "Model", desc: "Build it in 3D, any tool." },
   { n: "04", title: "Ship", desc: "Render, present, win." },
 ];
 
@@ -14,8 +14,8 @@ export default function ProcessSection() {
   const reduce = useReducedMotion();
 
   return (
-    <section className="relative z-10 border-y border-line">
-      <div className="mx-auto grid max-w-[1500px] grid-cols-2 lg:grid-cols-4">
+    <div className="relative border border-line">
+      <div className="grid grid-cols-2 lg:grid-cols-4">
         {STEPS.map((s, i) => (
           <motion.div
             key={s.n}
@@ -43,6 +43,6 @@ export default function ProcessSection() {
 
       {/* electric floor line along the strip's bottom edge */}
       <div className="neon-rule absolute inset-x-0 bottom-0 opacity-50" aria-hidden="true" />
-    </section>
+    </div>
   );
 }

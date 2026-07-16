@@ -1,4 +1,4 @@
-import { EVENT_NAME, MODEL_NO, TAGLINE, SOCIALS, FOOTER_LINKS, CLUB } from "@/config/site";
+import { EVENT_NAME, MODEL_NO, TAGLINE, SOCIALS, CLUB } from "@/config/site";
 
 export default function SiteFooter() {
   return (
@@ -6,7 +6,8 @@ export default function SiteFooter() {
       {/* molten seam where the hall ends */}
       <div className="ember-rule opacity-70" aria-hidden="true" />
 
-      <div className="mx-auto max-w-[1600px] px-5 py-12 md:px-8 md:py-14">
+      {/* extra mobile bottom padding clears the fixed register bar */}
+      <div className="mx-auto max-w-[1600px] px-5 pb-32 pt-12 md:px-8 md:py-14">
         {/* titleblock row */}
         <div className="flex flex-col gap-10 md:flex-row md:items-start md:justify-between">
           <div>
@@ -17,7 +18,7 @@ export default function SiteFooter() {
               </span>
             </div>
             <p className="mt-4 max-w-xs font-mono text-[11px] leading-relaxed tracking-wide text-concrete">
-              A one-day 3D design hackathon for TDSB high schoolers across the GTA, by the {CLUB}. Hosted at George Brown College.
+              A one-day 3D designathon for TDSB high school students, by the {CLUB}. Hosted at George Brown College, Toronto.
             </p>
           </div>
 
@@ -26,21 +27,6 @@ export default function SiteFooter() {
               <div className="mono-label mb-4 !text-ember/80">Connect</div>
               <ul className="space-y-2.5">
                 {SOCIALS.map((s) => (
-                  <li key={s.label}>
-                    <a
-                      href={s.href}
-                      className="font-mono text-[11px] uppercase tracking-[0.16em] text-foreground/70 transition-colors hover:text-ember"
-                    >
-                      {s.label}
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <div>
-              <div className="mono-label mb-4 !text-ember/80">Legal</div>
-              <ul className="space-y-2.5">
-                {FOOTER_LINKS.map((s) => (
                   <li key={s.label}>
                     <a
                       href={s.href}

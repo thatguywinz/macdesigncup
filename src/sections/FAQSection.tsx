@@ -1,14 +1,32 @@
 import { motion, useReducedMotion } from "framer-motion";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import RegisterButton from "@/components/RegisterButton";
+import { CONTACT_EMAIL } from "@/config/site";
 
 const FAQS = [
-  { q: "Who can enter?", a: "Any TDSB high schooler across the Greater Toronto Area. Beginners are welcome — no experience needed." },
-  { q: "What does it cost?", a: "Nothing. It's free to enter, and food and swag are on us." },
-  { q: "Do I need to know 3D software?", a: "Nope. Use whatever you like — Blender, Fusion 360, Tinkercad, or any tool of your choice." },
-  { q: "Where does it happen?", a: "At George Brown College's downtown Toronto campus, alongside our sponsors." },
-  { q: "Solo or team?", a: "Either works. Team details are announced closer to the day." },
-  { q: "What will I build?", a: "You get a theme on the day and design a 3D response to it, start to finish." },
+  {
+    q: "Who can enter?",
+    a: "Any TDSB high school student, any grade. If you're enrolled at a TDSB school, you're eligible; you don't need to be in a design club or have competed anywhere before.",
+  },
+  {
+    q: "What does it cost?",
+    a: "We're finalizing this. Entry will either be free or a small fee that goes straight into food for the day. Everyone who registers hears the final answer first.",
+  },
+  {
+    q: "Do I need to know 3D software?",
+    a: "You should have some 3D design knowledge: enough to open a tool and model a simple object. Beyond that, you're free to use any software you want. Blender, Fusion 360, Onshape, Tinkercad, Maya: if you can build in it, you can compete in it.",
+  },
+  {
+    q: "Where does it happen?",
+    a: "At George Brown College in Toronto. The exact campus, building and directions are emailed to every registered builder before the day, so you'll know exactly where to go.",
+  },
+  {
+    q: "Solo or team?",
+    a: "Solo entry is confirmed. We're still finalizing whether teams run this year; register and you'll get the team rules by email as soon as they're locked in.",
+  },
+  {
+    q: "What will I build?",
+    a: "You get a theme on the morning of the event and design a 3D response to it, start to finish: concept, blockout, model, final render. What it becomes is entirely your call: a product, a space, a creature, a machine.",
+  },
 ];
 
 const EASE = [0.22, 1, 0.36, 1];
@@ -27,17 +45,30 @@ export default function FAQSection() {
           transition={{ duration: 0.8, ease: EASE }}
         >
           <div className="mb-6 flex items-baseline gap-4">
-            <span className="mono-label !text-foreground/70">[ 03 — FAQ ]</span>
+            <span className="mono-label !text-foreground/70">[ 04 · FAQ ]</span>
           </div>
           <h2 className="display-scene">
-            <span className="block">Questions,</span>
-            <span className="wire-text block">answered.</span>
+            <span className="block">Questions?</span>
+            <span className="wire-text block">Answered.</span>
           </h2>
           <p className="mt-6 max-w-xs font-body text-sm font-light leading-relaxed text-concrete">
-            Everything a first-timer needs to know — straight answers, no fine print.
+            Everything a first-timer needs to know. Straight answers, no fine print.
           </p>
-          <div className="mt-9">
-            <RegisterButton className="px-7 py-3.5">Register</RegisterButton>
+
+          {/* direct line for anything the accordion doesn't cover */}
+          <div className="concrete-panel mt-9 max-w-xs p-6">
+            <p className="font-mono text-[10px] uppercase tracking-[0.3em] text-ember/90">
+              More questions?
+            </p>
+            <p className="mt-3 font-body text-sm font-light leading-relaxed text-concrete">
+              Ask us directly. We read everything and answer fast.
+            </p>
+            <a
+              href={`mailto:${CONTACT_EMAIL}?subject=Mac%20Design%20Cup%20question`}
+              className="btn-ghost mt-5 px-6 py-3"
+            >
+              Ask here ↗
+            </a>
           </div>
         </motion.div>
 

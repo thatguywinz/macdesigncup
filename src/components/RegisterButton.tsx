@@ -9,9 +9,9 @@ interface RegisterButtonProps {
 }
 
 /**
- * The single, working primary CTA. Resolves to REGISTRATION_URL (an in-app
- * placeholder route today; swap for an external form later). Renders a real
- * anchor/link so it always navigates.
+ * The single, working primary CTA. Resolves to REGISTRATION_URL — the live
+ * Tally registration form, opened in a new tab. The internal-route branch
+ * stays only in case registration ever moves back in-app.
  */
 export default function RegisterButton({
   children = "Register",

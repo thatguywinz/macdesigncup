@@ -27,25 +27,27 @@ export default function CTASection() {
         transition={{ duration: 0.9, ease: EASE }}
         className="relative mx-auto flex max-w-[1000px] flex-col items-center text-center"
       >
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3.5 border border-ember/50 bg-background/60 px-5 py-3 shadow-[0_0_28px_hsl(24_100%_54%/0.15)]">
           <span
-            className="h-1.5 w-1.5 rounded-full bg-ember shadow-[0_0_10px_hsl(24_100%_54%/0.9)] animate-[blink_1.8s_ease-in-out_infinite]"
+            className="h-2 w-2 rounded-full bg-ember shadow-[0_0_12px_hsl(24_100%_54%/0.9)] animate-[blink_1.8s_ease-in-out_infinite]"
             aria-hidden="true"
           />
-          <span className="mono-label !text-foreground/70">Registration open</span>
+          <span className="font-mono text-xs font-bold uppercase tracking-[0.3em] text-ember md:text-sm">
+            Registration open · Limited spots
+          </span>
         </div>
 
-        <h2 className="display-hero mt-8">
+        <h2 className="display-hero mt-10">
           <span className="block">Build the</span>
           <span className="ember-text block">Impossible.</span>
         </h2>
 
         <div className="mt-12">
-          <RegisterButton className="px-10 py-5 text-sm">Enter the challenge ↗</RegisterButton>
+          <RegisterButton className="px-10 py-5 text-sm">Register now ↗</RegisterButton>
         </div>
 
         <p className="mt-8 font-mono text-[10px] uppercase tracking-[0.3em] text-concrete">
-          Free entry · Limited spots · {MODEL_NO}
+          TDSB high school students · George Brown College, Toronto · {MODEL_NO}
         </p>
       </motion.div>
     </section>

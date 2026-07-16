@@ -1,9 +1,9 @@
 import { Link } from "react-router-dom";
-import { EVENT_NAME, MODEL_NO, TAGLINE } from "@/config/site";
+import { EVENT_NAME, MODEL_NO, REGISTRATION_EMBED_URL, REGISTRATION_URL, TAGLINE } from "@/config/site";
 
 /**
- * Placeholder registration destination so every CTA resolves to a real page.
- * Swap REGISTRATION_URL in config/site.ts for an external form when ready.
+ * Registration page — embeds the live Tally form, with a direct link as the
+ * fallback for anyone whose browser blocks the embed.
  */
 export default function Register() {
   return (
@@ -14,7 +14,7 @@ export default function Register() {
         aria-hidden="true"
       />
 
-      <div className="relative z-10 mx-auto max-w-xl">
+      <div className="relative z-10 mx-auto max-w-2xl">
         <Link
           to="/"
           className="font-mono text-[11px] uppercase tracking-[0.22em] text-concrete transition-colors hover:text-ember"
@@ -24,7 +24,7 @@ export default function Register() {
 
         <div className="mt-12 flex items-center gap-3">
           <span className="h-1.5 w-1.5 bg-ember shadow-[0_0_10px_hsl(24_100%_54%/0.8)]" aria-hidden="true" />
-          <span className="mono-label !text-foreground/70">Registration — {MODEL_NO}</span>
+          <span className="mono-label !text-foreground/70">Registration · {MODEL_NO}</span>
         </div>
 
         <h1 className="display-scene mt-6">
@@ -35,38 +35,30 @@ export default function Register() {
         </h1>
 
         <p className="mt-6 font-body text-base font-light leading-relaxed text-concrete">
-          Reserve your spot for {EVENT_NAME}. This is a placeholder form — connect it to your live
-          registration system before launch.
+          Tell us you're in for {EVENT_NAME}. Spots are limited; registered builders get
+          every update first, from the exact address to the team rules.
         </p>
 
-        <form
-          className="mt-12 space-y-6"
-          onSubmit={(e) => {
-            e.preventDefault();
-          }}
-        >
-          {[
-            { id: "name", label: "Full name", type: "text", ph: "Ada Lovelace" },
-            { id: "email", label: "Email", type: "email", ph: "you@school.edu" },
-            { id: "school", label: "School", type: "text", ph: "William Lyon Mackenzie CI" },
-          ].map((f) => (
-            <div key={f.id} className="flex flex-col gap-2.5">
-              <label htmlFor={f.id} className="mono-label !text-foreground/70">
-                {f.label}
-              </label>
-              <input
-                id={f.id}
-                type={f.type}
-                placeholder={f.ph}
-                className="concrete-panel px-4 py-3.5 font-body text-sm text-foreground outline-none transition-colors placeholder:text-concrete/50 focus:border-ember focus:ring-1 focus:ring-ember"
-              />
-            </div>
-          ))}
+        <div className="concrete-panel mt-10 p-2 md:p-3">
+          <iframe
+            src={REGISTRATION_EMBED_URL}
+            title="Mac Design Cup registration form"
+            className="h-[760px] w-full border-0"
+            loading="lazy"
+          />
+        </div>
 
-          <button type="submit" className="btn-portal w-full py-4 text-sm">
-            Submit registration
-          </button>
-        </form>
+        <p className="mt-5 font-body text-sm font-light text-concrete">
+          Form not loading?{" "}
+          <a
+            href={REGISTRATION_URL}
+            target="_blank"
+            rel="noreferrer"
+            className="text-ember underline underline-offset-4 transition-colors hover:text-foreground"
+          >
+            Open it in a new tab ↗
+          </a>
+        </p>
 
         <div className="mt-14 border-t border-line pt-6 font-mono text-[10px] uppercase tracking-[0.3em] text-concrete">
           {MODEL_NO} · {TAGLINE}

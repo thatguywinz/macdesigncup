@@ -1,13 +1,40 @@
 import { motion, useReducedMotion } from "framer-motion";
+import ProcessSection from "@/sections/ProcessSection";
+import { VENUE } from "@/config/site";
 
 // The shape of the day. Exact clock times are announced closer to the event,
-// so we describe the phases rather than invent a schedule.
+// so each phase carries a time-of-day marker rather than an invented schedule.
 const STEPS = [
-  { n: "01", title: "Doors Open", desc: "Check in, meet your team, grab food." },
-  { n: "02", title: "Theme Drop", desc: "The brief is revealed. The clock starts." },
-  { n: "03", title: "Design Sprint", desc: "Build your 3D response, start to finish." },
-  { n: "04", title: "Submissions", desc: "Tools down. Lock in your final build." },
-  { n: "05", title: "Judging & Awards", desc: "Judges review. Winners take the prizes." },
+  {
+    n: "01",
+    time: "Morning",
+    title: "Doors Open",
+    desc: `Check in at ${VENUE}, grab food, claim a desk. The exact address and directions go out to everyone who registers.`,
+  },
+  {
+    n: "02",
+    time: "Late morning",
+    title: "Theme Drop",
+    desc: "The brief is revealed to the whole hall at once. The clock starts.",
+  },
+  {
+    n: "03",
+    time: "Midday",
+    title: "Design Sprint",
+    desc: "The longest block of the day: concept, blockout, model, iterate. Build your 3D response start to finish.",
+  },
+  {
+    n: "04",
+    time: "Late afternoon",
+    title: "Submissions",
+    desc: "Tools down. Lock in your final build and renders for the judges.",
+  },
+  {
+    n: "05",
+    time: "Evening",
+    title: "Judging & Awards",
+    desc: "Judges review every submission. Winners take the awards on the big screen.",
+  },
 ];
 
 const EASE = [0.22, 1, 0.36, 1];
@@ -20,7 +47,7 @@ export default function TimelineSection() {
       <div className="mx-auto max-w-[1200px]">
         {/* header */}
         <div className="mb-6 flex items-baseline gap-4">
-          <span className="mono-label whitespace-nowrap !text-foreground/70">[ 02 — The Day ]</span>
+          <span className="mono-label whitespace-nowrap !text-foreground/70">[ 02 · The Day ]</span>
           <span className="ember-rule flex-1 opacity-40" aria-hidden="true" />
         </div>
         <motion.h2
@@ -28,13 +55,22 @@ export default function TimelineSection() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: "-80px" }}
           transition={{ duration: 0.8, ease: EASE }}
-          className="display-scene mb-16 md:mb-20"
+          className="display-scene mb-14 md:mb-16"
         >
-          <span className="block">One day.</span>
-          <span className="block">
-            Start to <span className="wire-text">finish.</span>
-          </span>
+          <span className="wire-text block">One day.</span>
+          <span className="block">Start to finish.</span>
         </motion.h2>
+
+        {/* the sprint at a glance — four moves */}
+        <motion.div
+          initial={reduce ? false : { opacity: 0, y: 22 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-60px" }}
+          transition={{ duration: 0.8, ease: EASE }}
+          className="mb-16 md:mb-20"
+        >
+          <ProcessSection />
+        </motion.div>
 
         {/* vertical timeline */}
         <ol className="relative">
@@ -65,6 +101,9 @@ export default function TimelineSection() {
                 <h3 className="font-display text-2xl uppercase leading-none tracking-[0.01em] text-foreground md:text-3xl">
                   {s.title}
                 </h3>
+                <span className="font-mono text-[10px] uppercase tracking-[0.26em] text-concrete/80">
+                  {s.time}
+                </span>
               </div>
               <p className="mt-2 max-w-lg font-body text-sm font-light leading-relaxed text-concrete md:text-base">
                 {s.desc}
@@ -76,7 +115,7 @@ export default function TimelineSection() {
         <div className="mt-14 flex items-center gap-3 border-t border-line pt-6">
           <span className="h-1 w-1 bg-ember shadow-[0_0_8px_hsl(24_100%_54%/0.9)]" aria-hidden="true" />
           <span className="font-mono text-[10px] uppercase tracking-[0.28em] text-concrete">
-            Full run-of-day announced closer to the event.
+            Exact clock times land with the full run-of-day, closer to the event.
           </span>
         </div>
       </div>

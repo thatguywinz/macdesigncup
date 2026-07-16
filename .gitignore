@@ -29,3 +29,4 @@ dist-ssr
 /*.png
 .playwright-mcp/
 
+.vercel

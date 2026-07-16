@@ -5,9 +5,9 @@ import SiteNav from "@/components/SiteNav";
 import SiteFooter from "@/components/SiteFooter";
 import MobileRegisterBar from "@/components/MobileRegisterBar";
 import IntroSection from "@/sections/IntroSection";
-import ProcessSection from "@/sections/ProcessSection";
 import ExhibitsSection from "@/sections/ExhibitsSection";
 import TimelineSection from "@/sections/TimelineSection";
+import SponsorsSection from "@/sections/SponsorsSection";
 import FAQSection from "@/sections/FAQSection";
 import CTASection from "@/sections/CTASection";
 
@@ -37,7 +37,14 @@ const Index = () => {
   // The gate owns the viewport: no scrolling until the visitor steps through.
   useEffect(() => {
     document.body.style.overflow = entered ? "" : "hidden";
-    if (entered) window.scrollTo(0, 0);
+    if (entered) {
+      // Honor shared deep links like /#faq once the hall is open.
+      const target = window.location.hash
+        ? document.getElementById(window.location.hash.slice(1))
+        : null;
+      if (target) target.scrollIntoView();
+      else window.scrollTo(0, 0);
+    }
     return () => {
       document.body.style.overflow = "";
     };
@@ -54,9 +61,9 @@ const Index = () => {
       <SiteNav />
       <main id="main" className="relative z-10">
         <IntroSection />
-        <ProcessSection />
         <ExhibitsSection />
         <TimelineSection />
+        <SponsorsSection />
         <FAQSection />
         <CTASection />
       </main>

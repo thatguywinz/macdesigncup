@@ -7,7 +7,6 @@ import {
   MeshReflectorMaterial,
   Sparkles,
   SpotLight,
-  useCursor,
 } from "@react-three/drei";
 import { Bloom, EffectComposer, Vignette } from "@react-three/postprocessing";
 import * as THREE from "three";
@@ -122,15 +121,16 @@ interface KnotProps {
   tube?: number;
   seed?: number;
   detail?: number;
+  reduced?: boolean;
 }
 
 /** A floating torus-knot exhibit. Hovering it wakes it up: it spins faster and swells. */
-function Knot({ variant, scale = 1, p = 2, q = 3, tube = 0.16, seed = 0, detail = 170 }: KnotProps) {
+function Knot({ variant, scale = 1, p = 2, q = 3, tube = 0.16, seed = 0, detail = 170, reduced = false }: KnotProps) {
   const mesh = useRef<THREE.Mesh>(null!);
   const [hovered, setHovered] = useState(false);
-  useCursor(hovered);
 
   useFrame((state, dt) => {
+    if (reduced) return;
     const t = state.clock.elapsedTime;
     const m = mesh.current;
     m.rotation.y += dt * (hovered ? 1.6 : 0.3);
@@ -186,23 +186,23 @@ function Pedestal({
   );
 }
 
-function Sculptures() {
+function Sculptures({ reduced }: { reduced: boolean }) {
   return (
     <group>
       <Pedestal x={-3.4} z={1.5} h={1.05}>
-        <Knot variant="wire" p={2} q={3} seed={1} scale={0.85} />
+        <Knot variant="wire" p={2} q={3} seed={1} scale={0.85} reduced={reduced} />
       </Pedestal>
       <Pedestal x={-2.2} z={-0.15} h={1.3}>
-        <Knot variant="clay" p={3} q={4} tube={0.18} seed={2} />
+        <Knot variant="clay" p={3} q={4} tube={0.18} seed={2} reduced={reduced} />
       </Pedestal>
       <Pedestal x={-1.8} z={-2.6} h={1.55}>
-        <Knot variant="glass" p={2} q={5} seed={3} />
+        <Knot variant="glass" p={2} q={5} seed={3} reduced={reduced} />
       </Pedestal>
       <Pedestal x={1.8} z={-2.6} h={1.55}>
-        <Knot variant="chrome" p={2} q={3} seed={4} />
+        <Knot variant="chrome" p={2} q={3} seed={4} reduced={reduced} />
       </Pedestal>
       <Pedestal x={2.2} z={-0.15} h={1.3}>
-        <Knot variant="porcelain" p={5} q={2} tube={0.14} seed={5} />
+        <Knot variant="porcelain" p={5} q={2} tube={0.14} seed={5} reduced={reduced} />
       </Pedestal>
 
       {/* leaning obsidian monolith — the odd one out */}
@@ -220,7 +220,7 @@ function Sculptures() {
           <meshStandardMaterial color="#131418" roughness={0.9} />
         </mesh>
         <group position={[0.32, 1.15, 0]} rotation={[0, -0.2, 0]}>
-          <Knot variant="wire" scale={0.55} p={3} q={5} seed={6} />
+          <Knot variant="wire" scale={0.55} p={3} q={5} seed={6} reduced={reduced} />
         </group>
       </group>
       <group position={[5.4, 0, 1.6]} rotation={[0, -0.5, 0]}>
@@ -238,13 +238,16 @@ function Shard({
   offset,
   size,
   seed,
+  reduced,
 }: {
   offset: [number, number, number];
   size: number;
   seed: number;
+  reduced: boolean;
 }) {
   const ref = useRef<THREE.Mesh>(null!);
   useFrame((state, dt) => {
+    if (reduced) return;
     const t = state.clock.elapsedTime;
     ref.current.rotation.x += dt * (0.15 + (seed % 3) * 0.08);
     ref.current.rotation.z += dt * 0.1;
@@ -276,12 +279,13 @@ function GiantKnot({ reduced }: { reduced: boolean }) {
   }, []);
 
   useFrame((state, dt) => {
+    if (reduced) return;
     const t = state.clock.elapsedTime;
     knot.current.rotation.x += dt * 0.07;
     knot.current.rotation.y += dt * 0.05;
     const g = group.current;
-    const px = reduced ? 0 : state.pointer.x;
-    const py = reduced ? 0 : state.pointer.y;
+    const px = state.pointer.x;
+    const py = state.pointer.y;
     // Moves *with* the cursor more than the room does — reads as closer to camera.
     g.position.x = THREE.MathUtils.damp(g.position.x, 5.35 + px * 0.6, 2.2, dt);
     g.position.y = THREE.MathUtils.damp(
@@ -299,22 +303,22 @@ function GiantKnot({ reduced }: { reduced: boolean }) {
         <meshPhysicalMaterial color="#f1ece2" roughness={0.27} clearcoat={1} clearcoatRoughness={0.12} />
       </mesh>
       {shards.map((s) => (
-        <Shard key={s.seed} {...s} />
+        <Shard key={s.seed} {...s} reduced={reduced} />
       ))}
     </group>
   );
 }
 
 /* ── Portal — the molten door at the end of the hall ───────────────── */
-function Portal({ lite }: { lite: boolean }) {
+function Portal({ lite, reduced }: { lite: boolean; reduced: boolean }) {
   const rim = useRef<THREE.MeshBasicMaterial>(null!);
   const core = useRef<THREE.MeshBasicMaterial>(null!);
   const light = useRef<THREE.PointLight>(null!);
 
   useFrame((state) => {
     const t = state.clock.elapsedTime;
-    // molten flicker — never perfectly steady
-    const f = 1 + Math.sin(t * 7.3) * 0.05 + Math.sin(t * 13.7 + 2) * 0.035;
+    // molten flicker — never perfectly steady (steady when motion is reduced)
+    const f = reduced ? 1 : 1 + Math.sin(t * 7.3) * 0.05 + Math.sin(t * 13.7 + 2) * 0.035;
     rim.current.color.setRGB(4.6 * f, 1.15 * f, 0.16);
     core.current.color.setRGB(1.35 * f, 0.36 * f, 0.07);
     light.current.intensity = (lite ? 22 : 30) * f;
@@ -384,7 +388,7 @@ function EnterDoor({
           <span>Challenge</span>
         </button>
         <p className="hero-cta-hint" data-nudged={flash || undefined}>
-          {flash ? "scroll is locked — this is the only way in" : "click to enter"}
+          {flash ? "scroll is locked · this is the only way in" : "click to enter"}
         </p>
       </div>
     </Html>
@@ -526,14 +530,14 @@ export default function GalleryCanvas({ phase, reduced, lite, nudge, onEnter }: 
       <Floor lite={lite} />
       <NeonPath />
       <NeonPath mirror />
-      <Sculptures />
+      <Sculptures reduced={reduced} />
       <GiantKnot reduced={reduced} />
-      <Portal lite={lite} />
+      <Portal lite={lite} reduced={reduced} />
       <EnterDoor onEnter={onEnter} phase={phase} nudge={nudge} />
 
       {/* drifting dust — cool ambient + warm near the door */}
-      <Sparkles count={lite ? 60 : 140} scale={[16, 7, 14]} position={[0, 3, -1]} size={1.6} speed={0.25} opacity={0.35} color="#9fb8ff" />
-      <Sparkles count={lite ? 30 : 70} scale={[4, 5, 3]} position={[0, 2, -4.6]} size={2.2} speed={0.45} opacity={0.5} color="#ffb37a" />
+      <Sparkles count={lite ? 60 : 140} scale={[16, 7, 14]} position={[0, 3, -1]} size={1.6} speed={reduced ? 0 : 0.25} opacity={0.35} color="#9fb8ff" />
+      <Sparkles count={lite ? 30 : 70} scale={[4, 5, 3]} position={[0, 2, -4.6]} size={2.2} speed={reduced ? 0 : 0.45} opacity={0.5} color="#ffb37a" />
 
       {/* local, network-free studio lighting for the chrome/porcelain/glass */}
       <Environment resolution={256} frames={1}>
