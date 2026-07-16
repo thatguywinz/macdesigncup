@@ -20,10 +20,7 @@ export const REGISTRATION_URL = "https://tally.so/r/VLAX8y";
 export const REGISTRATION_EMBED_URL =
   "https://tally.so/embed/VLAX8y?alignLeft=1&hideTitle=1&transparentBackground=1";
 
-// TODO: macdesigncup.com is not registered yet, so this mailbox does not
-// receive mail. Swap in the club's real monitored address (or register the
-// domain with mail routing) before promoting the contact/sponsor CTAs.
-export const CONTACT_EMAIL = "hello@macdesigncup.com";
+export const CONTACT_EMAIL = "wlmac.3ddesignclub@gmail.com";
 
 export const NAV_LINKS = [
   { label: "The Challenge", href: "#why" },
