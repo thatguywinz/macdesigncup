@@ -189,8 +189,8 @@ function Pedestal({
 function Sculptures({ reduced }: { reduced: boolean }) {
   return (
     <group>
-      <Pedestal x={-3.4} z={1.5} h={1.05}>
-        <Knot variant="wire" p={2} q={3} seed={1} scale={0.85} reduced={reduced} />
+      <Pedestal x={-4.15} z={1.5} h={0.8}>
+        <Knot variant="wire" p={2} q={3} seed={1} scale={0.52} reduced={reduced} />
       </Pedestal>
       <Pedestal x={-2.2} z={-0.15} h={1.3}>
         <Knot variant="clay" p={3} q={4} tube={0.18} seed={2} reduced={reduced} />
