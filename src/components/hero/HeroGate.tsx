@@ -74,7 +74,15 @@ export default function HeroGate({ onEntered }: HeroGateProps) {
     return () => cancelAnimationFrame(id);
   }, []);
 
-  // Any attempt to scroll past the gate flashes the guidance instead.
+  const enter = useCallback(() => {
+    setPhase((p) => {
+      if (p === "entering") return p;
+      return "entering";
+    });
+  }, []);
+
+  // Scrolling (or paging) down walks the visitor through the door; anything
+  // else that tries to move the page just flashes the guidance.
   useEffect(() => {
     if (phase !== "locked") return;
     const bump = () => {
@@ -83,25 +91,34 @@ export default function HeroGate({ onEntered }: HeroGateProps) {
       lastNudge.current = now;
       setNudge((n) => n + 1);
     };
-    const onKey = (e: KeyboardEvent) => {
-      if (["ArrowDown", "ArrowUp", "PageDown", "PageUp", "End", "Home", " "].includes(e.key)) bump();
+    const onWheel = (e: WheelEvent) => {
+      if (e.deltaY > 0) enter();
+      else bump();
     };
-    window.addEventListener("wheel", bump, { passive: true });
-    window.addEventListener("touchmove", bump, { passive: true });
+    let touchY: number | null = null;
+    const onTouchStart = (e: TouchEvent) => {
+      touchY = e.touches[0]?.clientY ?? null;
+    };
+    const onTouchMove = (e: TouchEvent) => {
+      const y = e.touches[0]?.clientY ?? null;
+      if (touchY !== null && y !== null && touchY - y > 24) enter();
+      else bump();
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (["ArrowDown", "PageDown", "End", " "].includes(e.key)) enter();
+      else if (["ArrowUp", "PageUp", "Home"].includes(e.key)) bump();
+    };
+    window.addEventListener("wheel", onWheel, { passive: true });
+    window.addEventListener("touchstart", onTouchStart, { passive: true });
+    window.addEventListener("touchmove", onTouchMove, { passive: true });
     window.addEventListener("keydown", onKey);
     return () => {
-      window.removeEventListener("wheel", bump);
-      window.removeEventListener("touchmove", bump);
+      window.removeEventListener("wheel", onWheel);
+      window.removeEventListener("touchstart", onTouchStart);
+      window.removeEventListener("touchmove", onTouchMove);
       window.removeEventListener("keydown", onKey);
     };
-  }, [phase]);
-
-  const enter = useCallback(() => {
-    setPhase((p) => {
-      if (p === "entering") return p;
-      return "entering";
-    });
-  }, []);
+  }, [phase, enter]);
 
   useEffect(() => {
     if (phase !== "entering") return;

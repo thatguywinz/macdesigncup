@@ -24,6 +24,22 @@ interface GalleryCanvasProps {
 /* Door center in world space — camera, portal and CTA all agree on this. */
 const DOOR = new THREE.Vector3(0, 1.9, -6);
 
+/* Window-level cursor, in the same -1..1 space as r3f's state.pointer.
+   r3f only updates its pointer from events on the canvas, so the DOM overlays
+   (the CTA glued to the door) would freeze the parallax while hovered — the
+   camera "locks" onto the door. Reading the window keeps everything moving. */
+const PTR = { x: 0, y: 0 };
+if (typeof window !== "undefined") {
+  window.addEventListener(
+    "pointermove",
+    (e) => {
+      PTR.x = (e.clientX / window.innerWidth) * 2 - 1;
+      PTR.y = -((e.clientY / window.innerHeight) * 2 - 1);
+    },
+    { passive: true },
+  );
+}
+
 /* ── Camera ──────────────────────────────────────────────────────────
    Locked: breathes on an idle sine drift and leans with the cursor so the
    whole hall wiggles like a handheld dolly shot. Entering: flies at the door. */
@@ -36,8 +52,8 @@ function CameraRig({ phase, reduced, lite }: { phase: GatePhase; reduced: boolea
 
   useFrame((state, dt) => {
     const t = state.clock.elapsedTime;
-    const px = reduced ? 0 : state.pointer.x;
-    const py = reduced ? 0 : state.pointer.y;
+    const px = reduced ? 0 : PTR.x;
+    const py = reduced ? 0 : PTR.y;
 
     if (phase === "entering") {
       pos.set(0, 1.9, -4.4);
@@ -284,8 +300,8 @@ function GiantKnot({ reduced }: { reduced: boolean }) {
     knot.current.rotation.x += dt * 0.07;
     knot.current.rotation.y += dt * 0.05;
     const g = group.current;
-    const px = state.pointer.x;
-    const py = state.pointer.y;
+    const px = PTR.x;
+    const py = PTR.y;
     // Moves *with* the cursor more than the room does — reads as closer to camera.
     g.position.x = THREE.MathUtils.damp(g.position.x, 5.35 + px * 0.6, 2.2, dt);
     g.position.y = THREE.MathUtils.damp(
@@ -388,7 +404,7 @@ function EnterDoor({
           <span>Challenge</span>
         </button>
         <p className="hero-cta-hint" data-nudged={flash || undefined}>
-          {flash ? "scroll is locked · this is the only way in" : "click to enter"}
+          {flash ? "the way in is forward · scroll down or click" : "click or scroll to enter"}
         </p>
       </div>
     </Html>
