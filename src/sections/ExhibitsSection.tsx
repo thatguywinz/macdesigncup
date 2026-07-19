@@ -42,7 +42,9 @@ export default function ExhibitsSection() {
           <span className="block">
             From a <span className="wire-text">blank file</span>
           </span>
-          <span className="block">to something real.</span>
+          <span className="block">
+            to something <span className="wire-text">real.</span>
+          </span>
         </motion.h2>
 
         {/* exhibit plaques */}
