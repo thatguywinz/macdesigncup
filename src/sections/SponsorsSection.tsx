@@ -53,15 +53,15 @@ export default function SponsorsSection() {
               <span className="font-display text-xl uppercase tracking-[0.02em] text-concrete">Reserved</span>
             </div>
           ))}
-          <a
-            href={`mailto:${CONTACT_EMAIL}?subject=Sponsoring%20the%20Mac%20Design%20Cup`}
+          <Link
+            to="/partner"
             className="group flex min-h-[150px] flex-col items-center justify-center gap-3 border border-dashed border-ember/50 bg-background/40 p-6 transition-all duration-300 hover:border-ember hover:shadow-[0_0_36px_hsl(24_100%_54%/0.15)]"
           >
             <span className="font-mono text-[10px] uppercase tracking-[0.3em] text-ember/90">S.04</span>
             <span className="font-display text-xl uppercase tracking-[0.02em] text-foreground transition-colors group-hover:text-ember">
               Your logo here ↗
             </span>
-          </a>
+          </Link>
         </motion.div>
 
         {/* prizes ledger */}
