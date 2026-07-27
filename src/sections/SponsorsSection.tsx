@@ -1,5 +1,6 @@
 import { motion, useReducedMotion } from "framer-motion";
 import { CONTACT_EMAIL } from "@/config/site";
+import { Link } from "react-router-dom";
 
 // The gallery wall reserved for partners. No sponsor is confirmed yet, so the
 // plaques stay honest: reserved slots, not invented logos.
