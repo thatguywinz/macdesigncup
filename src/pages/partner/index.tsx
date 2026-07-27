@@ -34,7 +34,7 @@ export default function PartnerPage() {
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true, margin: "-60px" }}
                   transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
-                  className="display-hero mt-4"
+                  className="display-scene mb-14 md:mb-16"
                 >
                   <span className="block">Empower the Next Generation of</span>
                   <span className="wire-text block">3D Designers & Engineers</span>
