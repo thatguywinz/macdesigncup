@@ -59,7 +59,8 @@ export default function SponsorsSection() {
           >
             <span className="font-mono text-[10px] uppercase tracking-[0.3em] text-ember/90">S.04</span>
             <span className="font-display text-xl uppercase tracking-[0.02em] text-foreground transition-colors group-hover:text-ember">
-              Your logo here ↗
+              Your logo here<br />
+              Become a Partner ↗
             </span>
           </Link>
         </motion.div>
