@@ -13,7 +13,7 @@ export const VENUE = "George Brown College, Toronto";
 
 // TODO: set the real event date (ISO string, e.g. "2026-03-07T09:00:00-05:00").
 // While null, the countdown renders its "date announced soon" state.
-export const EVENT_DATE: string | null = null;
+export const EVENT_DATE: string | null = "2026-11-16T08:00:00-05:00";
 
 // Live registration form (Tally).
 export const REGISTRATION_URL = "https://tally.so/r/VLAX8y";
