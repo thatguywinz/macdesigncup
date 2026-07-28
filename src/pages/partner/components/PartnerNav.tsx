@@ -29,7 +29,7 @@ export default function PartnerNav() {
       >
         <nav className="mx-auto flex max-w-[1600px] items-center justify-between px-5 py-4 md:px-8">
           {/* wordmark - links to main site */}
-          <a href="https://macdesigncup.vercel.app/" className="group flex items-baseline gap-3">
+          <a href="https://macdesigncup.pages.dev/" className="group flex items-baseline gap-3">
             <span className="font-display text-lg uppercase tracking-[0.01em] text-foreground transition-colors group-hover:text-ember">
               MDC
             </span>

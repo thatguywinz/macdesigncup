@@ -62,7 +62,7 @@ export default function ConfirmedPartnersSection() {
             </div>
           </div>
 
-          {/* On-Site Perks & Hospitality */}
+{/* On-Site Perks & Hospitality */}
           <div className="flex flex-col gap-3">
             <div className="flex items-start gap-4">
               <div className="flex-shrink-0">
@@ -71,7 +71,7 @@ export default function ConfirmedPartnersSection() {
                 </div>
               </div>
               <div>
-                <h3 className="font-display text-lg3 className="font-display text-lg uppercase tracking-[0.01em] text-foreground">On-Site Perks & Hospitality</h3>
+                <h3 className="font-display text-lg uppercase tracking-[0.01em] text-foreground">On-Site Perks & Hospitality</h3>
                 <p className="text-concrete">
                   Complimentary lunch and refreshments are provided on-site for all guest speakers, mentors, and judges.
                 </p>
