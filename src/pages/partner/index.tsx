@@ -25,11 +25,7 @@ export default function PartnerPage() {
           <div className="mx-auto w-full max-w-[1300px]">
             <div className="grid gap-12 lg:grid-cols-[1fr_320px] lg:items-center lg:gap-16">
               <div className="space-y-6">
-                {/* Tagline Badge */}
-                <span className="flex items-center gap-2 rounded-md bg-ember/20 px-3 py-1 text-xs font-mono uppercase tracking-[0.3em] text-ember">
-                  MDC 2026 • INDUSTRY PARTNER PORTAL
-                </span>
-                <motion.h1
+                                <motion.h1
                   initial={reduce ? false : { opacity: 0, y: 22 }}
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true, margin: "-60px" }}
