@@ -8,6 +8,7 @@ import SiteFooter from "@/components/SiteFooter";
 import WhyPartnerSection from "@/pages/partner/sections/WhyPartnerSection";
 import WaysToGetInvolvedSection from "@/pages/partner/sections/WaysToGetInvolvedSection";
 import EventScheduleSection from "@/pages/partner/sections/EventScheduleSection";
+import ConfirmedPartnersSection from "@/pages/partner/sections/ConfirmedPartnersSection";
 import LogisticsComplianceSection from "@/pages/partner/sections/LogisticsComplianceSection";
 import RegistrationCTASection from "@/pages/partner/sections/RegistrationCTASection";
 import Countdown from "@/components/Countdown";
@@ -107,6 +108,9 @@ export default function PartnerPage() {
 
         {/* Event Schedule */}
         <EventScheduleSection />
+
+        {/* Confirmed Partners */}
+        <ConfirmedPartnersSection />
 
         {/* Logistics & Compliance */}
         <LogisticsComplianceSection />
