@@ -316,13 +316,14 @@ function Shard({
   );
 }
 
-/* Rest pose for the big knot. It hangs over the near-right monolith, and its
-   scale is doing the work of telling you how deep the hall is — oversized it
-   stops reading as a knot at all and just crops the corner off, so keep it
-   near enough in size to the pillar it sits above to stay legible. Scale rides
-   the whole group so the debris field shrinks with it. */
-const GIANT_REST: [number, number, number] = [5.05, 3.1, -1.9];
-const GIANT_SCALE = 0.5;
+/* Rest pose for the big knot. x is picked so it projects onto the same screen
+   column as the leaning monolith below it — the two read as one stack, the
+   pillar standing in for the plinth it never gets. Its scale is doing the work
+   of telling you how deep the hall is: oversized it stops reading as a knot at
+   all and just crops the corner off. Scale rides the whole group so the debris
+   field shrinks with it. */
+const GIANT_REST: [number, number, number] = [5.42, 3.1, -1.9];
+const GIANT_SCALE = 0.42;
 
 function GiantKnot({ reduced }: { reduced: boolean }) {
   const group = useRef<THREE.Group>(null!);
