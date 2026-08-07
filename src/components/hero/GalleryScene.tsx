@@ -40,20 +40,57 @@ if (typeof window !== "undefined") {
   );
 }
 
+/* ── Framing ─────────────────────────────────────────────────────────
+   The hall is composed horizontally — portal dead centre, sculpture rows
+   flanking it — but a perspective camera's `fov` is *vertical*, so the
+   window's aspect ratio silently decides how much of that row you see.
+   Left alone, 16:9 drags the wall dressing into the bottom corners while
+   4:3 pushes the front pedestals out of frame entirely. So pin the
+   horizontal field of view instead and let the vertical one follow,
+   dollying back only once the fov would have to open wider than is
+   comfortable. Every landscape window then gets the same shot. */
+const DESIGN_FOV = 40;
+const DESIGN_ASPECT = 16 / 9;
+/** tan of the half-horizontal-fov held at every landscape aspect */
+const TAN_H = Math.tan(THREE.MathUtils.degToRad(DESIGN_FOV / 2)) * DESIGN_ASPECT;
+const SUBJECT_Z = 1.4; // depth of the front pedestal row
+const HALF_W = 4.66; // half-extent held across that row — matches the 16:9 shot
+
+function framing(aspect: number) {
+  // Portrait frames the portal, not the row: the hall has to read as a corridor.
+  if (aspect < 1) return { fov: DESIGN_FOV, z: 10.4, lookY: 2.5 };
+  const fov = THREE.MathUtils.clamp(
+    THREE.MathUtils.radToDeg(2 * Math.atan(TAN_H / aspect)),
+    30,
+    44,
+  );
+  const tanH = Math.tan(THREE.MathUtils.degToRad(fov / 2)) * aspect;
+  return {
+    fov,
+    // Where the fov clamp bites (very narrow or very wide), the dolly makes up the rest.
+    z: THREE.MathUtils.clamp(SUBJECT_Z + HALF_W / tanH, 7.6, 10.6),
+    lookY: 1.8,
+  };
+}
+
 /* ── Camera ──────────────────────────────────────────────────────────
    Locked: breathes on an idle sine drift and leans with the cursor so the
    whole hall wiggles like a handheld dolly shot. Entering: flies at the door. */
-function CameraRig({ phase, reduced, lite }: { phase: GatePhase; reduced: boolean; lite: boolean }) {
+function CameraRig({ phase, reduced }: { phase: GatePhase; reduced: boolean }) {
   const pos = useMemo(() => new THREE.Vector3(0, 2.05, 8.6), []);
   const look = useMemo(() => new THREE.Vector3(), []);
-  // Portrait viewports sit further back and aim higher so the hall, not the floor, fills the frame.
-  const baseZ = lite ? 10.4 : 8.6;
-  const lookY = lite ? 2.5 : 1.8;
 
   useFrame((state, dt) => {
     const t = state.clock.elapsedTime;
     const px = reduced ? 0 : PTR.x;
     const py = reduced ? 0 : PTR.y;
+
+    const cam = state.camera as THREE.PerspectiveCamera;
+    const { fov, z: baseZ, lookY } = framing(state.size.width / state.size.height);
+    if (cam.fov !== fov) {
+      cam.fov = fov;
+      cam.updateProjectionMatrix();
+    }
 
     if (phase === "entering") {
       pos.set(0, 1.9, -4.4);
@@ -229,15 +266,14 @@ function Sculptures({ reduced }: { reduced: boolean }) {
         </mesh>
       </group>
 
-      {/* sketch plaques leaning on the side walls, like framed blueprints */}
-      <group position={[-5.7, 0, -0.6]} rotation={[0, 0.55, 0]}>
+      {/* Sketch plaques leaning on the side walls, like framed blueprints. Both sit
+          outside the framed row on purpose — they're depth for the floor reflection,
+          not exhibits, so nothing reads as a second sculpture at the frame edge. */}
+      <group position={[-5.9, 0, 1.1]} rotation={[0, 0.6, 0]}>
         <mesh position={[0, 1.05, 0]} rotation={[0, 0, 0.06]}>
           <boxGeometry args={[0.09, 2.1, 1.7]} />
           <meshStandardMaterial color="#131418" roughness={0.9} />
         </mesh>
-        <group position={[0.32, 1.15, 0]} rotation={[0, -0.2, 0]}>
-          <Knot variant="wire" scale={0.55} p={3} q={5} seed={6} reduced={reduced} />
-        </group>
       </group>
       <group position={[5.4, 0, 1.6]} rotation={[0, -0.5, 0]}>
         <mesh position={[0, 0.95, 0]} rotation={[0, 0, -0.07]}>
@@ -506,13 +542,13 @@ export default function GalleryCanvas({ phase, reduced, lite, nudge, onEnter }: 
   return (
     <Canvas
       dpr={lite ? [1, 1.5] : [1, 1.75]}
-      camera={{ position: [0, 2.05, 8.6], fov: 40 }}
+      camera={{ position: [0, 2.05, 8.6], fov: DESIGN_FOV }}
       gl={{ antialias: true, powerPreference: "high-performance" }}
     >
       <color attach="background" args={["#07080a"]} />
       <fog attach="fog" args={["#07080a", 10, 30]} />
 
-      <CameraRig phase={phase} reduced={reduced} lite={lite} />
+      <CameraRig phase={phase} reduced={reduced} />
 
       <ambientLight intensity={0.18} />
       {/* volumetric gallery downlights over the aisle */}
