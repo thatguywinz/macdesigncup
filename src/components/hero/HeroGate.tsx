@@ -174,8 +174,10 @@ export default function HeroGate({ onEntered }: HeroGateProps) {
           </p>
         </div>
 
+        {/* Wide viewports lift the porcelain knot into this corner, and it is the one
+            bright thing in the hall — carry a shadow so the label reads over it too. */}
         <div
-          className="absolute right-[4vw] top-[9vh] hidden text-right font-mono text-[10px] uppercase leading-relaxed tracking-[0.22em] text-muted-foreground md:block"
+          className="absolute right-[4vw] top-[9vh] hidden text-right font-mono text-[10px] uppercase leading-relaxed tracking-[0.22em] text-muted-foreground [text-shadow:0_1px_5px_rgba(0,0,0,0.95)] md:block"
           aria-hidden="true"
         >
           <div>Est. 2026</div>

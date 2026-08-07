@@ -242,8 +242,11 @@ function Pedestal({
 function Sculptures({ reduced }: { reduced: boolean }) {
   return (
     <group>
-      <Pedestal x={-4.15} z={1.5} h={0.8}>
-        <Knot variant="wire" p={2} q={3} seed={1} scale={0.52} reduced={reduced} />
+      {/* Nearest of the left row. Its x/z/height continue the row's rhythm rather
+          than breaking out of it — pushed further out it drops into the bottom
+          corner on its own, reading as an orphan instead of the front exhibit. */}
+      <Pedestal x={-3.3} z={1.2} h={1}>
+        <Knot variant="wire" p={2} q={3} seed={1} scale={0.6} reduced={reduced} />
       </Pedestal>
       <Pedestal x={-2.2} z={-0.15} h={1.3}>
         <Knot variant="clay" p={3} q={4} tube={0.18} seed={2} reduced={reduced} />
@@ -313,6 +316,14 @@ function Shard({
   );
 }
 
+/* Rest pose for the big knot. It hangs over the near-right monolith, and its
+   scale is doing the work of telling you how deep the hall is — oversized it
+   stops reading as a knot at all and just crops the corner off, so keep it
+   near enough in size to the pillar it sits above to stay legible. Scale rides
+   the whole group so the debris field shrinks with it. */
+const GIANT_REST: [number, number, number] = [5.05, 3.1, -1.9];
+const GIANT_SCALE = 0.5;
+
 function GiantKnot({ reduced }: { reduced: boolean }) {
   const group = useRef<THREE.Group>(null!);
   const knot = useRef<THREE.Mesh>(null!);
@@ -339,17 +350,17 @@ function GiantKnot({ reduced }: { reduced: boolean }) {
     const px = PTR.x;
     const py = PTR.y;
     // Moves *with* the cursor more than the room does — reads as closer to camera.
-    g.position.x = THREE.MathUtils.damp(g.position.x, 5.35 + px * 0.6, 2.2, dt);
+    g.position.x = THREE.MathUtils.damp(g.position.x, GIANT_REST[0] + px * 0.6, 2.2, dt);
     g.position.y = THREE.MathUtils.damp(
       g.position.y,
-      3.9 + py * 0.4 + Math.sin(t * 0.35) * 0.12,
+      GIANT_REST[1] + py * 0.4 + Math.sin(t * 0.35) * 0.12,
       2.2,
       dt,
     );
   });
 
   return (
-    <group ref={group} position={[5.35, 3.9, -1.9]}>
+    <group ref={group} position={GIANT_REST} scale={GIANT_SCALE}>
       <mesh ref={knot} scale={1.9} rotation={[0.6, 0.4, 0.2]}>
         <torusKnotGeometry args={[1, 0.42, 260, 40, 2, 3]} />
         <meshPhysicalMaterial color="#f1ece2" roughness={0.27} clearcoat={1} clearcoatRoughness={0.12} />
