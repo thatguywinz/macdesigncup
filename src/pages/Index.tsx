@@ -37,15 +37,25 @@ const Index = () => {
   // The gate owns the viewport: no scrolling until the visitor steps through.
   useEffect(() => {
     document.body.style.overflow = entered ? "" : "hidden";
-    if (entered) {
-      // Honor shared deep links like /#faq once the hall is open.
-      const target = window.location.hash
-        ? document.getElementById(window.location.hash.slice(1))
-        : null;
-      if (target) target.scrollIntoView();
-      else window.scrollTo(0, 0);
+    if (!entered) {
+      return () => {
+        document.body.style.overflow = "";
+      };
     }
+
+    // Honor shared deep links like /#faq once the hall is open. The sections
+    // mount in this same commit, so wait a frame for layout — and jump
+    // instantly, since a smooth scroll here gets cut short by the reveal
+    // animations firing underneath it.
+    const raf = requestAnimationFrame(() => {
+      const id = window.location.hash.slice(1);
+      const target = id ? document.getElementById(decodeURIComponent(id)) : null;
+      if (target) target.scrollIntoView({ block: "start", behavior: "auto" });
+      else window.scrollTo(0, 0);
+    });
+
     return () => {
+      cancelAnimationFrame(raf);
       document.body.style.overflow = "";
     };
   }, [entered]);

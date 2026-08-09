@@ -63,6 +63,12 @@
     background: hsl(var(--background));
   }
 
+  /* Anchor targets clear the fixed nav instead of sliding under it. */
+  section[id],
+  main[id] {
+    scroll-margin-top: 5.5rem;
+  }
+
   body {
     @apply bg-background text-foreground font-body antialiased;
     -webkit-font-smoothing: antialiased;

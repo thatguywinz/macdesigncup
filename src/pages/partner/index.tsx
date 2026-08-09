@@ -22,7 +22,10 @@ export default function PartnerPage() {
       <PartnerNav />
       <main id="main" className="relative z-10">
         {/* Hero Section */}
-        <section className="relative z-10 flex min-h-[92svh] items-center border-b border-line px-5 pb-20 pt-32 md:px-10">
+        <section
+          id="top"
+          className="relative z-10 flex min-h-[92svh] items-center border-b border-line px-5 pb-20 pt-32 md:px-10"
+        >
           <div className="mx-auto w-full max-w-[1300px]">
             <div className="grid gap-12 lg:grid-cols-[1fr_320px] lg:items-center lg:gap-16">
               <div className="space-y-6">

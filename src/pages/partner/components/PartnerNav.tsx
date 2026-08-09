@@ -67,7 +67,7 @@ export default function PartnerNav() {
               </li>
               <li>
                 <a
-                  href="#contact"
+                  href="#register"
                   className="font-mono text-[11px] uppercase tracking-[0.22em] text-concrete transition-colors hover:text-ember"
                 >
                   Contact
