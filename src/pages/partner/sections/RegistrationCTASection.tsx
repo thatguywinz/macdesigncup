@@ -48,9 +48,9 @@ export default function RegistrationCTASection() {
           {...reveal(0.2)}
           className="mt-16 flex items-center gap-4"
         >
-          <NavLink to="/partner/register" className="btn-portal px-8 py-4">
-            Open Partner Registration Form
-          </NavLink>
+          <a href="https://tally.so/r/EkGReL" className="btn-portal px-8 py-4" target="_blank" rel="noopener noreferrer">
+            register your organization
+          </a>
           <button className="btn-ghost px-8 py-4" disabled>
             Download Partner Package (PDF)
           </button>

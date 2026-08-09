@@ -16,9 +16,9 @@ export const VENUE = "George Brown College, Toronto";
 export const EVENT_DATE: string | null = "2026-11-16T08:00:00-05:00";
 
 // Live registration form (Tally).
-export const REGISTRATION_URL = "https://tally.so/r/VLAX8y";
+export const REGISTRATION_URL = "https://tally.so/r/EkGReL";
 export const REGISTRATION_EMBED_URL =
-  "https://tally.so/embed/VLAX8y?alignLeft=1&hideTitle=1&transparentBackground=1";
+  "https://tally.so/embed/EkGReL?alignLeft=1&hideTitle=1&transparentBackground=1";
 
 export const CONTACT_EMAIL = "wlmac.3ddesignclub@gmail.com";
 

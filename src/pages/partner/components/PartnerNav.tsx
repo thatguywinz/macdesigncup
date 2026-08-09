@@ -74,7 +74,7 @@ export default function PartnerNav() {
                 </a>
               </li>
             </ul>
-            <RegisterButton className="px-5 py-2.5 text-[11px]">Register as Partner</RegisterButton>
+            <RegisterButton className="px-5 py-2.5 text-[11px]">register your organization</RegisterButton>
           </div>
         </nav>
       </header>
