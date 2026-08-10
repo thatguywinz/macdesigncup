@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
-import { EVENT_NAME, EVENT_FULL } from "@/config/site";
-import RegisterButton from "@/components/RegisterButton";
+import { EVENT_NAME, PARTNER_REGISTRATION_URL } from "@/config/site";
 
 export default function PartnerNav() {
   const [scrolled, setScrolled] = useState(false);
@@ -74,7 +73,14 @@ export default function PartnerNav() {
                 </a>
               </li>
             </ul>
-            <RegisterButton className="px-5 py-2.5 text-[11px]">register your organization</RegisterButton>
+            <a
+              href={PARTNER_REGISTRATION_URL}
+              className="btn-portal px-5 py-2.5 text-[11px]"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Partner with MDC
+            </a>
           </div>
         </nav>
       </header>

@@ -10,7 +10,7 @@ export default async function handler(
   }
 
   try {
-    const formData = req.body;
+    const formData = req.body as Record<string, unknown>;
 
     const clientEmail = process.env.GOOGLE_CLIENT_EMAIL;
     const privateKey = process.env.GOOGLE_PRIVATE_KEY;
@@ -40,8 +40,11 @@ export default async function handler(
       ...Object.keys(formData)
         .filter(key => !excludedFields.includes(key))
         .map(key => {
-          const val = (formData as any)[key];
-          return Array.isArray(val) ? val.join(', ') : val ?? '';
+          const val = formData[key];
+          if (Array.isArray(val)) return val.map(String).join(', ');
+          if (val == null) return '';
+          if (['string', 'number', 'boolean'].includes(typeof val)) return String(val);
+          return JSON.stringify(val);
         }),
     ];
 
