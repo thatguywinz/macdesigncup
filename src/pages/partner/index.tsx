@@ -36,10 +36,10 @@ export default function PartnerPage() {
                   whileInView={{ y: 0 }}
                   viewport={{ once: true, margin: "-60px" }}
                   transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
-                  className="display-scene mb-14 md:mb-16"
+                  className="display-scene mb-8 md:mb-10"
                 >
-                  <span className="block">Show students where</span>
-                  <span className="wire-text block">design can take them.</span>
+                  <span className="block">Back the</span>
+                  <span className="wire-text block">next build.</span>
                 </motion.h1>
                 <motion.p
                   initial={reduce ? false : { y: 16 }}
@@ -48,7 +48,7 @@ export default function PartnerPage() {
                   transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1], delay: 0.08 }}
                   className="mt-6 max-w-xl font-body text-base font-light leading-relaxed text-concrete md:text-lg"
                 >
-                  Meet 80 TDSB high school designers at George Brown College. Speak, mentor, judge, exhibit, or support the day with tools and prizes.
+                  Join 80 TDSB students at George Brown College as a speaker, mentor, judge, exhibitor, or sponsor.
                 </motion.p>
 <motion.div
                   initial={reduce ? false : { y: 16 }}

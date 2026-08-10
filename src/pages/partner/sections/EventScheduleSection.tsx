@@ -40,7 +40,7 @@ export default function EventScheduleSection() {
           {...reveal(0.1)}
           className="max-w-xl font-body text-base font-light leading-relaxed text-concrete"
         >
-          A working schedule for Monday, November 16. Final arrival details go to every confirmed partner.
+          Working times for November 16. Confirmed partners receive the final run-of-day.
         </motion.p>
 
         {/* table */}

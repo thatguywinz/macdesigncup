@@ -3,12 +3,12 @@ import { motion, useReducedMotion } from "framer-motion";
 const EASE = [0.22, 1, 0.36, 1];
 
 const OPTIONS = [
-  ["Speak", "Share a short talk during the opening or closing ceremony."],
-  ["Mentor", "Walk the design floor, answer questions, and give practical feedback."],
-  ["Judge", "Review final presentations with the event judging panel."],
-  ["Exhibit", "Bring a project, product, or demo to a six-foot table in the main hall."],
-  ["Contribute", "Provide hardware, software access, materials, swag, or student prizes."],
-  ["Sponsor", "Help cover food, venue needs, and the cost of running the day."],
+  ["Speak", "Share a short opening or closing talk."],
+  ["Mentor", "Give practical feedback on the design floor."],
+  ["Judge", "Review final student presentations."],
+  ["Exhibit", "Show a product, project, or live demo."],
+  ["Contribute", "Provide tools, software, materials, swag, or prizes."],
+  ["Sponsor", "Help cover food, venue, and event costs."],
 ] as const;
 
 export default function WaysToGetInvolvedSection() {
@@ -32,11 +32,11 @@ export default function WaysToGetInvolvedSection() {
         <div className="grid gap-12 lg:grid-cols-[0.8fr_1.2fr] lg:gap-20">
           <div>
             <motion.h2 {...reveal()} className="display-scene text-balance">
-              <span className="block">Bring what</span>
-              <span className="wire-text block">you know.</span>
+              <span className="block">Choose your</span>
+              <span className="wire-text block">role.</span>
             </motion.h2>
             <motion.p {...reveal(0.08)} className="mt-8 max-w-md font-body text-base font-light leading-relaxed text-concrete">
-              Your team can join for one session or stay for the day. We will shape the role around your time and strengths.
+              Join one session or the full day. We will work around your team.
             </motion.p>
           </div>
 

@@ -22,7 +22,7 @@ export default function RegistrationCTASection() {
       <div className="mx-auto max-w-[1200px]">
         {/* header */}
         <div className="mb-6 flex items-baseline gap-4">
-          <span className="mono-label whitespace-nowrap !text-foreground/70">[  · ]</span>
+          <span className="mono-label whitespace-nowrap !text-foreground/70">Ready to partner</span>
           <span className="ember-rule flex-1 opacity-40" aria-hidden="true" />
         </div>
 
@@ -31,17 +31,17 @@ export default function RegistrationCTASection() {
           whileInView={{ y: 0 }}
           viewport={{ once: true, margin: "-80px" }}
           transition={{ duration: 0.8, ease: EASE }}
-          className="display-scene mb-14 md:mb-16"
+          className="display-scene mb-8 md:mb-10"
         >
-          <span className="block">Help build a day</span>
-          <span className="wire-text block">students remember.</span>
+          <span className="block">Build the day</span>
+          <span className="wire-text block">with us.</span>
         </motion.h2>
 
         <motion.p
           {...reveal(0.1)}
           className="max-w-xl font-body text-base font-light leading-relaxed text-concrete"
         >
-          Tell us how you would like to take part. We will follow up with the right next steps for your team.
+          Tell us how you would like to help. We will send the next steps.
         </motion.p>
 
         <motion.div

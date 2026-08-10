@@ -6,19 +6,19 @@ const EASE = [0.22, 1, 0.36, 1];
 const DETAILS = [
   {
     title: "Visitor clearance",
-    description: "We need the name, role, email, and phone number of each attending representative before the event.",
+    description: "Send each representative's name, role, email, and phone number.",
   },
   {
     title: "Space and equipment",
-    description: "Tell us if you need a six-foot table, power, AV support, early setup, or space for equipment and banners.",
+    description: "Request a table, power, AV, early setup, or equipment space.",
   },
   {
     title: "Student privacy",
-    description: "Participants are high school students. Direct recruitment and resume collection are not permitted.",
+    description: "Students are minors. Direct recruitment and resume collection are not permitted.",
   },
   {
     title: "Arrival and hospitality",
-    description: "Partner access begins at 7:00 AM. Lunch and refreshments are provided for speakers, mentors, and judges.",
+    description: "Access starts at 7:00 AM. Speakers, mentors, and judges receive lunch and refreshments.",
   },
 ] as const;
 
@@ -43,11 +43,11 @@ export default function LogisticsComplianceSection() {
         <div className="grid gap-12 lg:grid-cols-[0.8fr_1.2fr] lg:gap-20">
           <div>
             <motion.h2 {...reveal()} className="display-scene text-balance">
-              <span className="block">What to know</span>
-              <span className="wire-text block">before the day.</span>
+              <span className="block">Before you</span>
+              <span className="wire-text block">arrive.</span>
             </motion.h2>
             <motion.p {...reveal(0.08)} className="mt-8 max-w-md font-body text-base font-light leading-relaxed text-concrete">
-              After you register, your primary contact will receive the final arrival time, parking, Wi-Fi, AV, and drop-off details.
+              Confirmed partners receive parking, Wi-Fi, AV, arrival, and drop-off details.
             </motion.p>
           </div>
 
