@@ -68,7 +68,7 @@ const Index = () => {
     <div className="relative min-h-screen bg-background">
       <ArrivalFlash />
       <div className="grain-overlay" aria-hidden="true" />
-      <SiteNav />
+      <SiteNav onReplayHero={() => setEntered(false)} />
       <main id="main" className="relative z-10">
         <IntroSection />
         <ExhibitsSection />

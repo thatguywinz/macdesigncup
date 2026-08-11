@@ -1,12 +1,20 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type MouseEvent } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { EVENT_NAME, NAV_LINKS } from "@/config/site";
 import LionMark from "./LionMark";
 import RegisterButton from "./RegisterButton";
 import SectionLink from "./SectionLink";
 
-export default function SiteNav() {
+interface SiteNavProps {
+  /** Send the visitor back out to the 3D gallery entrance. */
+  onReplayHero: () => void;
+}
+
+export default function SiteNav({ onReplayHero }: SiteNavProps) {
   const [scrolled, setScrolled] = useState(false);
+  const location = useLocation();
+  const navigate = useNavigate();
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 40);
@@ -14,6 +22,22 @@ export default function SiteNav() {
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
+
+  // The wordmark is the way back to the gate, even from inside the hall — a
+  // plain link to "/" would do nothing at all once you are already there.
+  const replayHero = (event: MouseEvent<HTMLAnchorElement>) => {
+    // Leave ctrl/cmd/middle-clicks alone so they still open a fresh tab.
+    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) {
+      return;
+    }
+    event.preventDefault();
+    // Drop any "#section" first, or stepping back through the door immediately
+    // jumps to wherever the visitor had been reading.
+    if (location.hash) {
+      navigate({ pathname: "/", search: location.search }, { replace: true });
+    }
+    onReplayHero();
+  };
 
   return (
     <>
@@ -31,7 +55,12 @@ export default function SiteNav() {
       >
         <nav className="mx-auto flex max-w-[1600px] items-center justify-between px-5 py-4 md:px-8">
           {/* wordmark */}
-          <SectionLink href="#top" className="group flex items-center gap-3">
+          <Link
+            to="/"
+            onClick={replayHero}
+            title="Back to the gallery entrance"
+            className="group flex items-center gap-3"
+          >
             <LionMark className="h-8 w-8 shrink-0 md:h-9 md:w-9" />
             <span className="flex items-baseline gap-3">
               <span className="font-display text-lg uppercase tracking-[0.01em] text-foreground transition-colors group-hover:text-ember">
@@ -41,7 +70,7 @@ export default function SiteNav() {
                 {EVENT_NAME}
               </span>
             </span>
-          </SectionLink>
+          </Link>
 
           {/* links */}
           <div className="flex items-center gap-6 md:gap-9">

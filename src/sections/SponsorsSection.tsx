@@ -1,6 +1,6 @@
 import { motion, useReducedMotion } from "framer-motion";
-import { CONTACT_EMAIL } from "@/config/site";
 import { Link } from "react-router-dom";
+import { cn } from "@/lib/utils";
 import {
   InfiniteSlider,
   InfiniteSliderContent,
@@ -14,15 +14,77 @@ import georgebrownLogo from "@/components/sponsor-images/georgebrown.png";
 import shop3dcaLogo from "@/components/sponsor-images/shop3dca.png";
 import wlmacLogo from "@/components/sponsor-images/wlmac.png";
 
+/**
+ * Every logo is a cut-out rendered as a one-colour bone knockout (see
+ * `.sponsor-logo` in index.css), so the wall reads as one set on the dark
+ * concrete instead of five different plates. `size` balances them optically —
+ * a wide wordmark and a square crest can't share a single cap.
+ *
+ * Adding a sponsor: key the white/cream plate out of the file to real
+ * transparency and trim the empty margin first, or it lands here as a lit
+ * rectangle floating on the concrete.
+ */
 const SPONSORS = [
-  { name: "Stratasys", logo: stratasysLogo },
-  { name: "Agile", logo: agileLogo },
-  { name: "George Brown College", logo: georgebrownLogo },
-  { name: "Shop3D.ca", logo: shop3dcaLogo },
-  { name: "WLMac", logo: wlmacLogo },
+  {
+    name: "Stratasys",
+    logo: stratasysLogo,
+    href: "https://www.stratasys.com/",
+    size: "max-h-[72px] max-w-[236px]",
+  },
+  {
+    name: "Agile Manufacturing",
+    logo: agileLogo,
+    href: "https://agile-manufacturing.com/",
+    size: "max-h-[86px] max-w-[190px]",
+  },
+  {
+    name: "George Brown College",
+    logo: georgebrownLogo,
+    href: "https://www.georgebrown.ca/",
+    size: "max-h-[84px] max-w-[200px]",
+  },
+  {
+    // TODO: swap in a higher-resolution Shop3D.ca mark — this file is 245px wide.
+    name: "Shop3D.ca",
+    logo: shop3dcaLogo,
+    href: "https://shop3d.ca/",
+    size: "max-h-[40px] max-w-[228px]",
+  },
+  {
+    name: "William Lyon Mackenzie CI",
+    logo: wlmacLogo,
+    href: "https://wlmac.ca/",
+    size: "max-h-[100px] max-w-[200px]",
+  },
 ];
 
 const EASE = [0.22, 1, 0.36, 1];
+
+function SponsorLogo({
+  sponsor,
+  inert = false,
+}: {
+  sponsor: (typeof SPONSORS)[number];
+  /** Part of the rail's duplicated tail: visible, but not for keyboards or AT. */
+  inert?: boolean;
+}) {
+  return (
+    <a
+      href={sponsor.href}
+      target="_blank"
+      rel="noopener noreferrer"
+      tabIndex={inert ? -1 : undefined}
+      className="sponsor-logo flex min-h-[150px] w-full items-center justify-center p-4 focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-ember"
+    >
+      <img
+        src={sponsor.logo}
+        alt={sponsor.name}
+        className={cn("h-auto w-auto object-contain", sponsor.size)}
+        loading="lazy"
+      />
+    </a>
+  );
+}
 
 export default function SponsorsSection() {
   const reduce = useReducedMotion();
@@ -59,27 +121,43 @@ export default function SponsorsSection() {
 
         {/* Sponsor Grid: Slots 1-3 Infinite Carousel + Slot 4 "Your Logo Here" */}
         <motion.div {...reveal(0.18)} className="mt-12 grid grid-cols-1 lg:grid-cols-4 gap-5 items-stretch">
-          
+
           {/* Infinite Carousel (Spans first 3 columns) */}
-          <div className="lg:col-span-3 border border-dashed border-line bg-background/40 flex items-center overflow-hidden min-h-[150px]">
-            <InfiniteSlider speedOnHover={20} gap={24} className="w-full">
-              <InfiniteSliderContent>
-                {SPONSORS.map((sponsor, index) => (
-                  <InfiniteSliderItem
-                    key={index}
-                    className="basis-full sm:basis-1/2 md:basis-1/3 shrink-0 flex items-center justify-center p-4"
-                  >
-                    <div className="flex min-h-[120px] w-full items-center justify-center bg-background/20 p-4 rounded-[4px]">
-                      <img
-                        src={sponsor.logo}
-                        alt={sponsor.name}
-                        className="max-h-16 max-w-[140px] object-contain"
-                      />
-                    </div>
-                  </InfiniteSliderItem>
+          <div className="lg:col-span-3 border border-dashed border-line bg-background/40 flex items-center overflow-hidden min-h-[200px]">
+            {reduce ? (
+              // A stopped marquee would park three of five logos out of sight,
+              // so reduced motion gets the whole wall laid out instead.
+              <ul className="flex w-full flex-wrap items-center justify-center gap-x-6 gap-y-2 p-4">
+                {SPONSORS.map((sponsor) => (
+                  <li key={sponsor.name} className="flex w-[240px] max-w-full justify-center">
+                    <SponsorLogo sponsor={sponsor} />
+                  </li>
                 ))}
-              </InfiniteSliderContent>
-            </InfiniteSlider>
+              </ul>
+            ) : (
+              /* Holds still on hover or keyboard focus — the logos are links. */
+              <InfiniteSlider pauseOnHover gap={24} className="sponsor-rail w-full">
+                <InfiniteSliderContent>
+                  {/* Five slides is barely more than a screenful, so the loop
+                      opens a hole as it wraps — a second, inert pass keeps the
+                      wall continuous without repeating it to screen readers. */}
+                  {[...SPONSORS, ...SPONSORS].map((sponsor, index) => {
+                    const isEcho = index >= SPONSORS.length;
+                    return (
+                      <InfiniteSliderItem
+                        key={`${sponsor.name}-${index}`}
+                        aria-hidden={isEcho || undefined}
+                        // Phone slides stop just short of full width, so the rail
+                        // reads as a wall in motion instead of one clipped logo.
+                        className="basis-[85%] sm:basis-1/2 md:basis-1/3 shrink-0 flex items-center justify-center p-4"
+                      >
+                        <SponsorLogo sponsor={sponsor} inert={isEcho} />
+                      </InfiniteSliderItem>
+                    );
+                  })}
+                </InfiniteSliderContent>
+              </InfiniteSlider>
+            )}
           </div>
 
           {/* S.04 "Your Logo Here" Stationary Card (4th Column) */}
@@ -96,10 +174,7 @@ export default function SponsorsSection() {
         </motion.div>
 
         {/* Prizes Ledger Footer */}
-        <motion.div
-          {...reveal(0.26)}
-          className="mt-12 flex flex-col gap-6 border-t border-line pt-8 md:flex-row md:items-center md:justify-between"
-        >
+        <motion.div {...reveal(0.26)} className="mt-12 border-t border-line pt-8">
           <dl className="flex flex-wrap gap-x-10 gap-y-4">
             <div>
               <dt className="font-mono text-[10px] uppercase tracking-[0.3em] text-ember/90">Top builds</dt>
@@ -120,12 +195,6 @@ export default function SponsorsSection() {
               </dd>
             </div>
           </dl>
-          <a
-            href={`mailto:${CONTACT_EMAIL}?subject=Sponsoring%20the%20Mac%20Design%20Cup`}
-            className="btn-ghost shrink-0 px-7 py-3.5"
-          >
-            Sponsor the cup ↗
-          </a>
         </motion.div>
       </div>
     </section>

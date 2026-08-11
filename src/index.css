@@ -189,6 +189,28 @@
     box-shadow: 0 0 12px hsl(var(--ember) / 0.5);
   }
 
+  /* ── Sponsor wall ───────────────────────────── */
+  /* The logo files are cut-outs, so every mark is reproduced as a single bone
+     ink on the concrete — brand colours run from invisible (Stratasys black)
+     to barely legible (both navy wordmarks) against a near-black page. */
+  .sponsor-logo img {
+    filter: brightness(0) invert(1) sepia(0.5) saturate(1.35) brightness(0.98);
+    opacity: 0.85;
+    transition: opacity 0.35s ease, transform 0.35s ease;
+  }
+
+  .sponsor-logo:hover img,
+  .sponsor-logo:focus-visible img {
+    opacity: 1;
+    transform: scale(1.045);
+  }
+
+  /* Logos leave the rail by fading, not by being sliced at the border. */
+  .sponsor-rail {
+    -webkit-mask-image: linear-gradient(90deg, transparent, #000 5%, #000 95%, transparent);
+    mask-image: linear-gradient(90deg, transparent, #000 5%, #000 95%, transparent);
+  }
+
   /* ── Textures ───────────────────────────────── */
   .grain-overlay {
     position: fixed; inset: 0;
