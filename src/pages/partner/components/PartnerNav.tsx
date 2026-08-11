@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { EVENT_NAME, PARTNER_REGISTRATION_URL } from "@/config/site";
 import LionMark from "@/components/LionMark";
@@ -36,8 +37,8 @@ export default function PartnerNav() {
         )}
       >
         <nav className="mx-auto flex max-w-[1600px] items-center justify-between px-5 py-4 md:px-8">
-          {/* wordmark returns to the top of this page */}
-          <SectionLink href="#top" className="group flex items-center gap-3">
+          {/* wordmark leads back to the main site's gallery entrance */}
+          <Link to="/" className="group flex items-center gap-3">
             <LionMark className="h-8 w-8 shrink-0 md:h-9 md:w-9" />
             <span className="flex items-baseline gap-3">
               <span className="font-display text-lg uppercase tracking-[0.01em] text-foreground transition-colors group-hover:text-ember">
@@ -47,11 +48,19 @@ export default function PartnerNav() {
                 {EVENT_NAME}
               </span>
             </span>
-          </SectionLink>
+          </Link>
 
           {/* links */}
           <div className="flex items-center gap-6 md:gap-9">
             <ul className="hidden items-center gap-7 md:flex">
+              <li>
+                <Link
+                  to="/"
+                  className="font-mono text-[11px] uppercase tracking-[0.22em] text-concrete transition-colors hover:text-ember"
+                >
+                  ← Main site
+                </Link>
+              </li>
               {PARTNER_NAV_LINKS.map((link) => (
                 <li key={link.href}>
                   <SectionLink
