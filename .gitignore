@@ -29,4 +29,10 @@ dist-ssr
 /*.png
 .playwright-mcp/
 
+# TypeScript incremental build caches
+*.tsbuildinfo
+
+# Raw 3D render source for the lion mark (3.5MB; the derived assets live in public/)
+lion3d/*.avi
+
 .vercel

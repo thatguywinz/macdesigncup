@@ -1,4 +1,5 @@
 import { EVENT_NAME, MODEL_NO, TAGLINE, SOCIALS, CLUB } from "@/config/site";
+import LionMark from "./LionMark";
 
 export default function SiteFooter() {
   return (
@@ -11,10 +12,13 @@ export default function SiteFooter() {
         {/* titleblock row */}
         <div className="flex flex-col gap-10 md:flex-row md:items-start md:justify-between">
           <div>
-            <div className="flex items-baseline gap-3">
-              <span className="font-display text-lg uppercase tracking-[0.01em] text-foreground">MDC</span>
-              <span className="font-mono text-[10px] uppercase tracking-[0.28em] text-concrete">
-                {EVENT_NAME}
+            <div className="flex items-center gap-3">
+              <LionMark className="h-8 w-8 shrink-0" />
+              <span className="flex items-baseline gap-3">
+                <span className="font-display text-lg uppercase tracking-[0.01em] text-foreground">MDC</span>
+                <span className="font-mono text-[10px] uppercase tracking-[0.28em] text-concrete">
+                  {EVENT_NAME}
+                </span>
               </span>
             </div>
             <p className="mt-4 max-w-xs font-mono text-[11px] leading-relaxed tracking-wide text-concrete">

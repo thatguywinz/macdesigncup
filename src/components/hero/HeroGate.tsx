@@ -1,6 +1,7 @@
 import { Suspense, lazy, useCallback, useEffect, useRef, useState } from "react";
 import { useReducedMotion } from "framer-motion";
 import { CLUB, KICKER } from "@/config/site";
+import LionMark from "@/components/LionMark";
 import type { GatePhase } from "./GalleryScene";
 
 // The 3D chunk (three.js + postprocessing) is heavy — load it split from the shell.
@@ -43,6 +44,7 @@ function useTypeParallax(reduced: boolean) {
 function GateLoader() {
   return (
     <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-4 bg-background">
+      <LionMark className="mb-2 h-24 w-24" />
       <span className="font-mono text-[11px] uppercase tracking-[0.3em] text-muted-foreground">
         MDC_2026 · opening the gallery
       </span>

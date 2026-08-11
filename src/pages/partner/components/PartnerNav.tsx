@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import { EVENT_NAME, PARTNER_REGISTRATION_URL } from "@/config/site";
+import LionMark from "@/components/LionMark";
 import SectionLink from "@/components/SectionLink";
 
 const PARTNER_NAV_LINKS = [
@@ -36,12 +37,15 @@ export default function PartnerNav() {
       >
         <nav className="mx-auto flex max-w-[1600px] items-center justify-between px-5 py-4 md:px-8">
           {/* wordmark returns to the top of this page */}
-          <SectionLink href="#top" className="group flex items-baseline gap-3">
-            <span className="font-display text-lg uppercase tracking-[0.01em] text-foreground transition-colors group-hover:text-ember">
-              MDC
-            </span>
-            <span className="hidden font-mono text-[10px] uppercase tracking-[0.28em] text-concrete sm:inline">
-              {EVENT_NAME}
+          <SectionLink href="#top" className="group flex items-center gap-3">
+            <LionMark className="h-8 w-8 shrink-0 md:h-9 md:w-9" />
+            <span className="flex items-baseline gap-3">
+              <span className="font-display text-lg uppercase tracking-[0.01em] text-foreground transition-colors group-hover:text-ember">
+                MDC
+              </span>
+              <span className="hidden font-mono text-[10px] uppercase tracking-[0.28em] text-concrete sm:inline">
+                {EVENT_NAME}
+              </span>
             </span>
           </SectionLink>
 

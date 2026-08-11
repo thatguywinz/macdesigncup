@@ -3,7 +3,24 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="/favicon.png" type="image/png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <!-- brand mark: start fetching alongside the JS bundles instead of after them;
+         media gating keeps it to exactly one file per visitor -->
+    <link
+      rel="preload"
+      as="image"
+      type="image/webp"
+      href="/lion/lion-mark.webp"
+      media="(prefers-reduced-motion: no-preference)"
+    />
+    <link
+      rel="preload"
+      as="image"
+      type="image/png"
+      href="/lion/lion-mark.png"
+      media="(prefers-reduced-motion: reduce)"
+    />
     <title>Mackenzie Design Cup 2026 · A one-day 3D designathon for TDSB students</title>
     <meta name="description" content="The Mackenzie Design Cup (Mac Design Cup 2026) is a one-day 3D designathon for TDSB high school students, hosted at George Brown College in Toronto by the WLMAC 3D Design Club. Registration is open with limited spots." />
     <meta name="author" content="WLMAC 3D Design Club" />
