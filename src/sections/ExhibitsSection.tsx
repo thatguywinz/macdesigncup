@@ -1,4 +1,5 @@
 import { motion, useReducedMotion } from "framer-motion";
+import { PRIZE_POOL } from "@/config/site";
 
 // "Why enter" framed as three works on display in the hall.
 const EXHIBITS = [
@@ -10,7 +11,7 @@ const EXHIBITS = [
   {
     n: "02",
     title: "Real stakes.",
-    body: "A judging panel, awards for the top builds, and your work up on the big screen. It counts.",
+    body: `A judging panel, your work up on the big screen, and ${PRIZE_POOL} on the prize table. First place walks out with a 3D printer.`,
   },
   {
     n: "03",

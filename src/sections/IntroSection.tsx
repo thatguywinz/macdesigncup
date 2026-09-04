@@ -1,14 +1,15 @@
 import { motion, useReducedMotion } from "framer-motion";
 import Countdown from "@/components/Countdown";
 import RegisterButton from "@/components/RegisterButton";
-import { EVENT_NAME, KICKER, MODEL_NO, VENUE } from "@/config/site";
+import { EVENT_NAME, GRAND_PRIZE, KICKER, MODEL_NO, PRIZE_POOL, VENUE } from "@/config/site";
 
 // Post-portal landing — the first room of the gallery after the gate.
+// Prizes are not in this row: the top prize is confirmed now, and it earns the
+// plinth below rather than a one-line placard.
 const FACTS = [
   { k: "Who", v: "TDSB high school students" },
   { k: "Where", v: VENUE },
   { k: "Cost", v: "TBA" },
-  { k: "Prizes", v: "Awards + swag" },
 ];
 
 const EASE = [0.22, 1, 0.36, 1];
@@ -74,10 +75,48 @@ export default function IntroSection() {
           </motion.div>
         </div>
 
+        {/* The prize plinth: lit from above like everything else on display here. */}
+        <motion.div {...reveal(0.3)} className="concrete-panel relative mt-14 overflow-hidden">
+          <span className="ember-rule absolute inset-x-0 top-0 opacity-80" aria-hidden="true" />
+          <div
+            className="pointer-events-none absolute inset-0 bg-[radial-gradient(48%_130%_at_16%_50%,hsl(24_100%_54%/0.14),transparent_72%)]"
+            aria-hidden="true"
+          />
+          <div className="relative grid gap-8 p-7 sm:grid-cols-[auto_1fr] sm:gap-12 sm:p-10">
+            <div>
+              <p className="font-mono text-[10px] uppercase tracking-[0.3em] text-ember/90">On the table</p>
+              {/* .ember-text paints through background-clip, so the paint area is this
+                  box: a line-height under ~1.2 shears the comma's tail off and the
+                  figure reads as "$1.500+". The leading is the gap above and below. */}
+              <p className="display-giant ember-text text-[clamp(3.1rem,8vw,5.5rem)] leading-[1.25]">
+                {PRIZE_POOL}
+              </p>
+              <p className="font-mono text-[11px] uppercase tracking-[0.22em] text-foreground/75">
+                In prizes
+              </p>
+            </div>
+
+            <dl className="grid content-center gap-6 border-t border-line pt-7 sm:border-l sm:border-t-0 sm:pl-12 sm:pt-0 lg:grid-cols-[1.35fr_1fr] lg:gap-10">
+              <div>
+                <dt className="font-mono text-[10px] uppercase tracking-[0.3em] text-ember/90">1st place</dt>
+                <dd className="mt-2 max-w-md font-body text-base font-light leading-relaxed text-foreground/90 lg:max-w-none lg:text-lg">
+                  {GRAND_PRIZE}
+                </dd>
+              </div>
+              <div>
+                <dt className="font-mono text-[10px] uppercase tracking-[0.3em] text-ember/90">Every builder</dt>
+                <dd className="mt-2 max-w-md font-body text-base font-light leading-relaxed text-concrete">
+                  Swag and food, all day.
+                </dd>
+              </div>
+            </dl>
+          </div>
+        </motion.div>
+
         {/* placard facts row */}
         <motion.dl
-          {...reveal(0.34)}
-          className="mt-16 grid grid-cols-2 gap-x-6 gap-y-8 border-t border-line pt-8 md:grid-cols-4 md:gap-x-10"
+          {...reveal(0.38)}
+          className="mt-12 grid grid-cols-2 gap-x-6 gap-y-8 border-t border-line pt-8 md:grid-cols-3 md:gap-x-10"
         >
           {FACTS.map((f, i) => (
             <div key={f.k} className={i > 0 ? "md:border-l md:border-line md:pl-8" : ""}>

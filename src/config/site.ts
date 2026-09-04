@@ -23,6 +23,14 @@ export const REGISTRATION_EMBED_URL =
 // Partner interest stays on its own form.
 export const PARTNER_REGISTRATION_URL = "https://tally.so/r/EkGReL";
 
+// ─────────────────────────────────────────────
+// Prizes. The top prize is locked in; the rest of the table lands with the
+// sponsor lineup, so the pool figure keeps its "+" until then.
+// ─────────────────────────────────────────────
+export const PRIZE_POOL = "$1,500+";
+export const GRAND_PRIZE_SHORT = "A 3D printer valued at $1,300";
+export const GRAND_PRIZE = "A 3D printer valued at $1,300, plus six spools of filament.";
+
 export const CONTACT_EMAIL = "wlmac.3ddesignclub@gmail.com";
 
 export const NAV_LINKS = [

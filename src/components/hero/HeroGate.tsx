@@ -1,6 +1,6 @@
 import { Suspense, lazy, useCallback, useEffect, useRef, useState } from "react";
 import { useReducedMotion } from "framer-motion";
-import { CLUB, KICKER } from "@/config/site";
+import { CLUB, GRAND_PRIZE_SHORT, KICKER, PRIZE_POOL } from "@/config/site";
 import LionMark from "@/components/LionMark";
 import type { GatePhase } from "./GalleryScene";
 
@@ -173,6 +173,11 @@ export default function HeroGate({ onEntered }: HeroGateProps) {
           </h1>
           <p className="display-giant mt-3 text-[clamp(1rem,2.5vw,3.1rem)] tracking-[0.05em] text-foreground/90">
             Build the Impossible
+          </p>
+          {/* The poster's one line of hard news: the prize table is real. */}
+          <p className="mt-6 inline-block max-w-[min(30rem,88vw)] border border-ember/40 bg-background/70 px-4 py-2.5 font-mono text-[10px] uppercase leading-relaxed tracking-[0.2em] text-foreground/85 backdrop-blur-[3px] sm:text-[11px]">
+            <span className="block text-[hsl(var(--ember))]">{PRIZE_POOL} in prizes</span>
+            <span className="block">1st place takes {GRAND_PRIZE_SHORT}</span>
           </p>
         </div>
 

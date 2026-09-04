@@ -1,6 +1,6 @@
 import { motion, useReducedMotion } from "framer-motion";
 import RegisterButton from "@/components/RegisterButton";
-import { MODEL_NO } from "@/config/site";
+import { GRAND_PRIZE, MODEL_NO, PRIZE_POOL } from "@/config/site";
 
 const EASE = [0.22, 1, 0.36, 1];
 
@@ -42,7 +42,11 @@ export default function CTASection() {
           <span className="ember-text block">Impossible.</span>
         </h2>
 
-        <div className="mt-12">
+        <p className="mt-8 max-w-[46ch] font-body text-base font-light leading-relaxed text-concrete md:text-lg">
+          <span className="text-foreground">{PRIZE_POOL} in prizes.</span> 1st place: {GRAND_PRIZE}
+        </p>
+
+        <div className="mt-10">
           <RegisterButton className="px-10 py-5 text-sm">Register now ↗</RegisterButton>
         </div>
 

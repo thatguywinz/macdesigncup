@@ -1,5 +1,13 @@
 import { Link } from "react-router-dom";
-import { EVENT_NAME, MODEL_NO, REGISTRATION_EMBED_URL, REGISTRATION_URL, TAGLINE } from "@/config/site";
+import {
+  EVENT_NAME,
+  GRAND_PRIZE,
+  MODEL_NO,
+  PRIZE_POOL,
+  REGISTRATION_EMBED_URL,
+  REGISTRATION_URL,
+  TAGLINE,
+} from "@/config/site";
 
 /**
  * Registration page — embeds the live Tally form, with a direct link as the
@@ -38,6 +46,15 @@ export default function Register() {
           Tell us you're in for {EVENT_NAME}. Spots are limited; registered builders get
           every update first, from the exact address to the team rules.
         </p>
+
+        <dl className="mt-8 border-y border-line py-6">
+          <dt className="font-mono text-[10px] uppercase tracking-[0.3em] text-ember/90">
+            {PRIZE_POOL} in prizes
+          </dt>
+          <dd className="mt-2 font-body text-sm font-light leading-relaxed text-concrete">
+            1st place: {GRAND_PRIZE}
+          </dd>
+        </dl>
 
         <div className="concrete-panel mt-10 p-2 md:p-3">
           <iframe

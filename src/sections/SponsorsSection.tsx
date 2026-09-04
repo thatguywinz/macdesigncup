@@ -1,6 +1,7 @@
 import { motion, useReducedMotion } from "framer-motion";
 import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
+import { PRIZE_POOL } from "@/config/site";
 import {
   InfiniteSlider,
   InfiniteSliderContent,
@@ -114,9 +115,9 @@ export default function SponsorsSection() {
           {...reveal(0.1)}
           className="max-w-xl font-body text-base font-light leading-relaxed text-concrete"
         >
-          Food, swag and awards for a hall full of young designers happen because
-          sponsors put their name on the wall. The wall is going up right now:
-          logos land here as partners confirm.
+          Sponsors are the reason there is food, swag and a {PRIZE_POOL} prize
+          table for a hall full of young designers. The wall is going up right
+          now: logos land here as partners confirm.
         </motion.p>
 
         {/* Sponsor Grid: Slots 1-3 Infinite Carousel + Slot 4 "Your Logo Here" */}
@@ -177,9 +178,9 @@ export default function SponsorsSection() {
         <motion.div {...reveal(0.26)} className="mt-12 border-t border-line pt-8">
           <dl className="flex flex-wrap gap-x-10 gap-y-4">
             <div>
-              <dt className="font-mono text-[10px] uppercase tracking-[0.3em] text-ember/90">Top builds</dt>
+              <dt className="font-mono text-[10px] uppercase tracking-[0.3em] text-ember/90">1st place</dt>
               <dd className="mt-2 font-mono text-[11px] uppercase tracking-[0.14em] text-foreground/80">
-                Awards, on stage
+                $1,300 3D printer + 6 spools
               </dd>
             </div>
             <div>
@@ -189,9 +190,9 @@ export default function SponsorsSection() {
               </dd>
             </div>
             <div>
-              <dt className="font-mono text-[10px] uppercase tracking-[0.3em] text-ember/90">Full prize table</dt>
+              <dt className="font-mono text-[10px] uppercase tracking-[0.3em] text-ember/90">Prize pool</dt>
               <dd className="mt-2 font-mono text-[11px] uppercase tracking-[0.14em] text-foreground/80">
-                Drops with the sponsor lineup
+                {PRIZE_POOL}, growing as sponsors confirm
               </dd>
             </div>
           </dl>
