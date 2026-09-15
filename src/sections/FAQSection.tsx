@@ -13,7 +13,7 @@ const FAQS = [
   },
   {
     q: "What can I win?",
-    a: `First place takes a 3D printer valued at ${GRAND_PRIZE_VALUE}, plus six spools of filament to keep it running. That sits at the top of a ${PRIZE_POOL} prize table, and every builder goes home with swag.`,
+    a: `First place takes a Snapmaker J1S 3D printer valued at ${GRAND_PRIZE_VALUE}, plus six spools of filament to keep it running, from Shop3D.ca. That tops a ${PRIZE_POOL} prize table that also has 10 Scrimba subscriptions, 10 Aseprite software licences and 3D printing materials from Stratasys up for grabs. Every builder gets swag, food all day and their own name tag.`,
   },
   {
     q: "When is it?",

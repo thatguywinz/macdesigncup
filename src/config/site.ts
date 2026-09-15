@@ -30,7 +30,28 @@ export const PARTNER_REGISTRATION_URL = "https://tally.so/r/EkGReL";
 export const PRIZE_POOL = "$7,000+";
 export const GRAND_PRIZE_VALUE = "$1,500";
 export const GRAND_PRIZE_SHORT = `A 3D printer valued at ${GRAND_PRIZE_VALUE}`;
-export const GRAND_PRIZE = `A 3D printer valued at ${GRAND_PRIZE_VALUE}, plus six spools of filament.`;
+export const GRAND_PRIZE = `A Snapmaker J1S 3D printer valued at ${GRAND_PRIZE_VALUE}, plus six spools of filament.`;
+
+// The rest of the table, straight from the sponsor commitments sheet. How the
+// extras are split between builders isn't set yet, so nothing here names a rank.
+export const PRIZE_EXTRAS = [
+  { item: "10 Scrimba subscriptions", from: "Scrimba" },
+  { item: "10 Aseprite software licences", from: "Aseprite" },
+  { item: "3D printing materials", from: "Stratasys" },
+] as const;
+
+export const EVERY_BUILDER = [
+  { item: "Swag to take home", from: "Shop3D.ca" },
+  { item: "Food all day, in a real college venue", from: "George Brown College" },
+  { item: "Your own name tag", from: "Applied Precision" },
+] as const;
+
+export const ON_THE_FLOOR = [
+  { item: "Reps judging your work and mentoring you through it", from: "Shop3D.ca" },
+  { item: "A live product demo", from: "Shop3D.ca" },
+  { item: "A talk from Ken", from: "Shop3D.ca" },
+  { item: "The CEO, in the room", from: "Chatforce" },
+] as const;
 
 export const CONTACT_EMAIL = "wlmac.3ddesignclub@gmail.com";
 

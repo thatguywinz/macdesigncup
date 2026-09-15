@@ -1,7 +1,7 @@
 import { motion, useReducedMotion } from "framer-motion";
 import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
-import { GRAND_PRIZE_VALUE, PRIZE_POOL } from "@/config/site";
+import { GRAND_PRIZE_VALUE, PRIZE_EXTRAS, PRIZE_POOL } from "@/config/site";
 import {
   InfiniteSlider,
   InfiniteSliderContent,
@@ -180,13 +180,19 @@ export default function SponsorsSection() {
             <div>
               <dt className="font-mono text-[10px] uppercase tracking-[0.3em] text-ember/90">1st place</dt>
               <dd className="mt-2 font-mono text-[11px] uppercase tracking-[0.14em] text-foreground/80">
-                {GRAND_PRIZE_VALUE} 3D printer + 6 spools
+                Snapmaker J1S ({GRAND_PRIZE_VALUE}) + 6 spools
+              </dd>
+            </div>
+            <div>
+              <dt className="font-mono text-[10px] uppercase tracking-[0.3em] text-ember/90">Up for grabs</dt>
+              <dd className="mt-2 font-mono text-[11px] uppercase tracking-[0.14em] text-foreground/80">
+                {PRIZE_EXTRAS.map((p) => p.item).join(" · ")}
               </dd>
             </div>
             <div>
               <dt className="font-mono text-[10px] uppercase tracking-[0.3em] text-ember/90">Every builder</dt>
               <dd className="mt-2 font-mono text-[11px] uppercase tracking-[0.14em] text-foreground/80">
-                Swag + food
+                Swag · food · name tag
               </dd>
             </div>
             <div>

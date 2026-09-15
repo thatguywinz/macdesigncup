@@ -1,7 +1,18 @@
 import { motion, useReducedMotion } from "framer-motion";
 import Countdown from "@/components/Countdown";
 import RegisterButton from "@/components/RegisterButton";
-import { EVENT_DATE_LABEL, EVENT_NAME, GRAND_PRIZE, KICKER, MODEL_NO, PRIZE_POOL, VENUE } from "@/config/site";
+import {
+  EVENT_DATE_LABEL,
+  EVENT_NAME,
+  EVERY_BUILDER,
+  GRAND_PRIZE,
+  KICKER,
+  MODEL_NO,
+  ON_THE_FLOOR,
+  PRIZE_EXTRAS,
+  PRIZE_POOL,
+  VENUE,
+} from "@/config/site";
 
 // Post-portal landing — the first room of the gallery after the gate.
 // Prizes are not in this row: the top prize is confirmed now, and it earns the
@@ -97,20 +108,37 @@ export default function IntroSection() {
               </p>
             </div>
 
-            <dl className="grid content-center gap-6 border-t border-line pt-7 sm:border-l sm:border-t-0 sm:pl-12 sm:pt-0 lg:grid-cols-[1.35fr_1fr] lg:gap-10">
-              <div>
-                <dt className="font-mono text-[10px] uppercase tracking-[0.3em] text-ember/90">1st place</dt>
-                <dd className="mt-2 max-w-md font-body text-base font-light leading-relaxed text-foreground/90 lg:max-w-none lg:text-lg">
-                  {GRAND_PRIZE}
-                </dd>
+            <div className="self-center border-t border-line pt-7 sm:border-l sm:border-t-0 sm:pl-12 sm:pt-0">
+              <p className="font-mono text-[10px] uppercase tracking-[0.3em] text-ember/90">1st place</p>
+              <p className="mt-2 max-w-2xl font-display text-2xl uppercase leading-[1.05] text-foreground md:text-3xl">
+                {GRAND_PRIZE}
+              </p>
+              <p className="mt-2 font-mono text-[10px] uppercase tracking-[0.24em] text-concrete">From Shop3D.ca</p>
+            </div>
+          </div>
+
+          {/* The rest of the table: what else is up for grabs, what everyone leaves
+              with, and who is on the floor. Each line credits the sponsor behind it. */}
+          <div className="relative grid gap-8 border-t border-line p-7 sm:p-10 md:grid-cols-3 md:gap-10">
+            {(
+              [
+                ["Also up for grabs", PRIZE_EXTRAS],
+                ["Every builder gets", EVERY_BUILDER],
+                ["On the floor", ON_THE_FLOOR],
+              ] as const
+            ).map(([title, items], i) => (
+              <div key={title} className={i > 0 ? "md:border-l md:border-line md:pl-10" : ""}>
+                <h3 className="font-mono text-[10px] uppercase tracking-[0.3em] text-ember/90">{title}</h3>
+                <ul className="mt-4 space-y-4">
+                  {items.map(({ item, from }) => (
+                    <li key={item}>
+                      <p className="font-body text-base font-light leading-snug text-foreground/90">{item}</p>
+                      <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.22em] text-concrete">{from}</p>
+                    </li>
+                  ))}
+                </ul>
               </div>
-              <div>
-                <dt className="font-mono text-[10px] uppercase tracking-[0.3em] text-ember/90">Every builder</dt>
-                <dd className="mt-2 max-w-md font-body text-base font-light leading-relaxed text-concrete">
-                  Swag and food, all day.
-                </dd>
-              </div>
-            </dl>
+            ))}
           </div>
         </motion.div>
 
