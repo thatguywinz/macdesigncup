@@ -14,6 +14,11 @@ import agileLogo from "@/components/sponsor-images/agile.png";
 import georgebrownLogo from "@/components/sponsor-images/georgebrown.png";
 import shop3dcaLogo from "@/components/sponsor-images/shop3dca.png";
 import wlmacLogo from "@/components/sponsor-images/wlmac.png";
+import scrimbaLogo from "@/components/sponsor-images/scrimba.svg";
+import asepriteLogo from "@/components/sponsor-images/aseprite.png";
+import chatforceLogo from "@/components/sponsor-images/chatforce.svg";
+// Applied Precision 3D's own site header is a plain type wordmark; this file sets those words.
+import appliedPrecisionLogo from "@/components/sponsor-images/appliedprecision.svg";
 
 /**
  * Every logo is a cut-out rendered as a one-colour bone knockout (see
@@ -50,6 +55,30 @@ const SPONSORS = [
     logo: shop3dcaLogo,
     href: "https://shop3d.ca/",
     size: "max-h-[40px] max-w-[228px]",
+  },
+  {
+    name: "Scrimba",
+    logo: scrimbaLogo,
+    href: "https://scrimba.com/",
+    size: "max-h-[22px] max-w-[236px]",
+  },
+  {
+    name: "Aseprite",
+    logo: asepriteLogo,
+    href: "https://www.aseprite.org/",
+    size: "max-h-[64px] max-w-[176px]",
+  },
+  {
+    name: "Applied Precision 3D",
+    logo: appliedPrecisionLogo,
+    href: "https://www.appliedprecision.ca/",
+    size: "max-h-[32px] max-w-[236px]",
+  },
+  {
+    name: "Chatforce",
+    logo: chatforceLogo,
+    href: "https://chatforce.com/",
+    size: "max-h-[44px] max-w-[228px]",
   },
   {
     name: "William Lyon Mackenzie CI",
@@ -126,11 +155,11 @@ export default function SponsorsSection() {
           {/* Infinite Carousel (Spans first 3 columns) */}
           <div className="lg:col-span-3 border border-dashed border-line bg-background/40 flex items-center overflow-hidden min-h-[200px]">
             {reduce ? (
-              // A stopped marquee would park three of five logos out of sight,
-              // so reduced motion gets the whole wall laid out instead.
-              <ul className="flex w-full flex-wrap items-center justify-center gap-x-6 gap-y-2 p-4">
+              // A stopped marquee would park most of the logos out of sight, so
+              // reduced motion lays the whole wall out on an even grid instead.
+              <ul className="grid w-full grid-cols-1 items-center gap-6 p-4 sm:grid-cols-3">
                 {SPONSORS.map((sponsor) => (
-                  <li key={sponsor.name} className="flex w-[240px] max-w-full justify-center">
+                  <li key={sponsor.name} className="flex justify-center">
                     <SponsorLogo sponsor={sponsor} />
                   </li>
                 ))}
@@ -139,8 +168,8 @@ export default function SponsorsSection() {
               /* Holds still on hover or keyboard focus — the logos are links. */
               <InfiniteSlider pauseOnHover gap={24} className="sponsor-rail w-full">
                 <InfiniteSliderContent>
-                  {/* Five slides is barely more than a screenful, so the loop
-                      opens a hole as it wraps — a second, inert pass keeps the
+                  {/* The loop opens a hole as it wraps unless the track runs well past
+                      a screenful — a second, inert pass keeps the
                       wall continuous without repeating it to screen readers. */}
                   {[...SPONSORS, ...SPONSORS].map((sponsor, index) => {
                     const isEcho = index >= SPONSORS.length;
@@ -176,7 +205,7 @@ export default function SponsorsSection() {
 
         {/* Prizes Ledger Footer */}
         <motion.div {...reveal(0.26)} className="mt-12 border-t border-line pt-8">
-          <dl className="flex flex-wrap gap-x-10 gap-y-4">
+          <dl className="grid gap-x-10 gap-y-6 sm:grid-cols-2 lg:grid-cols-4">
             <div>
               <dt className="font-mono text-[10px] uppercase tracking-[0.3em] text-ember/90">1st place</dt>
               <dd className="mt-2 font-mono text-[11px] uppercase tracking-[0.14em] text-foreground/80">
@@ -186,7 +215,11 @@ export default function SponsorsSection() {
             <div>
               <dt className="font-mono text-[10px] uppercase tracking-[0.3em] text-ember/90">Up for grabs</dt>
               <dd className="mt-2 font-mono text-[11px] uppercase tracking-[0.14em] text-foreground/80">
-                {PRIZE_EXTRAS.map((p) => p.item).join(" · ")}
+                {PRIZE_EXTRAS.map((p) => (
+                  <span key={p.item} className="block">
+                    {p.item}
+                  </span>
+                ))}
               </dd>
             </div>
             <div>
