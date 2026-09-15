@@ -1,6 +1,6 @@
 import { motion, useReducedMotion } from "framer-motion";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { CONTACT_EMAIL, PRIZE_POOL } from "@/config/site";
+import { CONTACT_EMAIL, EVENT_DATE_LABEL, GRAND_PRIZE_VALUE, PRIZE_POOL } from "@/config/site";
 
 const FAQS = [
   {
@@ -13,7 +13,11 @@ const FAQS = [
   },
   {
     q: "What can I win?",
-    a: `First place takes a 3D printer valued at $1,300, plus six spools of filament to keep it running. That sits at the top of a ${PRIZE_POOL} prize table, and every builder goes home with swag. The rest of the table is announced as sponsors confirm.`,
+    a: `First place takes a 3D printer valued at ${GRAND_PRIZE_VALUE}, plus six spools of filament to keep it running. That sits at the top of a ${PRIZE_POOL} prize table, and every builder goes home with swag.`,
+  },
+  {
+    q: "When is it?",
+    a: `Monday, ${EVENT_DATE_LABEL}. Doors open at 8:00 AM, and it all happens in one day.`,
   },
   {
     q: "Do I need to know 3D software?",

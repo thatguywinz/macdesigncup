@@ -1,12 +1,13 @@
 import { motion, useReducedMotion } from "framer-motion";
 import Countdown from "@/components/Countdown";
 import RegisterButton from "@/components/RegisterButton";
-import { EVENT_NAME, GRAND_PRIZE, KICKER, MODEL_NO, PRIZE_POOL, VENUE } from "@/config/site";
+import { EVENT_DATE_LABEL, EVENT_NAME, GRAND_PRIZE, KICKER, MODEL_NO, PRIZE_POOL, VENUE } from "@/config/site";
 
 // Post-portal landing — the first room of the gallery after the gate.
 // Prizes are not in this row: the top prize is confirmed now, and it earns the
 // plinth below rather than a one-line placard.
 const FACTS = [
+  { k: "When", v: `Mon, ${EVENT_DATE_LABEL}` },
   { k: "Who", v: "TDSB high school students" },
   { k: "Where", v: VENUE },
   { k: "Cost", v: "TBA" },
@@ -116,7 +117,7 @@ export default function IntroSection() {
         {/* placard facts row */}
         <motion.dl
           {...reveal(0.38)}
-          className="mt-12 grid grid-cols-2 gap-x-6 gap-y-8 border-t border-line pt-8 md:grid-cols-3 md:gap-x-10"
+          className="mt-12 grid grid-cols-2 gap-x-6 gap-y-8 border-t border-line pt-8 md:grid-cols-4 md:gap-x-10"
         >
           {FACTS.map((f, i) => (
             <div key={f.k} className={i > 0 ? "md:border-l md:border-line md:pl-8" : ""}>

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useReducedMotion } from "framer-motion";
-import { EVENT_DATE, MODEL_NO } from "@/config/site";
+import { EVENT_DATE, EVENT_DATE_LABEL, MODEL_NO } from "@/config/site";
 
 interface Remaining {
   days: number;
@@ -57,6 +57,10 @@ export default function Countdown({ className = "" }: { className?: string }) {
 
       {target && left ? (
         <>
+          <p className="mt-5 font-display text-2xl uppercase leading-none text-foreground md:text-[1.7rem]">
+            <span className="block font-mono text-[10px] tracking-[0.3em] text-concrete">Mon · 8:00 AM</span>
+            <span className="mt-2 block">{EVENT_DATE_LABEL}</span>
+          </p>
           <div className={`mt-5 grid gap-2 text-center ${reduced ? "grid-cols-3" : "grid-cols-4"}`}>
             {(
               [

@@ -11,9 +11,9 @@ export const TAGLINE = "BUILD THE IMPOSSIBLE";
 export const KICKER = "A one-day 3D designathon";
 export const VENUE = "George Brown College, Toronto";
 
-// TODO: set the real event date (ISO string, e.g. "2026-03-07T09:00:00-05:00").
-// While null, the countdown renders its "date announced soon" state.
+// Event day (ISO string). While null, the countdown renders its "date announced soon" state.
 export const EVENT_DATE: string | null = "2026-11-16T08:00:00-05:00";
+export const EVENT_DATE_LABEL = "November 16, 2026";
 
 // Live student registration form (Tally).
 export const REGISTRATION_URL = "https://tally.so/r/VLAX8y";
@@ -24,12 +24,13 @@ export const REGISTRATION_EMBED_URL =
 export const PARTNER_REGISTRATION_URL = "https://tally.so/r/EkGReL";
 
 // ─────────────────────────────────────────────
-// Prizes. The top prize is locked in; the rest of the table lands with the
-// sponsor lineup, so the pool figure keeps its "+" until then.
+// Prizes. The pool is the confirmed sponsor commitments (~$6,950), rounded
+// up and kept as "$7,000+" rather than an exact figure.
 // ─────────────────────────────────────────────
-export const PRIZE_POOL = "$1,500+";
-export const GRAND_PRIZE_SHORT = "A 3D printer valued at $1,300";
-export const GRAND_PRIZE = "A 3D printer valued at $1,300, plus six spools of filament.";
+export const PRIZE_POOL = "$7,000+";
+export const GRAND_PRIZE_VALUE = "$1,500";
+export const GRAND_PRIZE_SHORT = `A 3D printer valued at ${GRAND_PRIZE_VALUE}`;
+export const GRAND_PRIZE = `A 3D printer valued at ${GRAND_PRIZE_VALUE}, plus six spools of filament.`;
 
 export const CONTACT_EMAIL = "wlmac.3ddesignclub@gmail.com";
 

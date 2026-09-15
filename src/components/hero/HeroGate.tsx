@@ -1,6 +1,6 @@
 import { Suspense, lazy, useCallback, useEffect, useRef, useState } from "react";
 import { useReducedMotion } from "framer-motion";
-import { CLUB, GRAND_PRIZE_SHORT, KICKER, PRIZE_POOL } from "@/config/site";
+import { CLUB, EVENT_DATE_LABEL, GRAND_PRIZE_SHORT, KICKER, PRIZE_POOL, VENUE } from "@/config/site";
 import LionMark from "@/components/LionMark";
 import type { GatePhase } from "./GalleryScene";
 
@@ -176,6 +176,7 @@ export default function HeroGate({ onEntered }: HeroGateProps) {
           </p>
           {/* The poster's one line of hard news: the prize table is real. */}
           <p className="mt-6 inline-block max-w-[min(30rem,88vw)] border border-ember/40 bg-background/70 px-4 py-2.5 font-mono text-[10px] uppercase leading-relaxed tracking-[0.2em] text-foreground/85 backdrop-blur-[3px] sm:text-[11px]">
+            <span className="block text-foreground">{EVENT_DATE_LABEL}<span className="hidden sm:inline"> · {VENUE}</span></span>
             <span className="block text-[hsl(var(--ember))]">{PRIZE_POOL} in prizes</span>
             <span className="block">1st place takes {GRAND_PRIZE_SHORT}</span>
           </p>

@@ -1,7 +1,7 @@
 import { motion, useReducedMotion } from "framer-motion";
 import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
-import { PRIZE_POOL } from "@/config/site";
+import { GRAND_PRIZE_VALUE, PRIZE_POOL } from "@/config/site";
 import {
   InfiniteSlider,
   InfiniteSliderContent,
@@ -180,7 +180,7 @@ export default function SponsorsSection() {
             <div>
               <dt className="font-mono text-[10px] uppercase tracking-[0.3em] text-ember/90">1st place</dt>
               <dd className="mt-2 font-mono text-[11px] uppercase tracking-[0.14em] text-foreground/80">
-                $1,300 3D printer + 6 spools
+                {GRAND_PRIZE_VALUE} 3D printer + 6 spools
               </dd>
             </div>
             <div>
@@ -192,7 +192,7 @@ export default function SponsorsSection() {
             <div>
               <dt className="font-mono text-[10px] uppercase tracking-[0.3em] text-ember/90">Prize pool</dt>
               <dd className="mt-2 font-mono text-[11px] uppercase tracking-[0.14em] text-foreground/80">
-                {PRIZE_POOL}, growing as sponsors confirm
+                {PRIZE_POOL} in sponsor prizes
               </dd>
             </div>
           </dl>

@@ -1,6 +1,6 @@
 import { motion, useReducedMotion } from "framer-motion";
 import RegisterButton from "@/components/RegisterButton";
-import { GRAND_PRIZE, MODEL_NO, PRIZE_POOL } from "@/config/site";
+import { EVENT_DATE_LABEL, GRAND_PRIZE, MODEL_NO, PRIZE_POOL } from "@/config/site";
 
 const EASE = [0.22, 1, 0.36, 1];
 
@@ -51,7 +51,7 @@ export default function CTASection() {
         </div>
 
         <p className="mt-8 font-mono text-[10px] uppercase tracking-[0.3em] text-concrete">
-          TDSB high school students · George Brown College, Toronto · {MODEL_NO}
+          {EVENT_DATE_LABEL} · TDSB high school students · George Brown College, Toronto · {MODEL_NO}
         </p>
       </motion.div>
     </section>
