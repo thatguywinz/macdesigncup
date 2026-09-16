@@ -163,9 +163,14 @@ export default function HeroGate({ onEntered }: HeroGateProps) {
         }}
       >
         <div ref={typeRef} className="absolute left-[4vw] top-[9vh] will-change-transform md:left-[4.5vw] md:top-[10vh]">
+          {/* Both halves wrap to a second line on a 390px screen and the poster
+              starts with a paragraph — the club's name keeps until there's room. */}
           <p className="mono-label mb-4 flex items-center gap-3 !text-foreground/70">
-            <span className="inline-block h-1.5 w-1.5 animate-[blink_1.6s_steps(1)_infinite] rounded-full bg-[hsl(var(--ember))]" />
-            {KICKER} · {CLUB}
+            <span className="inline-block h-1.5 w-1.5 shrink-0 animate-[blink_1.6s_steps(1)_infinite] rounded-full bg-[hsl(var(--ember))]" />
+            <span>
+              {KICKER}
+              <span className="hidden sm:inline"> · {CLUB}</span>
+            </span>
           </p>
           <h1 className="display-giant text-[clamp(2.9rem,9.2vw,11.5rem)] leading-[0.88]">
             <span className="block">Mackenzie</span>
@@ -174,12 +179,30 @@ export default function HeroGate({ onEntered }: HeroGateProps) {
           <p className="display-giant mt-3 text-[clamp(1rem,2.5vw,3.1rem)] tracking-[0.05em] text-foreground/90">
             Build the Impossible
           </p>
-          {/* The poster's one line of hard news: the prize table is real. */}
-          <p className="mt-6 inline-block max-w-[min(30rem,88vw)] border border-ember/40 bg-background/70 px-4 py-2.5 font-mono text-[10px] uppercase leading-relaxed tracking-[0.2em] text-foreground/85 backdrop-blur-[3px] sm:text-[11px]">
-            <span className="block text-foreground">{EVENT_DATE_LABEL}<span className="hidden sm:inline"> · {VENUE}</span></span>
-            <span className="block text-[hsl(var(--ember))]">{PRIZE_POOL} in prizes</span>
-            <span className="block">1st place takes {GRAND_PRIZE_SHORT}</span>
-          </p>
+          {/* The poster's one line of hard news: the prize table is real.
+              The figure carries the poster's own display face rather than being
+              a third line of mono — a placard, not a caption. The ember seam
+              along the top edge is the same one the plinths inside use. */}
+          <div className="mt-7 inline-block max-w-[min(30rem,88vw)] border border-ember/30 bg-background/75 backdrop-blur-[4px]">
+            <span className="ember-rule block opacity-70" aria-hidden="true" />
+            <div className="flex items-stretch">
+              <p className="flex flex-col justify-center border-r border-ember/20 px-4 py-3 sm:px-5">
+                <span className="display-giant ember-text whitespace-nowrap text-[clamp(1.6rem,5.5vw,2.4rem)] leading-[1.2]">
+                  {PRIZE_POOL}
+                </span>
+                <span className="font-mono text-[9px] uppercase tracking-[0.26em] text-foreground/60 sm:text-[10px]">
+                  In prizes
+                </span>
+              </p>
+              <p className="flex flex-col justify-center gap-1 px-4 py-3 font-mono text-[9px] uppercase leading-relaxed tracking-[0.18em] text-foreground/70 sm:px-5 sm:text-[10px]">
+                <span className="block text-foreground/90">
+                  {EVENT_DATE_LABEL}
+                  <span className="hidden sm:inline"> · {VENUE}</span>
+                </span>
+                <span className="block">1st place takes {GRAND_PRIZE_SHORT}</span>
+              </p>
+            </div>
+          </div>
         </div>
 
         {/* Wide viewports lift the porcelain knot into this corner, and it is the one

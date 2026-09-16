@@ -5,6 +5,7 @@ import { EVENT_NAME, NAV_LINKS } from "@/config/site";
 import LionMark from "./LionMark";
 import RegisterButton from "./RegisterButton";
 import SectionLink from "./SectionLink";
+import MobileNavMenu from "./MobileNavMenu";
 
 interface SiteNavProps {
   /** Send the visitor back out to the 3D gallery entrance. */
@@ -86,7 +87,11 @@ export default function SiteNav({ onReplayHero }: SiteNavProps) {
                 </li>
               ))}
             </ul>
-            <RegisterButton className="px-5 py-2.5 text-[11px]">Register</RegisterButton>
+            {/* Phones get exactly one sticky Register — the bar pinned to the
+                bottom of the viewport — so this one stands down and the menu
+                takes its place. */}
+            <RegisterButton className="hidden px-5 py-2.5 text-[11px] md:inline-flex">Register</RegisterButton>
+            <MobileNavMenu links={NAV_LINKS} note="Register from the bar at the bottom of the screen" />
           </div>
         </nav>
       </header>

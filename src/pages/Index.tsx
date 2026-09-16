@@ -65,7 +65,9 @@ const Index = () => {
   }
 
   return (
-    <div className="relative min-h-screen bg-background">
+    // The sticky mobile Register bar floats over the page, so the last screenful
+    // of the footer needs room to clear it.
+    <div className="relative min-h-screen bg-background pb-[calc(4.75rem+env(safe-area-inset-bottom))] md:pb-0">
       <ArrivalFlash />
       <div className="grain-overlay" aria-hidden="true" />
       <SiteNav onReplayHero={() => setEntered(false)} />

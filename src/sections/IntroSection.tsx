@@ -39,7 +39,7 @@ export default function IntroSection() {
   return (
     <section
       id="top"
-      className="relative z-10 flex min-h-[92svh] items-center border-b border-line px-5 pb-20 pt-32 md:px-10"
+      className="relative z-10 flex min-h-[92svh] items-center border-b border-line px-5 pb-16 pt-28 md:px-10 md:pb-20 md:pt-32"
     >
       {/* corner metadata */}
       <span
@@ -50,31 +50,36 @@ export default function IntroSection() {
       </span>
 
       <div className="mx-auto w-full max-w-[1300px]">
-        <div className="grid gap-12 lg:grid-cols-[1fr_320px] lg:items-center lg:gap-16">
+        <div className="grid gap-10 lg:grid-cols-[1fr_320px] lg:items-center lg:gap-16">
           <div>
             <motion.div {...reveal(0)} className="flex items-center gap-4">
               <span className="h-1.5 w-1.5 bg-ember shadow-[0_0_10px_hsl(24_100%_54%/0.8)]" aria-hidden="true" />
+              {/* Both halves together wrap onto a second line on a phone, and the
+                  nav is already carrying the name two inches above this. */}
               <span className="mono-label !text-foreground/70">
-                {EVENT_NAME} · {KICKER}
+                <span className="hidden sm:inline">{EVENT_NAME} · </span>
+                {KICKER}
               </span>
             </motion.div>
 
-            <motion.h1 {...reveal(0.08)} className="display-hero mt-8">
+            <motion.h1 {...reveal(0.08)} className="display-hero mt-6 md:mt-8">
               <span className="block">The floor</span>
               <span className="wire-text block">is yours.</span>
             </motion.h1>
 
             <motion.p
               {...reveal(0.16)}
-              className="mt-8 max-w-xl font-body text-base font-light leading-relaxed text-concrete md:text-lg"
+              className="mt-6 max-w-xl font-body text-base font-light leading-relaxed text-concrete md:mt-8 md:text-lg"
             >
               One day. One theme, revealed at the doors. You build a 3D response to it,
               first idea to final render, in whatever software you build fastest in.
               The clock does the rest.
             </motion.p>
 
-            <motion.div {...reveal(0.24)} className="mt-10 flex flex-wrap items-center gap-4">
-              <RegisterButton className="px-8 py-4">Register now ↗</RegisterButton>
+            {/* On a phone the sticky bar is already holding Register two inches
+                below this, so only the secondary route shows here. */}
+            <motion.div {...reveal(0.24)} className="mt-8 flex flex-wrap items-center gap-4 md:mt-10">
+              <RegisterButton className="hidden px-8 py-4 md:inline-flex">Register now ↗</RegisterButton>
               <a href="#timeline" className="btn-ghost px-8 py-4">
                 See the day ↓
               </a>
@@ -88,7 +93,7 @@ export default function IntroSection() {
         </div>
 
         {/* The prize plinth: lit from above like everything else on display here. */}
-        <motion.div {...reveal(0.3)} className="concrete-panel relative mt-14 overflow-hidden">
+        <motion.div {...reveal(0.3)} className="concrete-panel relative mt-10 overflow-hidden md:mt-14">
           <span className="ember-rule absolute inset-x-0 top-0 opacity-80" aria-hidden="true" />
           <div
             className="pointer-events-none absolute inset-0 bg-[radial-gradient(48%_130%_at_16%_50%,hsl(24_100%_54%/0.14),transparent_72%)]"
@@ -117,9 +122,21 @@ export default function IntroSection() {
             </div>
           </div>
 
+          {/* Phones get the figure and the way to the rest of it, not the rest of it. */}
+          <a
+            href="#sponsors"
+            className="relative flex items-center justify-between gap-4 border-t border-line px-7 py-5 font-mono text-[10px] uppercase tracking-[0.24em] text-foreground/80 transition-colors hover:text-ember md:hidden"
+          >
+            The full prize table
+            <span aria-hidden="true" className="text-ember">↓</span>
+          </a>
+
           {/* The rest of the table: what else is up for grabs, what everyone leaves
-              with, and who is on the floor. Each line credits the sponsor behind it. */}
-          <div className="relative grid gap-8 border-t border-line p-7 sm:p-10 md:grid-cols-3 md:gap-10">
+              with, and who is on the floor. Each line credits the sponsor behind it.
+              Three stacked columns of it is a wall of text on a phone, so below
+              `md` the plinth stops at the figure and the sponsor ledger carries
+              the detail instead of the landing screen saying it all twice. */}
+          <div className="relative hidden gap-8 border-t border-line p-7 sm:p-10 md:grid md:grid-cols-3 md:gap-10">
             {(
               [
                 ["Also up for grabs", PRIZE_EXTRAS],
@@ -145,7 +162,7 @@ export default function IntroSection() {
         {/* placard facts row */}
         <motion.dl
           {...reveal(0.38)}
-          className="mt-12 grid grid-cols-2 gap-x-6 gap-y-8 border-t border-line pt-8 md:grid-cols-4 md:gap-x-10"
+          className="mt-10 grid grid-cols-2 gap-x-6 gap-y-7 border-t border-line pt-8 md:mt-12 md:grid-cols-4 md:gap-x-10 md:gap-y-8"
         >
           {FACTS.map((f, i) => (
             <div key={f.k} className={i > 0 ? "md:border-l md:border-line md:pl-8" : ""}>

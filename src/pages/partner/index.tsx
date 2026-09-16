@@ -16,7 +16,8 @@ export default function PartnerPage() {
   const reduce = useReducedMotion();
 
   return (
-    <div className="relative min-h-screen bg-background">
+    // The sticky mobile CTA floats over the page; the footer needs room to clear it.
+    <div className="relative min-h-screen bg-background pb-[calc(4.75rem+env(safe-area-inset-bottom))] md:pb-0">
       <PartnerNav />
       <main id="main" className="relative z-10">
         {/* Hero Section */}
@@ -57,7 +58,7 @@ export default function PartnerPage() {
                   transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1], delay: 0.16 }}
                   className="mt-10 flex flex-wrap items-center gap-4"
                 >
-                  <a href={PARTNER_REGISTRATION_URL} className="btn-portal px-8 py-4" target="_blank" rel="noopener noreferrer">
+                  <a href={PARTNER_REGISTRATION_URL} className="btn-portal hidden px-8 py-4 md:inline-flex" target="_blank" rel="noopener noreferrer">
                     Partner with MDC
                   </a>
                 </motion.div>

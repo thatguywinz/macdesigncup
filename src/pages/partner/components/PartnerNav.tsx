@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import { EVENT_NAME, PARTNER_REGISTRATION_URL } from "@/config/site";
 import LionMark from "@/components/LionMark";
 import SectionLink from "@/components/SectionLink";
+import MobileNavMenu from "@/components/MobileNavMenu";
 
 const PARTNER_NAV_LINKS = [
   { label: "Why Partner", href: "#why" },
@@ -72,14 +73,20 @@ export default function PartnerNav() {
                 </li>
               ))}
             </ul>
+            {/* Same rule as the main site: phones get exactly one sticky CTA,
+                and it's the bar at the bottom of the viewport. */}
             <a
               href={PARTNER_REGISTRATION_URL}
-              className="btn-portal px-5 py-2.5 text-[11px]"
+              className="btn-portal hidden px-5 py-2.5 text-[11px] md:inline-flex"
               target="_blank"
               rel="noopener noreferrer"
             >
               Partner with MDC
             </a>
+            <MobileNavMenu
+              links={[{ label: "← Main site", to: "/" }, ...PARTNER_NAV_LINKS]}
+              note="Partner from the bar at the bottom of the screen"
+            />
           </div>
         </nav>
       </header>

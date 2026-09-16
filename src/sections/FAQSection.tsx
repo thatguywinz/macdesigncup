@@ -13,7 +13,7 @@ const FAQS = [
   },
   {
     q: "What can I win?",
-    a: `First place takes a Snapmaker J1S 3D printer valued at ${GRAND_PRIZE_VALUE}, plus six spools of filament to keep it running, from Shop3D.ca. That tops a ${PRIZE_POOL} prize table that also has 10 Scrimba subscriptions, 10 Aseprite software licences and 3D printing materials from Stratasys up for grabs. Every builder gets swag, food all day and their own name tag.`,
+    a: `First place takes a Snapmaker J1S 3D printer valued at ${GRAND_PRIZE_VALUE}, plus six spools of filament to keep it running, from Shop3D.ca. That tops a ${PRIZE_POOL} prize table that also has 10 Scrimba subscriptions, 10 Aseprite software licences and 3D printing materials from Stratasys up for grabs. Nobody leaves empty-handed either: every builder gets an Ansys Discovery / Mechanical licence, Solid Edge and Altair software from Siemens and TriMech, swag, food all day and their own name tag.`,
   },
   {
     q: "When is it?",
@@ -43,7 +43,7 @@ export default function FAQSection() {
   const reduce = useReducedMotion();
 
   return (
-    <section id="faq" className="relative z-10 border-t border-line px-5 py-24 md:px-10 md:py-32">
+    <section id="faq" className="relative z-10 border-t border-line px-5 py-16 md:px-10 md:py-32">
       <div className="mx-auto grid max-w-[1200px] gap-14 md:grid-cols-[0.8fr_1.2fr]">
         {/* left column */}
         <motion.div

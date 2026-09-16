@@ -43,7 +43,7 @@ export default function TimelineSection() {
   const reduce = useReducedMotion();
 
   return (
-    <section id="timeline" className="relative z-10 px-5 py-24 md:px-10 md:py-32">
+    <section id="timeline" className="relative z-10 px-5 py-16 md:px-10 md:py-32">
       <div className="mx-auto max-w-[1200px]">
         {/* header */}
         <div className="mb-6 flex items-baseline gap-4">
@@ -55,7 +55,7 @@ export default function TimelineSection() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: "-80px" }}
           transition={{ duration: 0.8, ease: EASE }}
-          className="display-scene mb-14 md:mb-16"
+          className="display-scene mb-8 md:mb-16"
         >
           <span className="wire-text block">One day.</span>
           <span className="block">Start to finish.</span>
@@ -67,7 +67,7 @@ export default function TimelineSection() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: "-60px" }}
           transition={{ duration: 0.8, ease: EASE }}
-          className="mb-16 md:mb-20"
+          className="mb-10 md:mb-20"
         >
           <ProcessSection />
         </motion.div>

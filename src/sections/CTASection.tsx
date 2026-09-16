@@ -9,7 +9,7 @@ export default function CTASection() {
   const reduce = useReducedMotion();
 
   return (
-    <section id="register" className="relative z-10 overflow-hidden border-t border-line px-5 py-28 md:py-40">
+    <section id="register" className="relative z-10 overflow-hidden border-t border-line px-5 py-20 md:py-40">
       {/* molten glow rising from the floor */}
       <div
         className="pointer-events-none absolute inset-0 bg-[radial-gradient(55%_65%_at_50%_78%,hsl(24_100%_54%/0.14),transparent_70%)]"

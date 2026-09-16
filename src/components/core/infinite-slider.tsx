@@ -290,9 +290,45 @@ const InfiniteSliderItem = React.forwardRef<
 });
 InfiniteSliderItem.displayName = "InfiniteSliderItem";
 
+/**
+ * Step controls for a rail that is otherwise only drivable by dragging. The
+ * marquee makes the wall feel alive; these make it searchable — you can walk
+ * it one screenful at a time until you find the logo you came for.
+ *
+ * Holding the rail while the pointer is on a button is the same hold the
+ * slides use, so a step doesn't fight the auto-scroll drifting underneath it.
+ */
+const InfiniteSliderControl = React.forwardRef<
+  HTMLButtonElement,
+  React.ButtonHTMLAttributes<HTMLButtonElement> & { direction: "prev" | "next" }
+>(({ className, direction, ...props }, ref) => {
+  const { scrollPrev, scrollNext } = useInfiniteSlider();
+  const isPrev = direction === "prev";
+
+  return (
+    <button
+      ref={ref}
+      type="button"
+      onClick={isPrev ? scrollPrev : scrollNext}
+      aria-label={isPrev ? "Previous sponsors" : "Next sponsors"}
+      className={cn(
+        "inline-flex h-10 w-10 items-center justify-center border border-line bg-background/80 font-mono text-sm text-foreground/70 backdrop-blur-sm transition-colors",
+        "hover:border-ember hover:text-ember focus-visible:border-ember focus-visible:text-ember",
+        "focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-ember",
+        className,
+      )}
+      {...props}
+    >
+      <span aria-hidden="true">{isPrev ? "←" : "→"}</span>
+    </button>
+  );
+});
+InfiniteSliderControl.displayName = "InfiniteSliderControl";
+
 export {
   InfiniteSlider,
   InfiniteSliderContent,
   InfiniteSliderItem,
+  InfiniteSliderControl,
   type InfiniteSliderProps,
 };

@@ -26,7 +26,7 @@ export default function ExhibitsSection() {
   const reduce = useReducedMotion();
 
   return (
-    <section id="why" className="relative z-10 px-5 py-24 md:px-10 md:py-32">
+    <section id="why" className="relative z-10 px-5 py-16 md:px-10 md:py-32">
       <div className="mx-auto max-w-[1300px]">
         {/* header */}
         <div className="mb-6 flex items-baseline gap-4">
@@ -38,7 +38,7 @@ export default function ExhibitsSection() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: "-80px" }}
           transition={{ duration: 0.8, ease: EASE }}
-          className="display-scene mb-16 md:mb-20"
+          className="display-scene mb-10 md:mb-20"
         >
           <span className="block">
             From a <span className="wire-text">blank file</span>
