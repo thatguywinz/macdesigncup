@@ -28,6 +28,9 @@ import ansysLogo from "@/components/sponsor-images/ansys.svg";
 // wordmark (the lockup's George Brown mark already has its own cell), width/height
 // added. Brand spelling in copy: "startGBC".
 import startgbcLogo from "@/components/sponsor-images/startgbc.svg";
+// Featured speaker (Julie Smithson, CEO). White brand PNG from the marketing
+// repo (sponsors/_source/brand/hi/metavrse-white.png), trimmed to 640px.
+import metavrseLogo from "@/components/sponsor-images/metavrse.png";
 
 export interface Sponsor {
   name: string;
@@ -58,6 +61,7 @@ export const SPONSORS: Sponsor[] = [
   { name: "Aseprite", logo: asepriteLogo, href: "https://www.aseprite.org/", maxH: 64, maxW: 176 },
   { name: "Applied Precision 3D", logo: appliedPrecisionLogo, href: "https://www.appliedprecision.ca/", maxH: 32, maxW: 236 },
   { name: "Chatforce", logo: chatforceLogo, href: "https://chatforce.com/", maxH: 44, maxW: 228 },
+  { name: "METAVRSE", logo: metavrseLogo, href: "https://metavrse.com/", maxH: 30, maxW: 210 },
   // Symbol-only marks: captioned, so the wall names them.
   {
     name: "Agile Manufacturing",

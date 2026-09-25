@@ -142,6 +142,8 @@ export const ON_THE_FLOOR = [
   // TODO(owner): Ken's surname and role, once the club confirms how he wants it printed.
   { item: "A talk from Ken", from: "Shop3D.ca" },
   { item: "Chatforce's CEO, in the room", from: "Chatforce" },
+  // Organizer, 2026-09-24 (marketing repo, sponsors/12-metavrse).
+  { item: "A featured talk from Julie Smithson, CEO", from: "METAVRSE" },
 ] as const;
 
 export const CONTACT_EMAIL = "wlmac.3ddesignclub@gmail.com";
