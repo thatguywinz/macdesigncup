@@ -23,8 +23,11 @@ import appliedPrecisionLogo from "@/components/sponsor-images/appliedprecision.s
 import siemensLogo from "@/components/sponsor-images/siemens.svg";
 import trimechLogo from "@/components/sponsor-images/trimech.svg";
 import ansysLogo from "@/components/sponsor-images/ansys.svg";
-// George Brown Polytechnic's entrepreneurship hub. Official SVG from
-// georgebrown.ca/startgbc (subsite logo), full official lockup (George Brown mark + startGBC), width/height added. Brand spelling in copy: "startGBC".
+// George Brown Polytechnic's entrepreneurship hub. A plain type wordmark,
+// "startGBC" (lowercase "start", capital "GBC", the brand's own spelling),
+// set in Archivo at weight 700 and outlined to paths (fontTools), so it
+// renders the same as an <img> and as a canvas texture. No George Brown mark:
+// George Brown Polytechnic has its own logo right beside it.
 import startgbcLogo from "@/components/sponsor-images/startgbc.svg";
 // Featured speaker (Julie Smithson, CEO). White brand PNG from the marketing
 // repo (sponsors/_source/brand/hi/metavrse-white.png), trimmed to 640px.
@@ -45,10 +48,8 @@ export interface Sponsor {
   caption?: string;
   /**
    * Stands in the hero hall. Every sponsor does except a speaker-only one
-   * (METAVRSE: their part is a featured talk). Order in this list is hall
-   * order: the first eight on plinths, the next four on the lit back wall
-   * beside the door, the last (the host school's crest) over the door.
-   * The phone hall shows them all as a small grid.
+   * (METAVRSE: their part is a featured talk). Where each one stands is
+   * HALL_ORDER below, not this list's order.
    */
   hero?: boolean;
 }
@@ -56,7 +57,7 @@ export interface Sponsor {
 export const SPONSORS: Sponsor[] = [
   { name: "Shop3D.ca", logo: shop3dcaLogo, href: "https://shop3d.ca/", maxH: 40, maxW: 228, hero: true },
   { name: "George Brown Polytechnic", logo: georgebrownLogo, href: "https://www.georgebrown.ca/", maxH: 84, maxW: 200, hero: true },
-  { name: "startGBC", logo: startgbcLogo, href: "https://www.georgebrown.ca/startgbc", maxH: 60, maxW: 200, hero: true },
+  { name: "startGBC", logo: startgbcLogo, href: "https://www.georgebrown.ca/startgbc", maxH: 34, maxW: 196, hero: true },
   { name: "Siemens", logo: siemensLogo, href: "https://www.siemens.com/", maxH: 34, maxW: 210, hero: true },
   { name: "Ansys", logo: ansysLogo, href: "https://www.ansys.com/", maxH: 52, maxW: 190, hero: true },
   { name: "TriMech Group", logo: trimechLogo, href: "https://trimech.com/", maxH: 44, maxW: 212, hero: true },
@@ -81,4 +82,45 @@ export const SPONSORS: Sponsor[] = [
   { name: "William Lyon Mackenzie CI", logo: wlmacLogo, href: "https://wlmac.ca/", maxH: 100, maxW: 200, caption: "WLMAC", hero: true },
 ];
 
-export const HERO_SPONSORS = SPONSORS.filter((s) => s.hero);
+/**
+ * The hero hall, in slot order (frame.ts): the first eight stand on plinths
+ * (LANDSCAPE_SLOTS / PORTRAIT_SLOTS / PHONE_SLOTS, whose indices keep the same
+ * neighbours in every layout), the rest hang on the lit back wall beside and
+ * over the door (wallFor). Slot 1 and slot 5 stand side by side, so
+ * startGBC stands right next to George Brown Polytechnic; the host school's
+ * crest has the front plinth at slot 2. Phones show the eight plinths only.
+ */
+const HALL_ORDER = [
+  "Shop3D.ca",
+  "George Brown Polytechnic",
+  "William Lyon Mackenzie CI",
+  "Siemens",
+  "Ansys",
+  "startGBC",
+  "Stratasys",
+  "Scrimba",
+  "Aseprite",
+  "Applied Precision 3D",
+  "Chatforce",
+  "Agile Manufacturing",
+  "TriMech Group",
+] as const;
+
+const byName = new Map(SPONSORS.map((s) => [s.name, s]));
+export const HERO_SPONSORS: Sponsor[] = HALL_ORDER.map((name) => {
+  const s = byName.get(name);
+  if (!s || !s.hero) throw new Error(`HALL_ORDER: no hall sponsor named ${name}`);
+  return s;
+});
+
+/**
+ * The CSS hall's plaque grid (phones without WebGL or with reduced motion):
+ * every hall sponsor, five across, in the sponsor list's order (startGBC
+ * right after George Brown Polytechnic) with the host school's crest moved
+ * up into the first row, as it stands on a front plinth in the 3D hall.
+ */
+export const GRID_SPONSORS: Sponsor[] = (() => {
+  const rest = SPONSORS.filter((s) => s.hero && s.name !== "William Lyon Mackenzie CI");
+  const crest = byName.get("William Lyon Mackenzie CI");
+  return crest ? [...rest.slice(0, 3), crest, ...rest.slice(3)] : rest;
+})();

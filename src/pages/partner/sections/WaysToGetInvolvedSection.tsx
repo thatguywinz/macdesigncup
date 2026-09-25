@@ -44,7 +44,7 @@ export default function WaysToGetInvolvedSection() {
               </span>
             </span>
             <div className="min-w-0">
-              <h3 className="font-display text-[1.45rem] uppercase leading-none text-foreground md:text-[2rem]">{title}</h3>
+              <h3 className="font-display text-[1.3rem] uppercase leading-none text-foreground md:text-[1.65rem]">{title}</h3>
               <p className="mt-1.5 text-pretty font-body text-[13px] font-light leading-snug text-concrete md:text-[15px]">
                 {line}
               </p>

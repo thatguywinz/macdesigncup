@@ -109,7 +109,7 @@ export default function Countdown({
       {TARGET ? (
         <>
           {showDate && (
-            <p className="mt-3 block font-display text-[1.5rem] uppercase leading-none text-foreground md:mt-4 md:text-[1.7rem]">
+            <p className="mt-3 block font-display text-[1.35rem] uppercase leading-none text-foreground md:mt-4 md:text-[1.5rem]">
               {EVENT_DATE_LABEL}
             </p>
           )}
@@ -136,7 +136,7 @@ export default function Countdown({
                     className="absolute -left-px -top-[5px] h-[9px] w-px bg-ember/70"
                   />
                 )}
-                <span className="block font-display text-[2rem] leading-none tabular-nums text-foreground md:text-5xl">
+                <span className="block font-display text-[1.75rem] leading-none tabular-nums text-foreground md:text-[2.4rem]">
                   {c.value}
                 </span>
                 <span className="block font-mono text-[9px] uppercase tracking-[0.2em] text-concrete md:mt-2.5 md:tracking-[0.28em]">
@@ -147,7 +147,7 @@ export default function Countdown({
           </div>
         </>
       ) : (
-        <p className="mt-6 font-display text-4xl uppercase leading-[0.95] text-foreground">
+        <p className="mt-6 font-display text-[2rem] uppercase leading-[0.95] text-foreground">
           {C.tba[0]}
           <span className="wire-text-ember block">{C.tba[1]}</span>
         </p>

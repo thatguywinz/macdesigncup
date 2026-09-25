@@ -8,13 +8,14 @@ import { focusTarget } from "@/lib/focusTarget";
 import { CTA, HERO } from "@/content/copy";
 import HeroPoster, { HallPlaques } from "./HeroPoster";
 import SceneBoundary from "./SceneBoundary";
-import { restShot } from "./frame";
+import { restShot, type PhoneFrame } from "./frame";
 import { COPY_OUT, CTA_OUT, GLOW_IN, GLOW_PEAK, SPILL_IN } from "./timeline";
 import "./hero.css";
 
 // three.js + postprocessing are heavy: split them from the shell and load
-// them only once the page has loaded and gone idle, on the 3D stage layout.
-// The poster is the hero until the scene is up, and on phones it stays the hero.
+// them only once the page has loaded and gone idle. The poster (on phones,
+// the CSS hall) is the hero until the scene is up, and stays it without
+// WebGL (and on phones, with reduced motion).
 const GalleryScene = lazy(() => import("./GalleryScene"));
 
 /** The 3D stage layout: 768px wide and more than 500px tall. hero.css keys the
@@ -23,6 +24,9 @@ const GalleryScene = lazy(() => import("./GalleryScene"));
  *  side instead: the stage's type would fill their height and the door's
  *  Enter slab would land on the prize line. */
 const STAGE_QUERY = "(min-width: 768px) and (min-height: 501px)";
+/** The CSS hall laid out side by side (hero.css): a phone held sideways. The
+ *  phone scene then centres the hall on the hall's column, beside the type. */
+const SIDE_QUERY = "(max-height: 500px) and (min-aspect-ratio: 4/3)";
 
 const NEXT = "glance";
 /** The Enter click's glide down the page on desktop, in ms (plays the dolly). */
@@ -126,6 +130,20 @@ function glide(to: number, ms: number, done: () => void) {
   raf = requestAnimationFrame(step);
 }
 
+/** Whether a media query matches, tracked. False on the server and the
+ *  first render, so the markup never branches on it. */
+function useMedia(query: string) {
+  const [match, setMatch] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia(query);
+    const update = () => setMatch(mq.matches);
+    update();
+    mq.addEventListener?.("change", update);
+    return () => mq.removeEventListener?.("change", update);
+  }, [query]);
+  return match;
+}
+
 /**
  * The home page's hero: the 3D gallery hall, and the page's only <h1>.
  *
@@ -134,11 +152,16 @@ function glide(to: number, ms: number, done: () => void) {
  * prerendered HTML and visitors without WebGL get a complete hero.
  *
  * Phones (below 768px) and short landscape windows (500px tall or less, a
- * phone held sideways) keep that poster as a CSS hall: the copy, then the lit
- * door with the Enter slab, then every hall sponsor as a small plaque grid on the floor, laid out
- * in the flow so the door can never sit on the copy (upright: stacked;
- * sideways: the copy on the left, the hall beside it). No three.js is
- * downloaded.
+ * phone held sideways) lay that poster out as a CSS hall: the copy, then the
+ * lit door with the Enter slab, then every hall sponsor as a small plaque
+ * grid on the floor, in the flow so the door can never sit on the copy
+ * (upright: stacked; sideways: the copy on the left, the hall beside it).
+ * Once the page is idle the lite scene (GalleryScene `lite`: low pixel
+ * ratio, no reflection pass, one half-resolution bloom) fades in over it:
+ * upright, the whole stage with the phone shot (frame.ts), the door under
+ * the type and eight plinths down the floor above the Register bar;
+ * sideways, the hall's column. No scroll dolly on phones, just the idle
+ * drift; the CSS hall stays without WebGL or with reduced motion.
  *
  * From 768px wide and 501px tall (STAGE_QUERY) the scene loads once the page
  * is idle and crossfades in over
@@ -162,25 +185,24 @@ export default function Hero() {
   const location = useLocation();
   const navigate = useNavigate();
 
-  // The 3D stage layout (STAGE_QUERY). False on the server and the first
-  // render, like the CSS hall it starts from.
-  const [wide, setWide] = useState(false);
+  // The 3D stage layout (STAGE_QUERY), and the sideways CSS hall
+  // (SIDE_QUERY). False on the server and the first render, like the CSS
+  // hall it starts from.
+  const wide = useMedia(STAGE_QUERY);
+  const side = useMedia(SIDE_QUERY);
   const [idle, setIdle] = useState(false);
   const [webgl, setWebgl] = useState<boolean | null>(null);
   const [ready, setReady] = useState(false);
-  useEffect(() => {
-    const mq = window.matchMedia(STAGE_QUERY);
-    const update = () => setWide(mq.matches);
-    update();
-    mq.addEventListener?.("change", update);
-    return () => mq.removeEventListener?.("change", update);
-  }, []);
+  const planRef = useRef<HTMLDivElement>(null);
+  // Phones get the lite scene, and only with motion allowed: reduced motion
+  // keeps the still CSS hall.
+  const lite = !wide;
+  const wants = hydrated && (wide || !reduced);
 
   // Load the scene after the page's `load` and an idle moment (the poster
-  // covers the wait), and only on the stage layout: phones, upright or
-  // sideways, never pay for three.js.
+  // covers the wait).
   useEffect(() => {
-    if (!wide || idle) return;
+    if (!wants || idle) return;
     const w = window as IdleWindow;
     let cancelled = false;
     let handle = 0;
@@ -202,9 +224,9 @@ export default function Hero() {
       if (handle) w.cancelIdleCallback?.(handle);
       window.clearTimeout(timer);
     };
-  }, [wide, idle]);
+  }, [wants, idle]);
 
-  const scene = hydrated && wide && idle && webgl === true;
+  const scene = wants && idle && webgl === true;
   useEffect(() => {
     if (!scene) setReady(false);
   }, [scene]);
@@ -245,14 +267,51 @@ export default function Hero() {
   // is placed where the scene will draw it. Layout offsets, not rects: the
   // type carries a cursor-parallax transform and lifts with scroll.
   const copyFloor = useMotionValue(0);
+  // The phone scene's frame, from the CSS hall it replaces: the room the
+  // Register bar leaves at the bottom (the hall plan's bottom padding) and,
+  // sideways, the hall's column (the scene centres the hall on it).
+  const [phoneFrame, setPhoneFrame] = useState<PhoneFrame | null>(null);
+  useEffect(() => {
+    const stage = stageRef.current;
+    const plan = planRef.current;
+    if (!scene || !lite || !stage || !plan || typeof ResizeObserver === "undefined") {
+      setPhoneFrame(null);
+      return;
+    }
+    const measure = () => {
+      const bottomPx = Math.round(parseFloat(getComputedStyle(plan).paddingBottom) || 0);
+      const column = side ? { left: plan.offsetLeft, width: plan.offsetWidth } : null;
+      setPhoneFrame((f) =>
+        f &&
+        f.bottomPx === bottomPx &&
+        f.column?.left === column?.left &&
+        f.column?.width === column?.width
+          ? f
+          : { bottomPx, column },
+      );
+    };
+    const ro = new ResizeObserver(measure);
+    ro.observe(stage);
+    ro.observe(plan);
+    measure();
+    return () => ro.disconnect();
+  }, [scene, lite, side]);
+
   useEffect(() => {
     const stage = stageRef.current;
     const block = typeRef.current;
-    if (!wide || !stage || !block || typeof ResizeObserver === "undefined") return;
+    if (!(wide || scene) || !stage || !block || typeof ResizeObserver === "undefined") return;
     const measure = () => {
       const W = stage.clientWidth;
       const H = stage.clientHeight;
       if (!W || !H) return;
+      // Sideways the hall stands beside the type, not under it: only the
+      // nav is over it (the hall plan's top padding clears the nav).
+      const plan = planRef.current;
+      if (side && plan) {
+        copyFloor.set(Math.max(0, (parseFloat(getComputedStyle(plan).paddingTop) || 0) - 10) / H);
+        return;
+      }
       let top = 0;
       let el: HTMLElement | null = block;
       while (el && el !== stage) {
@@ -262,6 +321,7 @@ export default function Hero() {
       if (el !== stage) return;
       const floor = (top + block.offsetHeight) / H;
       copyFloor.set(floor);
+      if (!wide) return;
       const shot = restShot(W / H, floor, H);
       stage.style.setProperty(DOOR_VARS[0], `${(((shot.rimTop + shot.rimBottom) / 2) * H).toFixed(1)}px`);
       stage.style.setProperty(DOOR_VARS[1], `${((shot.rimBottom - shot.rimTop) * H).toFixed(1)}px`);
@@ -275,7 +335,7 @@ export default function Hero() {
       ro.disconnect();
       DOOR_VARS.forEach((p) => stage.style.removeProperty(p));
     };
-  }, [wide, copyFloor, typeRef]);
+  }, [wide, side, scene, copyFloor, typeRef]);
 
   const onReady = useCallback(() => setReady(true), []);
   const onFail = useCallback(() => setReady(false), []);
@@ -354,14 +414,14 @@ export default function Hero() {
                   keeps room under the type for the hall. */}
               <h1
                 id="hero-title"
-                className="hall-type__title display-giant mt-4 text-[clamp(3.4rem,min(8.4vw,15svh),11rem)] leading-[0.86] max-md:[@media(max-height:760px)]:text-[3rem] [@media(max-height:760px)]:mt-3"
+                className="hall-type__title display-giant mt-4 text-[clamp(2.75rem,min(6.4vw,11.5svh),8.5rem)] leading-[0.88] max-md:[@media(max-height:760px)]:text-[2.5rem] [@media(max-height:760px)]:mt-3"
               >
                 <span className="block whitespace-nowrap">{HERO.h1[0]}</span>{" "}
                 <span className="block whitespace-nowrap">{HERO.h1[1]}</span>
               </h1>
               <p className="hall-type__prize mt-5 max-w-[36rem] font-mono text-[11px] uppercase leading-relaxed tracking-[0.18em] text-foreground/80 md:mt-5 md:max-w-[min(36rem,37vw)] xl:text-xs [@media(max-height:760px)]:mt-3">
                 <span className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                  <span className="hall-type__pool font-display text-[clamp(1.75rem,2.7vw,2.75rem)] leading-none tracking-normal text-ember">
+                  <span className="hall-type__pool font-display text-[clamp(1.5rem,2.05vw,2.2rem)] leading-none tracking-normal text-ember">
                     {HERO.prize.pool}
                   </span>{" "}
                   <span>{HERO.prize.rest}</span>
@@ -376,7 +436,7 @@ export default function Hero() {
             On the stage: the poster's Enter slab over the poster door, until
             the scene brings its own (glued to the 3D door) and this one steps
             aside. */}
-        <div className="hall-plan">
+        <div ref={planRef} className="hall-plan">
           <div className="hall-plan__doorway">
             <div aria-hidden="true" className="hall-door hall-plan__door" />
             <div className="hall-cta hall-cta--poster">
@@ -396,7 +456,8 @@ export default function Hero() {
 
         {scene && (
           <div
-            className="absolute inset-0 z-[5] transition-opacity [transition-duration:900ms] ease-out"
+            data-lite={lite || undefined}
+            className="hall-scene absolute inset-0 z-[5] transition-opacity [transition-duration:900ms] ease-out"
             style={{ opacity: ready ? 1 : 0 }}
           >
             <SceneBoundary onFail={onFail}>
@@ -408,6 +469,8 @@ export default function Hero() {
                   copyFloor={copyFloor}
                   onEnter={enter}
                   onReady={onReady}
+                  lite={lite}
+                  phoneFrame={phoneFrame}
                 />
               </Suspense>
             </SceneBoundary>

@@ -72,26 +72,68 @@ export const LANDSCAPE_SLOTS: Slot[] = [
    with air between them on screen at every tablet shape from 0.62 to 0.8.
    The door, its Enter slab and the runway in front of it stay clear: the
    far pair stands well wide of the slab (60px or more), the rest flank the
-   runway. None of them is in the frame where the dolly stops. */
+   runway. None of them is in the frame where the dolly stops.
+   In every layout slot 1 and slot 5 stand side by side (same side, the
+   next place along), which sponsors.ts's HALL_ORDER relies on. */
 export const PORTRAIT_SLOTS: Slot[] = [
   { x: -2.2, z: 1.0, h: 0.24, s: 0.6 },
   { x: 2.2, z: 1.0, h: 0.24, s: 0.6 },
   { x: -1.75, z: 4.3, h: 0.06, s: 0.46 },
   { x: 1.75, z: 4.3, h: 0.06, s: 0.46 },
-  { x: -3.2, z: -4.2, h: 1.75, s: 0.9 },
-  { x: 3.2, z: -4.2, h: 1.75, s: 0.9 },
   { x: -2.75, z: -2.1, h: 0.72, s: 0.76 },
   { x: 2.75, z: -2.1, h: 0.72, s: 0.76 },
+  { x: -3.2, z: -4.2, h: 1.75, s: 0.9 },
+  { x: 3.2, z: -4.2, h: 1.75, s: 0.9 },
 ];
 
-export const slotsFor = (aspect: number) => (aspect < 1 ? PORTRAIT_SLOTS : LANDSCAPE_SLOTS);
+/* Phones held upright (the lite scene): eight plinths in two files down
+   the floor between the door and the sticky Register bar, each pair a step
+   nearer, lower and larger, clear of the runway and of the Enter slab on
+   the door. Rows in slot order: second, third, first (by the door), last,
+   so slot 1 and slot 5 are neighbours in the right-hand file. */
+export const PHONE_SLOTS: Slot[] = [
+  { x: -1.3, z: -1.0, h: 0.1, s: 0.62 },
+  { x: 1.3, z: -1.0, h: 0.1, s: 0.62 },
+  { x: -1.25, z: 1.3, h: 0.08, s: 0.58 },
+  { x: 1.25, z: 1.3, h: 0.08, s: 0.58 },
+  { x: -1.32, z: -3.4, h: 0.14, s: 0.64 },
+  { x: 1.32, z: -3.4, h: 0.14, s: 0.64 },
+  { x: -1.15, z: 3.5, h: 0.05, s: 0.54 },
+  { x: 1.15, z: 3.5, h: 0.05, s: 0.54 },
+];
+
+/* Phones held sideways (the lite scene in the CSS hall's column, about
+   square and under 400px tall): room for three rows, not four, so six
+   plinths, wider apart and larger. Same slot order: the middle row, the
+   near row, then the far one by the door (slot 1 and slot 5 neighbours). */
+export const SIDE_SLOTS: Slot[] = [
+  { x: -2.0, z: 0.6, h: 0.08, s: 0.78 },
+  { x: 2.0, z: 0.6, h: 0.08, s: 0.78 },
+  { x: -2.1, z: 3.2, h: 0.05, s: 0.72 },
+  { x: 2.1, z: 3.2, h: 0.05, s: 0.72 },
+  { x: -1.9, z: -2.2, h: 0.12, s: 0.82 },
+  { x: 1.9, z: -2.2, h: 0.12, s: 0.82 },
+];
+
+const isLite = (kind: Framing["kind"]) => kind === "phone" || kind === "side";
+
+export const slotsFor = (f: Pick<Framing, "kind">) =>
+  f.kind === "phone"
+    ? PHONE_SLOTS
+    : f.kind === "side"
+      ? SIDE_SLOTS
+      : f.kind === "portrait"
+        ? PORTRAIT_SLOTS
+        : LANDSCAPE_SLOTS;
 
 /* ── The lit back wall ───────────────────────────────────────────────
    The sponsors past the plinths hang on the back wall as lit plates, flat
    to the wall (they face the camera square): a band of four beside the
    door, low enough to sit under the poster type and high enough to clear
-   the back row's slabs in front of them, and one crest over the door.
-   Plate centres, in hall order after the plinths. */
+   the back row's slabs in front of them, and one long sign over the door
+   (a wordmark on the wall above its lintel). Plate centres, in hall order
+   after the plinths. Phones hang none: their frame is the door and the
+   plinths. */
 export interface WallPlate {
   x: number;
   y: number;
@@ -107,8 +149,8 @@ export const LANDSCAPE_WALL: WallPlate[] = [
   { x: 3.02, ...BAND },
   { x: -5.2, ...BAND },
   { x: 5.2, ...BAND },
-  // over the door, on the wall above its lintel
-  { x: 0, y: 4.8, w: 1.2, h: 1.0 },
+  // over the door, a long sign on the wall above its lintel
+  { x: 0, y: 4.74, w: 2.3, h: 0.6 },
 ];
 /* Upright tablets: a narrower frame, so the band closes in and rises to sit
    between the door's rim and the far plinths (which stand lower). */
@@ -118,9 +160,10 @@ export const PORTRAIT_WALL: WallPlate[] = [
   { x: 2.32, ...P_BAND },
   { x: -3.55, ...P_BAND },
   { x: 3.55, ...P_BAND },
-  { x: 0, y: 4.75, w: 0.9, h: 0.78 },
+  { x: 0, y: 4.74, w: 1.7, h: 0.46 },
 ];
-export const wallFor = (aspect: number) => (aspect < 1 ? PORTRAIT_WALL : LANDSCAPE_WALL);
+export const wallFor = (f: Pick<Framing, "kind">) =>
+  isLite(f.kind) ? [] : f.kind === "portrait" ? PORTRAIT_WALL : LANDSCAPE_WALL;
 /** The band's top (landscape): it too must stay under the poster type. */
 const BAND_TOP = BAND.y + BAND.h / 2 + 0.03;
 
@@ -166,13 +209,48 @@ const CLEAR_PORTRAIT_PX = 22;
 const BOTTOM_PX = 10;
 
 export interface Framing {
+  /** Which shot: the landscape rows, the upright tablet corridor, or the
+   *  lite scene's door-and-plinths on a phone, upright or held sideways. */
+  kind: "landscape" | "portrait" | "phone" | "side";
   fov: number;
   z: number;
   y: number;
   lookY: number;
   /** Camera z where the scroll-driven dolly stops. */
   endZ: number;
+  /** The point the plaques turn toward (the camera's rest pose, roughly). */
+  faceY: number;
+  faceZ: number;
 }
+
+/** Where the plaques face in the desktop and tablet shots. */
+const FACE = { faceY: 2.05, faceZ: 9.2 };
+
+/* The phone shot: stood back and high, looking down the hall, so the door
+   sits under the poster type and the floor in front of it holds the plinth
+   files. The camera stays put (no dolly on phones): the shot's fov and look
+   height are solved so the door's rim sits just under the type and the
+   nearest plinths just over the sticky Register bar, whatever the phone. */
+const PHONE_CAM = { y: 5, z: DOOR.z + 16 };
+/** Sideways: further back, for the wider rows in a squarer frame. */
+const SIDE_CAM = { y: 5, z: DOOR.z + 20 };
+/** Hall columns this square or wider (width / height) get the sideways rows. */
+const SIDE_FIT = 0.85;
+/** Screen air kept over the phone's sticky Register bar, px, when the page
+ *  has not said (PhoneFrame.bottomPx). */
+const PHONE_BOTTOM_PX = 86;
+
+/** The phone scene's frame, measured by the page from the CSS hall it
+ *  covers (Hero.tsx). */
+export interface PhoneFrame {
+  /** Screen air kept at the bottom for the sticky Register bar, px. */
+  bottomPx: number;
+  /** Sideways: the hall's column in the stage, px. The scene centres the
+   *  hall on it and fits the plinth files to its width. */
+  column: { left: number; width: number } | null;
+}
+/** Air kept between the outer plaque edges and the frame's sides. */
+const PHONE_SIDE = 0.12;
 
 /** Camera distance from the door that puts its opening at END_FILL of the
  *  frame height. */
@@ -195,9 +273,10 @@ function lookYFor(camY: number, camZ: number, tanV: number, y: number, z: number
  *  back row's slab tops, which stand under the type on the left. Portrait:
  *  the door's lit rim (the type spans the door there) and the plaques
  *  beside it. */
-function guards(aspect: number): Array<[number, number]> {
-  if (aspect >= 1) return [[slabTop(BACK_ROW), BACK_ROW.z], [BAND_TOP, WALL_Z]];
-  const [, , , , far, , mid] = PORTRAIT_SLOTS;
+function guards(f: Framing): Array<[number, number]> {
+  if (isLite(f.kind)) return [[RIM_TOP + 0.06, DOOR.z]];
+  if (f.kind === "landscape") return [[slabTop(BACK_ROW), BACK_ROW.z], [BAND_TOP, WALL_Z]];
+  const [, , , , mid, , far] = PORTRAIT_SLOTS;
   return [
     [RIM_TOP + 0.06, DOOR.z],
     [slabTop(far), far.z],
@@ -206,10 +285,57 @@ function guards(aspect: number): Array<[number, number]> {
 }
 
 /** The type's clearance line as NDC height. */
-const clearLine = (aspect: number, floor: number, heightPx: number) =>
-  1 - 2 * Math.min(0.92, floor + (aspect < 1 ? CLEAR_PORTRAIT_PX : CLEAR_PX) / heightPx);
+const clearLine = (kind: Framing["kind"], floor: number, heightPx: number) =>
+  1 - 2 * Math.min(0.92, floor + (kind === "landscape" ? CLEAR_PX : CLEAR_PORTRAIT_PX) / heightPx);
 
-export function framing(aspect: number, floor = 0, heightPx = 0): Framing {
+function phoneFraming(aspect: number, floor: number, heightPx: number, bottomPx: number): Framing {
+  const kind = aspect >= SIDE_FIT ? "side" : "phone";
+  const { y, z } = kind === "side" ? SIDE_CAM : PHONE_CAM;
+  const slots = kind === "side" ? SIDE_SLOTS : PHONE_SLOTS;
+  // The nearest pair: the one kept clear of the Register bar.
+  const near = slots.reduce((a, b) => (b.z > a.z ? b : a));
+  // The plinth files must fit the frame's width: the narrowest fov that
+  // keeps every plaque's outer edge in.
+  const outer = Math.max(...slots.map((s) => (Math.abs(s.x) + (SLAB_W / 2) * s.s + PHONE_SIDE) / (z - s.z)));
+  const minFov = deg(2 * Math.atan(outer / aspect));
+  const base: Framing = {
+    kind,
+    fov: clamp(Math.max(kind === "side" ? 34 : 54, minFov), 24, 66),
+    z,
+    y,
+    lookY: 1.05,
+    endZ: z - 1,
+    faceY: y,
+    faceZ: z,
+  };
+  if (!(floor > 0) || !(heightPx > 0)) return base;
+  const top = clearLine(kind, floor, heightPx);
+  const bottom = -1 + (2 * bottomPx) / heightPx;
+  const lookAt = (fov: number) => lookYFor(y, z, Math.tan(rad(fov / 2)), RIM_TOP + 0.06, DOOR.z, top);
+  // With the rim on the top line, a wider shot lifts the near pair and a
+  // narrower one drops it: bisect for its feet on the bottom line.
+  let lo = clamp(minFov, 24, 66);
+  let hi = 66;
+  for (let i = 0; i < 28; i++) {
+    const fov = (lo + hi) / 2;
+    const tanV = Math.tan(rad(fov / 2));
+    if (ndcY(y, z, lookAt(fov), tanV, slabBottom(near), near.z) < bottom) lo = fov;
+    else hi = fov;
+  }
+  return { ...base, fov: lo, lookY: lookAt(lo) };
+}
+
+/** The shot for a frame. `phone` picks the lite scene's phone shot: `fit` is
+ *  the aspect the plinth files must fit (the frame's, or sideways the hall
+ *  column's). Otherwise the aspect decides between landscape and the
+ *  upright tablet corridor. */
+export function framing(
+  aspect: number,
+  floor = 0,
+  heightPx = 0,
+  phone?: { fit: number; bottomPx?: number },
+): Framing {
+  if (phone) return phoneFraming(phone.fit, floor, heightPx, phone.bottomPx ?? PHONE_BOTTOM_PX);
   // Portrait frames the portal, not the rows: the hall reads as a corridor.
   // Stood back and looking up, so the door sits under the poster type and
   // the plinths line the floor in front of it.
@@ -219,7 +345,7 @@ export function framing(aspect: number, floor = 0, heightPx = 0): Framing {
     // tablet) the camera steps back to hold the aisle's width.
     const tanV = Math.tan(rad(DESIGN_FOV / 2));
     const z = DOOR.z + 19.5 * Math.max(1, 0.72 / aspect);
-    return { fov: DESIGN_FOV, z, y: 2.05, lookY: 3.15, endZ: DOOR.z + fillDistance(tanV) };
+    return { kind: "portrait", fov: DESIGN_FOV, z, y: 2.05, lookY: 3.15, endZ: DOOR.z + fillDistance(tanV), ...FACE };
   }
   const raw = deg(2 * Math.atan(TAN_H / aspect));
   // Narrow windows (4:3, 5:4) cap the fov and dolly back to hold the row.
@@ -245,7 +371,7 @@ export function framing(aspect: number, floor = 0, heightPx = 0): Framing {
       ndcY(y, z, lookY, tanV0, BAND_TOP, WALL_Z),
     );
     const bottom = ndcY(y, z, lookY, tanV0, slabBottom(FRONT_ROW), FRONT_ROW.z);
-    const room = clearLine(aspect, floor, heightPx) - (-1 + (2 * BOTTOM_PX) / heightPx);
+    const room = clearLine("landscape", floor, heightPx) - (-1 + (2 * BOTTOM_PX) / heightPx);
     if (room > 0 && top - bottom > room) {
       fov = Math.min(MAX_FOV, deg(2 * Math.atan((tanV0 * (top - bottom)) / room)));
     }
@@ -264,14 +390,13 @@ export function framing(aspect: number, floor = 0, heightPx = 0): Framing {
     const gone = toRow + Math.max(0, x - BACK_ROW.halfW - 0.1) / perUnit;
     if (d > gone && d < whole) d = whole;
   }
-  return { fov, z, y, lookY, endZ: Math.min(z - 1, DOOR.z + d) };
+  return { kind: "landscape", fov, z, y, lookY, endZ: Math.min(z - 1, DOOR.z + d), ...FACE };
 }
 
 /** How far to raise the look target (world units, >= 0) so the guards sit
  *  clear of the type, for a camera at (camY, camZ) looking at lookY. */
 export function copyLift(
   f: Framing,
-  aspect: number,
   camY: number,
   camZ: number,
   lookY: number,
@@ -280,23 +405,23 @@ export function copyLift(
 ) {
   if (!(floor > 0) || !(heightPx > 0)) return 0;
   const tanV = Math.tan(rad(f.fov / 2));
-  const line = clearLine(aspect, floor, heightPx);
+  const line = clearLine(f.kind, floor, heightPx);
   let need = lookY;
-  for (const [y, z] of guards(aspect)) need = Math.max(need, lookYFor(camY, camZ, tanV, y, z, line));
+  for (const [y, z] of guards(f)) need = Math.max(need, lookYFor(camY, camZ, tanV, y, z, line));
   return need - lookY;
 }
 
 /** The rest shot's look height, the type's clearance included (the cursor
  *  and the idle drift at rest). */
-export function restLookY(f: Framing, aspect: number, floor: number, heightPx: number) {
-  return f.lookY + copyLift(f, aspect, f.y, f.z, f.lookY, floor, heightPx);
+export function restLookY(f: Framing, floor: number, heightPx: number) {
+  return f.lookY + copyLift(f, f.y, f.z, f.lookY, floor, heightPx);
 }
 
 /** Where the door's rim and the Enter slab land in the rest shot, each as a
  *  share of the frame height from the top. */
 export function restShot(aspect: number, floor: number, heightPx: number) {
   const f = framing(aspect, floor, heightPx);
-  const lookY = restLookY(f, aspect, floor, heightPx);
+  const lookY = restLookY(f, floor, heightPx);
   const tanV = Math.tan(rad(f.fov / 2));
   const at = (y: number, z: number) => (1 - ndcY(f.y, f.z, lookY, tanV, y, z)) / 2;
   return { rimTop: at(RIM_TOP, DOOR.z), rimBottom: at(RIM_BOTTOM, DOOR.z), cta: at(CTA_AT.y, CTA_AT.z) };

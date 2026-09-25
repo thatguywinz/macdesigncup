@@ -153,7 +153,7 @@ export default function DaySection() {
                   <p className="font-mono text-[11px] font-bold uppercase tracking-[0.22em] text-ember transition-colors duration-500 motion-reduce:transition-none lg:group-data-[phase=future]:text-concrete">
                     {keepTimes(step.time)}
                   </p>
-                  <h3 className="mt-1 font-display text-[1.65rem] uppercase leading-[1.02] text-foreground transition-opacity duration-500 motion-reduce:transition-none md:mt-2 md:text-[2.1rem] lg:mt-1.5 lg:text-[2.25rem] lg:group-data-[phase=future]:opacity-45 lg:group-data-[phase=past]:opacity-70 xl:text-[2.5rem]">
+                  <h3 className="mt-1 font-display text-[1.4rem] uppercase leading-[1.02] text-foreground transition-opacity duration-500 motion-reduce:transition-none md:mt-2 md:text-[1.7rem] lg:mt-1.5 lg:text-[1.8rem] lg:group-data-[phase=future]:opacity-45 lg:group-data-[phase=past]:opacity-70 xl:text-[1.95rem]">
                     {step.title}
                   </h3>
                   {(step.note || step.map) && (

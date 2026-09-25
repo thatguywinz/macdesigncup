@@ -137,14 +137,14 @@
 
   .display-hero {
     @apply display-giant;
-    font-size: clamp(3.2rem, 1rem + 9.5vw, 10.5rem);
+    font-size: clamp(2.6rem, 0.8rem + 7.2vw, 8rem);
   }
 
   /* Section headings. Sized so a copy-deck line ("Blank file in the
      morning.") holds one line on desktop instead of stacking four. */
   .display-scene {
     @apply display-giant;
-    font-size: clamp(2.5rem, 0.9rem + 4.6vw, 5.5rem);
+    font-size: clamp(2.125rem, 0.8rem + 3.45vw, 4.25rem);
   }
 
   /* One line of a <DisplayHeading>: the band the line rises into. Clipped

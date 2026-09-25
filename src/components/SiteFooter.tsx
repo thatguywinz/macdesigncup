@@ -99,7 +99,7 @@ export default function SiteFooter() {
       {/* molten seam where the hall ends */}
       <div className="ember-rule opacity-70" aria-hidden="true" />
 
-      <div className="relative px-5 pb-3 pt-4 md:px-10 md:pb-10 md:pt-12 lg:px-16">
+      <div className="relative px-5 pb-3 pt-4 md:px-10 md:pb-8 md:pt-9 lg:px-16">
         <div className="relative mx-auto max-w-[1300px]">
           <CropMarks
             inset={-1}
@@ -108,12 +108,12 @@ export default function SiteFooter() {
           <div className="border border-bone/25">
             {/* row 1: title | where, when, contact */}
             <div className="grid lg:grid-cols-12">
-              <div className={cn("border-b px-4 py-3.5 md:px-7 md:py-6 lg:col-span-5 lg:border-b-0 lg:border-r", RULE)}>
+              <div className={cn("border-b px-4 py-3.5 md:px-7 md:py-5 lg:col-span-5 lg:border-b-0 lg:border-r", RULE)}>
                 <div className="flex items-center gap-3 md:gap-4">
-                  <LionMark animated={false} className="h-9 w-9 shrink-0 md:h-16 md:w-16" />
+                  <LionMark animated={false} className="h-8 w-8 shrink-0 md:h-12 md:w-12" />
                   {/* Phones: one row, MDC then the full name on its baseline. */}
                   <p className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1 md:flex-col md:flex-nowrap md:items-start md:gap-0">
-                    <span className="font-display text-[1.75rem] uppercase leading-none tracking-[0.02em] text-foreground md:text-4xl">
+                    <span className="font-display text-[1.5rem] uppercase leading-none tracking-[0.02em] text-foreground md:text-[1.875rem]">
                       {NAV.mark}
                     </span>
                     <span className="font-mono text-[10px] uppercase leading-none tracking-[0.24em] text-foreground/70 md:mt-2">
@@ -121,7 +121,7 @@ export default function SiteFooter() {
                     </span>
                   </p>
                 </div>
-                <p className="mt-2.5 max-w-[40ch] font-body text-[13px] font-light leading-normal text-concrete md:mt-5 md:text-sm md:leading-relaxed">
+                <p className="mt-2.5 max-w-[40ch] font-body text-[13px] font-light leading-normal text-concrete md:mt-4 md:text-sm md:leading-relaxed">
                   {FOOTER.descriptor}
                 </p>
               </div>
@@ -130,7 +130,7 @@ export default function SiteFooter() {
                   width over When | Contact. lg: Where beside When over
                   Contact, as in the title block's right-hand columns. */}
               <div className="grid gap-y-2.5 px-4 py-3.5 md:grid-cols-2 md:gap-y-0 md:p-0 lg:col-span-7 lg:grid-cols-[3fr_4fr] lg:grid-rows-[auto_1fr]">
-                <div className={cn("md:col-span-2 md:border-b md:px-7 md:py-6 lg:col-span-1 lg:row-span-2 lg:border-b-0 lg:border-r", RULE)}>
+                <div className={cn("md:col-span-2 md:border-b md:px-7 md:py-5 lg:col-span-1 lg:row-span-2 lg:border-b-0 lg:border-r", RULE)}>
                   <div className="flex items-center justify-between gap-4">
                     <Label>{FOOTER.labels.where}</Label>
                     {/* The label row carries the map link, so it adds no
@@ -147,15 +147,15 @@ export default function SiteFooter() {
                       <span className="sr-only">{NAV.newTab}</span>
                     </a>
                   </div>
-                  <address className="mt-1.5 font-body text-[13px] not-italic leading-normal text-foreground/85 md:mt-3.5 md:text-sm md:leading-relaxed">
+                  <address className="mt-1.5 font-body text-[13px] not-italic leading-normal text-foreground/85 md:mt-3 md:text-sm md:leading-relaxed">
                     <AddressPair first={ADDR_A} second={ADDR_B} />
                     <AddressPair first={ADDR_C} second={ADDR_D} />
                   </address>
                 </div>
 
-                <div className={cn("md:border-r md:px-7 md:py-6 lg:border-b lg:border-r-0", RULE)}>
+                <div className={cn("md:border-r md:px-7 md:py-5 lg:border-b lg:border-r-0", RULE)}>
                   <Label>{FOOTER.labels.when}</Label>
-                  <p className="mt-1.5 font-body text-[13px] leading-normal text-foreground/85 md:mt-3.5 md:text-sm md:leading-relaxed">
+                  <p className="mt-1.5 font-body text-[13px] leading-normal text-foreground/85 md:mt-3 md:text-sm md:leading-relaxed">
                     {/* Breaks at the middot, never inside the date or the time. */}
                     {FOOTER.when.split(" · ").map((part, i) => (
                       <span key={part}>
@@ -166,13 +166,13 @@ export default function SiteFooter() {
                   </p>
                 </div>
 
-                <div className="md:px-7 md:py-6">
+                <div className="md:px-7 md:py-5">
                   <Label>{FOOTER.labels.contact}</Label>
                   {/* A 44px target on phones, laid out at its text height:
                       the text sits 6px under the label like the other fields. */}
                   <a
                     href={`mailto:${CONTACT_EMAIL}`}
-                    className="focus-ember -mb-3 -mt-1.5 flex min-h-[44px] w-fit items-center break-all font-body text-[13px] leading-normal text-foreground/85 underline decoration-bone/30 underline-offset-4 transition-colors hover:text-ember hover:decoration-ember md:mb-0 md:mt-3.5 md:min-h-0 md:text-sm md:leading-relaxed"
+                    className="focus-ember -mb-3 -mt-1.5 flex min-h-[44px] w-fit items-center break-all font-body text-[13px] leading-normal text-foreground/85 underline decoration-bone/30 underline-offset-4 transition-colors hover:text-ember hover:decoration-ember md:mb-0 md:mt-3 md:min-h-0 md:text-sm md:leading-relaxed"
                   >
                     {CONTACT_EMAIL}
                   </a>
@@ -181,7 +181,7 @@ export default function SiteFooter() {
             </div>
 
             {/* row 2: the links */}
-            <div className={cn("border-t px-4 py-1 md:px-7 md:py-6", RULE)}>
+            <div className={cn("border-t px-4 py-1 md:px-7 md:py-5", RULE)}>
               <Label className="max-md:sr-only md:mb-4">{FOOTER.labels.sections}</Label>
               {/* Phones: two columns, the first sized to its longest link
                   so "Partner with us" holds one line at 360px; md+: one

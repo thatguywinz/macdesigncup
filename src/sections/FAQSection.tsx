@@ -255,7 +255,7 @@ export default function FAQSection() {
                     <span className="w-8 shrink-0 font-mono text-[10px] tabular-nums tracking-[0.06em] text-ember/80 md:w-10 md:text-[11px] md:tracking-[0.12em]">
                       Q.{String(pos).padStart(2, "0")}
                     </span>
-                    <span className="flex-1 font-display text-base uppercase leading-tight tracking-[0.01em] text-foreground transition-colors group-hover:text-ember group-open:text-ember md:text-xl">
+                    <span className="flex-1 font-display text-base uppercase leading-tight tracking-[0.01em] text-foreground transition-colors group-hover:text-ember group-open:text-ember md:text-lg">
                       {faq.q}
                     </span>
                     <span

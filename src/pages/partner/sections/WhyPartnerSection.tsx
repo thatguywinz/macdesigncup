@@ -60,7 +60,7 @@ function Statement({ figure, label, sub, art, big, className, delay = 0 }: State
         <p
           className={cn(
             "font-display uppercase leading-[0.85] text-ember",
-            big ? "text-[clamp(4.25rem,2.5rem+5vw,8.5rem)]" : "text-[clamp(2.6rem,1.6rem+2.6vw,4.5rem)]",
+            big ? "text-[clamp(3.4rem,2rem+4vw,6.5rem)]" : "text-[clamp(2.2rem,1.3rem+2vw,3.5rem)]",
           )}
         >
           {figure}
@@ -68,7 +68,7 @@ function Statement({ figure, label, sub, art, big, className, delay = 0 }: State
         <h3
           className={cn(
             "mt-2 font-display uppercase leading-none text-foreground md:mt-3",
-            big ? "text-[1.45rem] md:text-[2.1rem]" : "text-[1.3rem] md:text-[1.75rem]",
+            big ? "text-[1.3rem] md:text-[1.7rem]" : "text-[1.15rem] md:text-[1.45rem]",
           )}
         >
           {label}

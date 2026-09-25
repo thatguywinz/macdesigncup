@@ -48,7 +48,7 @@ export default function PathBand({ className }: { className?: string }) {
           <PathGlyph kind="together" delay={0.1} className="h-16 w-auto self-start md:h-[5.5rem] min-[1400px]:mb-1 min-[1400px]:h-[8.5rem] min-[1400px]:self-end" />
           <div className="flex min-w-0 flex-1 items-center gap-4 md:flex-col md:items-start md:gap-0">
             <div className="min-w-0 flex-1">
-              <p className={cn(LABEL, "text-[1.45rem]/none md:text-[2rem]/none xl:text-[2.4rem]/none")}>{r.register.label}</p>
+              <p className={cn(LABEL, "text-[1.3rem]/none md:text-[1.65rem]/none xl:text-[1.9rem]/none")}>{r.register.label}</p>
               <p id={regLine} className={cn(LINE, "mt-1 max-w-[30ch] text-[13px] md:mt-2 md:text-[15px]")}>
                 {r.register.line}
               </p>
@@ -74,7 +74,7 @@ export default function PathBand({ className }: { className?: string }) {
         >
           <PathGlyph kind="partners" delay={0.2} className="w-[4.25rem] md:h-[4.5rem] md:w-auto" />
           <div className="min-w-0 flex-1 md:mt-4 md:flex-none">
-            <p className={cn(LABEL, "text-[1.45rem]/none md:text-[2rem]/none xl:text-[2.4rem]/none")}>{r.partners.label}</p>
+            <p className={cn(LABEL, "text-[1.3rem]/none md:text-[1.65rem]/none xl:text-[1.9rem]/none")}>{r.partners.label}</p>
             <p id={partnerLine} className={cn(LINE, "mt-1 text-[13px] md:mt-2 md:text-[15px]")}>
               {r.partners.line}
             </p>

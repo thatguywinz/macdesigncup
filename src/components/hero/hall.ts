@@ -20,6 +20,7 @@ export {
   wallFor,
   WALL_Z,
   type Framing,
+  type PhoneFrame,
   type Slot,
   type WallPlate,
 } from "./frame";

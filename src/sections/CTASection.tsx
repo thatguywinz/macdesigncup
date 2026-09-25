@@ -166,7 +166,7 @@ export default function CTASection() {
         <DisplayHeading
           size="hero"
           lines={[s.lines[0], <span key="impossible" className="ember-text">{s.lines[1]}</span>]}
-          className="relative mt-5 text-[clamp(3.5rem,0.25rem+13.5vw,8.5rem)] md:mt-8"
+          className="relative mt-5 text-[clamp(2.75rem,0.25rem+10vw,6.5rem)] md:mt-8"
         />
 
       </div>

@@ -207,7 +207,7 @@ export default function PartnerForm() {
           <h2
             ref={successRef}
             tabIndex={-1}
-            className="mt-3 font-display text-3xl uppercase leading-none tracking-[0.01em] text-foreground focus:outline-none md:text-4xl"
+            className="mt-3 font-display text-[1.7rem] uppercase leading-none tracking-[0.01em] text-foreground focus:outline-none md:text-[2.25rem]"
           >
             {COPY.successTitle}
           </h2>

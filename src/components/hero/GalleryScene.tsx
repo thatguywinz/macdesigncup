@@ -29,6 +29,7 @@ import {
   framing,
   smoothstep,
   type Framing,
+  type PhoneFrame,
 } from "./hall";
 import { CTA_OUT, DOLLY_END } from "./timeline";
 import LogoPlaques from "./LogoPlaques";
@@ -45,6 +46,13 @@ export interface GallerySceneProps {
   onEnter: (event: MouseEvent<HTMLAnchorElement>) => void;
   /** Called once, after the first frames have been drawn. */
   onReady: () => void;
+  /** The phone scene: a lower pixel ratio, no floor reflection pass, less
+   *  dust, a lighter bloom, no printer and no wall plates; upright, the
+   *  phone shot (frame.ts). The camera holds still but for a gentle drift. */
+  lite?: boolean;
+  /** The phone scene's frame (the Register bar's room; sideways, the hall
+   *  column to centre on). */
+  phoneFrame?: PhoneFrame | null;
 }
 
 /** The poster type's floor, as state: it changes on resize and font load only. */
@@ -70,11 +78,14 @@ interface RigProps {
   progress: MotionValue<number>;
   reduced: boolean;
   frame: Framing;
-  aspect: number;
   floor: number;
+  /** No cursor to lean with (a touch screen): the idle drift only. */
+  still: boolean;
+  /** Screen px to move the picture right by (sideways: onto the hall column). */
+  shift: number;
 }
 
-function CameraRig({ progress, reduced, frame: f, aspect, floor }: RigProps) {
+function CameraRig({ progress, reduced, frame: f, floor, still, shift }: RigProps) {
   const lean = useMemo(() => new THREE.Vector2(), []);
   const look = useMemo(() => new THREE.Vector3(), []);
   const eased = useRef(0);
@@ -90,6 +101,17 @@ function CameraRig({ progress, reduced, frame: f, aspect, floor }: RigProps) {
       cam.fov = f.fov;
       cam.updateProjectionMatrix();
     }
+    // Off centre without turning the camera: a view offset slides the whole
+    // picture (the Enter slab's projection included) along the frame.
+    const { width: W, height: H } = state.size;
+    const v = cam.view;
+    if (shift) {
+      if (!v || !v.enabled || v.offsetX !== -shift || v.fullWidth !== W || v.fullHeight !== H) {
+        cam.setViewOffset(W, H, -shift, 0, W, H);
+      }
+    } else if (v && v.enabled) {
+      cam.clearViewOffset();
+    }
 
     // Smooth the scroll so wheel steps glide instead of stepping: a
     // critically damped follow (no overshoot), then the eased dolly curve.
@@ -99,8 +121,8 @@ function CameraRig({ progress, reduced, frame: f, aspect, floor }: RigProps) {
     const e = dollyAmount(eased.current);
     const free = 1 - e;
 
-    lean.x = THREE.MathUtils.damp(lean.x, reduced ? 0 : PTR.x * free, 2.4, dt);
-    lean.y = THREE.MathUtils.damp(lean.y, reduced ? 0 : PTR.y * free, 2.4, dt);
+    lean.x = THREE.MathUtils.damp(lean.x, reduced || still ? 0 : PTR.x * free, 2.4, dt);
+    lean.y = THREE.MathUtils.damp(lean.y, reduced || still ? 0 : PTR.y * free, 2.4, dt);
     const driftX = reduced ? 0 : Math.sin(t * 0.22) * 0.14 * free;
     const driftY = reduced ? 0 : Math.sin(t * 0.16) * 0.08 * free;
 
@@ -109,7 +131,7 @@ function CameraRig({ progress, reduced, frame: f, aspect, floor }: RigProps) {
     let lookY = THREE.MathUtils.lerp(f.lookY, DOOR.y, e) + lean.y * 0.3;
     // Checked every frame, so the cursor's lean can never lift the rows into
     // the type; it eases away over the walk, which ends square on the door.
-    lookY += copyLift(f, aspect, camY, camZ, lookY, floor, state.size.height) * free;
+    lookY += copyLift(f, camY, camZ, lookY, floor, state.size.height) * free;
 
     cam.position.set(lean.x * 1.15 + driftX, camY, camZ);
     look.set(lean.x * 0.7, lookY, DOOR.z);
@@ -394,6 +416,64 @@ function Architecture() {
   );
 }
 
+/* The phone floor: no reflection pass (it draws the hall a second time every
+   frame), just a dark polished floor that takes the studio light's sheen,
+   and the door's light laid on it as a soft warm streak. */
+function useStreak() {
+  const texture = useMemo(() => {
+    const c = document.createElement("canvas");
+    c.width = 32;
+    c.height = 128;
+    const ctx = c.getContext("2d");
+    if (ctx) {
+      const v = ctx.createLinearGradient(0, 0, 0, c.height);
+      v.addColorStop(0, "rgba(255,255,255,1)");
+      v.addColorStop(0.35, "rgba(255,255,255,0.45)");
+      v.addColorStop(1, "rgba(255,255,255,0)");
+      ctx.fillStyle = v;
+      ctx.fillRect(0, 0, c.width, c.height);
+      // soften the long edges
+      ctx.globalCompositeOperation = "destination-in";
+      const h = ctx.createLinearGradient(0, 0, c.width, 0);
+      h.addColorStop(0, "rgba(0,0,0,0)");
+      h.addColorStop(0.5, "rgba(0,0,0,1)");
+      h.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = h;
+      ctx.fillRect(0, 0, c.width, c.height);
+    }
+    const t = new THREE.CanvasTexture(c);
+    t.colorSpace = THREE.SRGBColorSpace;
+    return t;
+  }, []);
+  useEffect(() => () => texture.dispose(), [texture]);
+  return texture;
+}
+
+function LiteFloor() {
+  const streak = useStreak();
+  return (
+    <group>
+      <mesh rotation-x={-Math.PI / 2} position={[0, 0, -1]}>
+        <planeGeometry args={[60, 44]} />
+        <meshStandardMaterial color="#0a0b0d" roughness={0.38} metalness={0.55} envMapIntensity={0.35} />
+      </mesh>
+      {/* the door's light on the polish, falling off toward the camera */}
+      <mesh rotation-x={-Math.PI / 2} position={[0, 0.012, DOOR.z + 3.1]}>
+        <planeGeometry args={[3.4, 6.2]} />
+        <meshBasicMaterial
+          map={streak}
+          color={[0.9, 0.3, 0.06]}
+          transparent
+          opacity={0.55}
+          blending={THREE.AdditiveBlending}
+          depthWrite={false}
+          toneMapped={false}
+        />
+      </mesh>
+    </group>
+  );
+}
+
 function Floor() {
   return (
     <mesh rotation-x={-Math.PI / 2} position={[0, 0, -1]}>
@@ -439,9 +519,11 @@ function NeonPath({ mirror = false }: { mirror?: boolean }) {
 }
 
 /* Volumetric gallery downlights over the aisle. In a tall portrait frame the
-   cones cross the whole picture, so they are dimmed there. */
-function Downlights({ portrait }: { portrait: boolean }) {
-  const opacity = portrait ? 0.38 : 0.85;
+   cones cross the whole picture, so they are dimmed there, and on a phone,
+   where they would cross the poster type, all but put out. */
+function Downlights({ kind }: { kind: Framing["kind"] }) {
+  const lite = kind === "phone" || kind === "side";
+  const opacity = kind === "landscape" ? 0.85 : 0.38;
   return (
     <>
       {[-2.6, 2.6].map((x) => (
@@ -455,6 +537,8 @@ function Downlights({ portrait }: { portrait: boolean }) {
           attenuation={5.5}
           anglePower={4}
           opacity={opacity}
+          // no light shafts on a phone: they would cross the poster type
+          volumetric={!lite}
           color="#dfe6f2"
         />
       ))}
@@ -468,25 +552,43 @@ function Hall({
   reduced,
   copyFloor,
   onEnter,
-}: Pick<GallerySceneProps, "progress" | "reduced" | "copyFloor" | "onEnter">) {
+  lite,
+  phoneFrame,
+}: Pick<GallerySceneProps, "progress" | "reduced" | "copyFloor" | "onEnter" | "phoneFrame"> & { lite: boolean }) {
   const width = useThree((s) => s.size.width);
   const height = useThree((s) => s.size.height);
   const floor = useFloor(copyFloor);
   const aspect = width / Math.max(1, height);
-  const frame = useMemo(() => framing(aspect, floor, height), [aspect, floor, height]);
+  const column = lite ? phoneFrame?.column : null;
+  const fit = column ? column.width / Math.max(1, height) : aspect;
+  const bottomPx = phoneFrame?.bottomPx;
+  const frame = useMemo(
+    () => framing(aspect, floor, height, lite ? { fit, bottomPx } : undefined),
+    [aspect, floor, height, lite, fit, bottomPx],
+  );
+  const shift = column ? Math.round(column.left + column.width / 2 - width / 2) : 0;
   return (
     <>
-      <CameraRig progress={progress} reduced={reduced} frame={frame} aspect={aspect} floor={floor} />
-      <Downlights portrait={aspect < 1} />
-      <LogoPlaques reduced={reduced} progress={progress} frame={frame} aspect={aspect} />
-      <WirePrinter reduced={reduced} progress={progress} frame={frame} floor={floor} />
+      <CameraRig progress={progress} reduced={reduced} frame={frame} floor={floor} still={lite} shift={shift} />
+      <Downlights kind={frame.kind} />
+      <LogoPlaques reduced={reduced} progress={progress} frame={frame} aspect={aspect} lite={lite} />
+      {!lite && <WirePrinter reduced={reduced} progress={progress} frame={frame} floor={floor} />}
       <EnterDoor progress={progress} onEnter={onEnter} />
     </>
   );
 }
 
 /* ── Scene root ─────────────────────────────────────────────────────── */
-export default function GalleryScene({ progress, reduced, active, copyFloor, onEnter, onReady }: GallerySceneProps) {
+export default function GalleryScene({
+  progress,
+  reduced,
+  active,
+  copyFloor,
+  onEnter,
+  onReady,
+  lite = false,
+  phoneFrame = null,
+}: GallerySceneProps) {
   const bloom = useRef<BloomEffect | null>(null);
   // Nothing is drawn until the shaders are compiled. Under reduced motion
   // the picture never changes, so once the first frames are up the canvas
@@ -503,11 +605,11 @@ export default function GalleryScene({ progress, reduced, active, copyFloor, onE
   return (
     <Canvas
       frameloop={frameloop}
-      dpr={[1, 1.75]}
+      dpr={lite ? [1, 1.25] : [1, 1.75]}
       camera={{ position: [0, 2.05, 8.6], fov: DESIGN_FOV }}
       // Everything reaches the screen through the composer (multisampling 0),
       // so canvas MSAA would only smooth a fullscreen quad.
-      gl={{ antialias: false, powerPreference: "high-performance" }}
+      gl={{ antialias: false, powerPreference: lite ? "default" : "high-performance" }}
     >
       <color attach="background" args={["#07080a"]} />
       <fog attach="fog" args={["#07080a", 10, 30]} />
@@ -523,15 +625,22 @@ export default function GalleryScene({ progress, reduced, active, copyFloor, onE
       <pointLight position={[3.4, 0.4, 0.5]} color="#3d7bff" intensity={4} distance={7} decay={2} />
 
       <Architecture />
-      <Floor />
+      {lite ? <LiteFloor /> : <Floor />}
       <NeonPath />
       <NeonPath mirror />
       <Portal reduced={reduced} />
-      <Hall progress={progress} reduced={reduced} copyFloor={copyFloor} onEnter={onEnter} />
+      <Hall
+        progress={progress}
+        reduced={reduced}
+        copyFloor={copyFloor}
+        onEnter={onEnter}
+        lite={lite}
+        phoneFrame={phoneFrame}
+      />
 
       {/* drifting dust: cool ambient + warm near the door */}
       <Sparkles
-        count={140}
+        count={lite ? 44 : 140}
         scale={[16, 7, 14]}
         position={[0, 3, -1]}
         size={1.6}
@@ -540,7 +649,7 @@ export default function GalleryScene({ progress, reduced, active, copyFloor, onE
         color="#9fb8ff"
       />
       <Sparkles
-        count={70}
+        count={lite ? 26 : 70}
         scale={[4, 5, 3]}
         position={[0, 2, -4.6]}
         size={2.2}
@@ -549,17 +658,33 @@ export default function GalleryScene({ progress, reduced, active, copyFloor, onE
         color="#ffb37a"
       />
 
-      <EffectComposer multisampling={0}>
-        {/* the wrapper types its ref as the class, not the instance */}
-        <Bloom
-          ref={bloom as unknown as Ref<typeof BloomEffect>}
-          mipmapBlur
-          intensity={BLOOM_REST}
-          luminanceThreshold={1}
-          luminanceSmoothing={0.2}
-        />
-        <Vignette eskil={false} offset={0.18} darkness={0.72} />
-      </EffectComposer>
+      {lite ? (
+        // One cheap pass: the door's halo at half resolution. The page's own
+        // CSS vignette darkens the edges.
+        <EffectComposer multisampling={0}>
+          <Bloom
+            ref={bloom as unknown as Ref<typeof BloomEffect>}
+            mipmapBlur
+            levels={5}
+            resolutionScale={0.5}
+            intensity={BLOOM_REST}
+            luminanceThreshold={1}
+            luminanceSmoothing={0.2}
+          />
+        </EffectComposer>
+      ) : (
+        <EffectComposer multisampling={0}>
+          {/* the wrapper types its ref as the class, not the instance */}
+          <Bloom
+            ref={bloom as unknown as Ref<typeof BloomEffect>}
+            mipmapBlur
+            intensity={BLOOM_REST}
+            luminanceThreshold={1}
+            luminanceSmoothing={0.2}
+          />
+          <Vignette eskil={false} offset={0.18} darkness={0.72} />
+        </EffectComposer>
+      )}
     </Canvas>
   );
 }

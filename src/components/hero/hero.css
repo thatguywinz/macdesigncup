@@ -308,7 +308,7 @@
   }
   .hall-type .hall-type__title {
     margin-top: 0.625rem;
-    font-size: clamp(2.25rem, 14svh, 4.25rem);
+    font-size: clamp(1.9rem, 11svh, 3.4rem);
   }
   .hall-type .hall-type__prize {
     margin-top: 0.75rem;
@@ -316,7 +316,7 @@
     font-size: 10.5px;
   }
   .hall-type .hall-type__pool {
-    font-size: 1.625rem;
+    font-size: 1.375rem;
   }
 
   .hall-plan {
@@ -358,13 +358,13 @@
   }
   .hall-type .hall-type__title {
     margin-top: 0.5rem;
-    font-size: clamp(2rem, 11.5svh, 3rem);
+    font-size: clamp(1.75rem, 9.5svh, 2.5rem);
   }
   .hall-type .hall-type__prize {
     margin-top: 0.5rem;
   }
   .hall-type .hall-type__pool {
-    font-size: 1.5rem;
+    font-size: 1.3rem;
   }
 }
 
@@ -553,4 +553,30 @@
     animation: none;
     opacity: 0.9;
   }
+}
+
+/* ── The phone scene over the CSS hall ─────────────────────────────────
+   Once the lite scene is on screen (Hero.tsx sets data-ready) it draws the
+   door, the plinths and the Enter slab itself: the CSS hall's door and
+   plaque grid fade out under it (their boxes stay, so nothing moves), and
+   the hall plan stops taking taps so they reach the scene's own slab. The
+   scene takes no touches but that slab's: a swipe on the hall scrolls. */
+.hall-plan__door,
+.hall-plan__plaques,
+.hall-plan__doorway::after {
+  transition: opacity 0.9s ease-out;
+}
+[data-ready] .hall-plan__door,
+[data-ready] .hall-plan__plaques,
+[data-ready] .hall-plan__doorway::after {
+  opacity: 0;
+}
+[data-ready] .hall-plan {
+  pointer-events: none;
+}
+.hall-scene[data-lite] {
+  pointer-events: none;
+}
+.hall-scene[data-lite] .hall-cta__btn {
+  pointer-events: auto;
 }

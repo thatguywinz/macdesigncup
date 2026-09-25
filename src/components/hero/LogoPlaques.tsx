@@ -25,7 +25,7 @@ import { PLAQUE_OUT } from "./timeline";
    flat sponsor wall gets from its CSS filter. Plaques face the camera's rest
    pose enough to read, bob and sway a touch, and brighten under the cursor.
    The rest hang on the back wall as lit plates beside and over the door
-   (frame.ts, wallFor). */
+   (frame.ts, wallFor); the phone scene has the plinths only. */
 
 // ── Knockout ─────────────────────────────────────────────────────────
 /** Logo height in the texture, px (wide wordmarks are capped by width).
@@ -170,16 +170,17 @@ function useLogoTexture(url: string, caption?: string) {
 const PX = 1 / 128;
 const SLAB_D = 0.05;
 
-/** Camera the plaques turn toward (its rest pose, roughly). */
-const FACE_Z = 9.2;
-const FACE_Y = 2.05;
-/** How much of the turn toward the camera each plaque takes. */
+/** How much of the turn toward the camera (the framing's face point, its
+ *  rest pose roughly) each plaque takes. */
 const FACE = 0.78;
 
 // ── One plaque ───────────────────────────────────────────────────────
 interface PlaqueProps {
   sponsor: Sponsor;
   slot: Slot;
+  /** The point it turns toward (Framing's faceY / faceZ). */
+  faceY: number;
+  faceZ: number;
   seed: number;
   reduced: boolean;
   progress: MotionValue<number>;
@@ -191,7 +192,7 @@ const slabGeo = new THREE.BoxGeometry(SLAB_W, SLAB_H, SLAB_D);
 const slabEdges = new THREE.EdgesGeometry(slabGeo);
 const planeGeo = new THREE.PlaneGeometry(1, 1);
 
-function Plaque({ sponsor, slot, seed, reduced, progress, fades }: PlaqueProps) {
+function Plaque({ sponsor, slot, faceY, faceZ, seed, reduced, progress, fades }: PlaqueProps) {
   const logo = useLogoTexture(sponsor.logo, sponsor.caption);
   const root = useRef<THREE.Group>(null!);
   const float = useRef<THREE.Group>(null!);
@@ -203,10 +204,10 @@ function Plaque({ sponsor, slot, seed, reduced, progress, fades }: PlaqueProps) 
   const invalidate = useThree((s) => s.invalidate);
 
   const { s } = slot;
-  const yaw = Math.atan2(-slot.x, FACE_Z - slot.z) * FACE;
+  const yaw = Math.atan2(-slot.x, faceZ - slot.z) * FACE;
   const baseY = slot.h + LIFT + (SLAB_H * s) / 2;
   // Lean back like a lectern, so the face meets the camera's downward look.
-  const tilt = Math.atan2(FACE_Y - baseY, Math.hypot(slot.x, FACE_Z - slot.z)) * 0.85;
+  const tilt = Math.atan2(faceY - baseY, Math.hypot(slot.x, faceZ - slot.z)) * 0.85;
 
   // Fit the logo inside its optical caps, then inside the slab's margins.
   const size = useMemo(() => {
@@ -441,12 +442,14 @@ interface LogoPlaquesProps {
   /** The scene's current framing (GalleryScene's useFraming). */
   frame: Framing;
   aspect: number;
+  /** The phone scene: plinths only, and no dolly to fade anything for. */
+  lite: boolean;
 }
 
-export default function LogoPlaques({ reduced, progress, frame, aspect }: LogoPlaquesProps) {
-  const portrait = aspect < 1;
-  const slots = slotsFor(aspect);
-  const wall = wallFor(aspect);
+export default function LogoPlaques({ reduced, progress, frame, aspect, lite }: LogoPlaquesProps) {
+  const layout = frame.kind[0];
+  const slots = slotsFor(frame);
+  const wall = lite ? [] : wallFor(frame);
   const onWall = HERO_SPONSORS.slice(slots.length, slots.length + wall.length);
   return (
     <group>
@@ -454,7 +457,7 @@ export default function LogoPlaques({ reduced, progress, frame, aspect }: LogoPl
         const fades = wallCutAtStop(wall[i], frame, aspect);
         return (
           <WallLogo
-            key={`w${portrait ? "p" : "l"}${fades ? "f" : ""}-${sponsor.name}`}
+            key={`w${layout}${fades ? "f" : ""}-${sponsor.name}`}
             sponsor={sponsor}
             plate={wall[i]}
             progress={progress}
@@ -463,13 +466,15 @@ export default function LogoPlaques({ reduced, progress, frame, aspect }: LogoPl
         );
       })}
       {HERO_SPONSORS.slice(0, slots.length).map((sponsor, i) => {
-        const fades = cutAtStop(slots[i], frame, aspect);
+        const fades = !lite && cutAtStop(slots[i], frame, aspect);
         return (
           <Plaque
             // a new layout or a change of fade remounts, with fresh materials
-            key={`${portrait ? "p" : "l"}${fades ? "f" : ""}-${sponsor.name}`}
+            key={`${layout}${fades ? "f" : ""}-${sponsor.name}`}
             sponsor={sponsor}
             slot={slots[i]}
+            faceY={frame.faceY}
+            faceZ={frame.faceZ}
             seed={i}
             reduced={reduced}
             progress={progress}

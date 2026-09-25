@@ -59,7 +59,7 @@ const NotFound = () => {
       >
         <div className="mx-auto grid w-full max-w-[1100px] items-center gap-6 md:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] md:gap-14 lg:gap-20">
           <MissingSheet>
-            <h1 className="text-center font-display text-[clamp(6.5rem,3.2rem+13vw,13rem)] uppercase leading-[0.86] tracking-[0.01em] text-foreground">
+            <h1 className="text-center font-display text-[clamp(5rem,2.4rem+10vw,10rem)] uppercase leading-[0.86] tracking-[0.01em] text-foreground">
               4<span className="wire-text">0</span>4
             </h1>
           </MissingSheet>
@@ -68,7 +68,7 @@ const NotFound = () => {
             <SheetEyebrow className="!mb-5 md:!mb-7">{NOT_FOUND.eyebrow}</SheetEyebrow>
             <Reveal
               as="p"
-              className="font-display text-[1.75rem] uppercase leading-[1] text-foreground md:text-[2.5rem]"
+              className="font-display text-[1.5rem] uppercase leading-[1] text-foreground md:text-[2rem]"
             >
               {NOT_FOUND.line}
             </Reveal>

@@ -34,7 +34,7 @@ export default function LogisticsComplianceSection() {
   return (
     <Sheet id="logistics" eyebrow="Practical details">
       <div className="grid gap-6 lg:grid-cols-[minmax(0,0.75fr)_minmax(0,1.25fr)] lg:items-start lg:gap-16">
-        <h2 className="font-display text-[clamp(2.25rem,1.2rem+3vw,3.75rem)] uppercase leading-[0.95] text-foreground">
+        <h2 className="font-display text-[clamp(2rem,1rem+2.4vw,3rem)] uppercase leading-[0.95] text-foreground">
           Before you <span className="wire-text">arrive.</span>
         </h2>
 

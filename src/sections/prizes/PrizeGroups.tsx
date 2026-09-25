@@ -25,11 +25,11 @@ function Extras() {
         {PRIZE_EXTRAS.map((p) => (
           <li key={p.item} className="flex min-w-0 flex-col justify-end gap-1.5 border-b border-r border-bone/15 p-3.5 sm:p-4">
             {p.count !== null ? (
-              <span aria-hidden="true" className="font-display text-[2.75rem] leading-[0.9] text-foreground sm:text-[3rem] xl:text-[3.25rem]">
+              <span aria-hidden="true" className="font-display text-[2.25rem] leading-[0.9] text-foreground sm:text-[2.4rem] xl:text-[2.6rem]">
                 {p.count}
               </span>
             ) : (
-              <span aria-hidden="true" className="font-display text-[1.3rem] uppercase leading-[1] text-foreground sm:text-[1.35rem] xl:text-[1.45rem]">
+              <span aria-hidden="true" className="font-display text-[1.15rem] uppercase leading-[1] text-foreground sm:text-[1.2rem] xl:text-[1.25rem]">
                 {p.unit}
               </span>
             )}

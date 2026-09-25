@@ -159,7 +159,7 @@ export default function WirePrinter({ reduced, progress, frame, floor }: WirePri
   // world object, so the dolly still flies under it).
   const place = useMemo(() => {
     const f = frame;
-    const lookY = restLookY(f, aspect, floor, size.height);
+    const lookY = restLookY(f, floor, size.height);
     const d = f.z - PRINTER_Z;
     const tanV = Math.tan(THREE.MathUtils.degToRad(f.fov / 2));
     const [nx, ny] = portrait ? PORTRAIT_NDC : LANDSCAPE_NDC;

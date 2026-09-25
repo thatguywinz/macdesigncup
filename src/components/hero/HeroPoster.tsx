@@ -1,4 +1,4 @@
-import { HERO_SPONSORS } from "@/config/sponsors";
+import { GRID_SPONSORS } from "@/config/sponsors";
 
 /**
  * The hall without WebGL: a dark gallery, the lit door at the end of it, the
@@ -23,7 +23,7 @@ export default function HeroPoster() {
 const CAP = 0.36;
 
 /**
- * Phones: every hall sponsor (HERO_SPONSORS) as a small plaque on the hall
+ * Phones without the 3D hall: every hall sponsor (GRID_SPONSORS) as a small plaque on the hall
  * floor in front of the door, a tidy grid of plinths like the 3D hall's
  * (five across, the last row centred), each a dark slab with the logo in
  * bone (the flat sponsor wall's knockout filter). The sponsor section
@@ -32,7 +32,7 @@ const CAP = 0.36;
 export function HallPlaques() {
   return (
     <ul aria-hidden="true" className="hall-plan__plaques">
-      {HERO_SPONSORS.map((s) => (
+      {GRID_SPONSORS.map((s) => (
         <li key={s.name} className="hall-plan__plaque">
           <span className="hall-plan__slab">
             <img

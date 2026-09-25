@@ -75,7 +75,7 @@ export default function GlanceSection() {
                 <dt className="font-mono text-[10px] uppercase leading-[1.1] tracking-[0.28em] text-ember max-sm:flex max-sm:min-h-[20px] max-sm:items-center max-sm:pl-7">
                   {cell.label}
                 </dt>
-                <dd className="mt-1.5 text-balance font-display text-[1.05rem] uppercase leading-[1.1] text-foreground sm:mt-2 sm:text-[1.3rem]">
+                <dd className="mt-1.5 text-balance font-display text-[1rem] uppercase leading-[1.1] text-foreground sm:mt-2 sm:text-[1.15rem]">
                   {cell.value}
                 </dd>
                 {key === "where" && (
