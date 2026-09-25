@@ -1,23 +1,24 @@
 import { Suspense, lazy, useCallback, useEffect, useRef, useState, type CSSProperties, type MouseEvent } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { motion, useInView, useMotionValue, useMotionValueEvent, useScroll, useTransform } from "framer-motion";
-import { ArrowDown } from "lucide-react";
 import { useHydrated } from "@/hooks/useHydrated";
 import { useReducedMotionSafe } from "@/hooks/useReducedMotionSafe";
 import { focusTarget } from "@/lib/focusTarget";
-import { CTA, HERO } from "@/content/copy";
-import HeroPoster, { HallStill } from "./HeroPoster";
-import { HALL_STILLS } from "./still";
+import { HERO } from "@/content/copy";
+import HeroPoster, { HallStill, StageStill } from "./HeroPoster";
+import EnterDoor from "./EnterDoor";
+import { HALL_STILLS, STAGE_STILLS } from "./still";
 import SceneBoundary from "./SceneBoundary";
-import { restShot, type PhoneFrame } from "./frame";
+import { STAGE_BANDS, bandMedia, layStill, restShot, type PhoneFrame } from "./frame";
+import { hallChoice, hallForce } from "./device";
 import { COPY_OUT, CTA_OUT, SPILL_IN } from "./timeline";
 import "./hero.css";
 
 // three.js + postprocessing are heavy: split them from the shell and load
 // them only once the page has loaded and gone idle (phones: on the first
-// touch or scroll). The poster (on phones, a still of the 3D hall) is the
-// hero until the scene is up, and stays it without WebGL (and on phones,
-// with reduced motion).
+// touch or scroll), and only on a device that can draw them (device.ts).
+// A still of the 3D hall is the hero until the scene is drawing, and stays
+// it whenever the scene does not run or gives up.
 const GalleryScene = lazy(() => import("./GalleryScene"));
 
 /** The 3D stage layout: 768px wide and more than 500px tall. hero.css keys the
@@ -38,16 +39,34 @@ const clamp01 = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v);
 const easeInOutSine = (t: number) => -(Math.cos(Math.PI * t) - 1) / 2;
 
 /** Where the hall sits in each phone still (still.ts), as custom properties
- *  for hero.css, which lays the still and the Enter slab on its door with
+ *  for hero.css, which lays the still and the Enter door on its door with
  *  them. On the hall plan, so both share them. */
 const HALL_STILL_VARS = Object.fromEntries(
   (["phone", "side"] as const).flatMap((kind) =>
-    (["a", "b", "c", "x", "r"] as const).map((k) => [`--still-${kind}-${k}`, String(HALL_STILLS[kind][k])]),
+    (["a", "b", "c", "t", "u", "x", "r"] as const).map((k) => [`--still-${kind}-${k}`, String(HALL_STILLS[kind][k])]),
   ),
 ) as CSSProperties;
 
-/** The poster door's placement, set on the stage from the rest shot. */
-const DOOR_VARS = ["--hall-door-mid", "--hall-door-h", "--hall-cta-mid"] as const;
+/** Each band's still, as custom properties for hero.css (which picks the
+ *  band's set with the same media queries): its aspect ratio, and its door
+ *  rim's middle and height as shares of its height. */
+const STAGE_STILL_VARS = Object.fromEntries(
+  STAGE_BANDS.flatMap((b) => {
+    const s = STAGE_STILLS[b.name as keyof typeof STAGE_STILLS];
+    return [
+      [`--ss-${b.name}-ar`, (s.width / s.height).toFixed(4)],
+      [`--ss-${b.name}-m`, ((s.rimTop + s.rimBottom) / 2).toFixed(4)],
+      [`--ss-${b.name}-h`, (s.rimBottom - s.rimTop).toFixed(4)],
+    ];
+  }),
+) as CSSProperties;
+
+/** Set on the stage from the rest shot: the stage still's slide and scale
+ *  (frame.ts layStill), and where its door is, for the Enter door on it. */
+const STAGE_VARS = ["--stage-still-dy", "--stage-still-k", "--hall-door-mid", "--hall-door-h"] as const;
+
+/** How long the scene takes to fade out over the still when it gives up. */
+const FADE_MS = 900;
 
 type IdleWindow = Window & {
   requestIdleCallback?: (cb: () => void, options?: { timeout: number }) => number;
@@ -141,6 +160,18 @@ function glide(to: number, ms: number, done: () => void) {
   raf = requestAnimationFrame(step);
 }
 
+/** Whether the tab is visible, tracked (true on the server). */
+function usePageVisible() {
+  const [visible, setVisible] = useState(true);
+  useEffect(() => {
+    const update = () => setVisible(document.visibilityState !== "hidden");
+    update();
+    document.addEventListener("visibilitychange", update);
+    return () => document.removeEventListener("visibilitychange", update);
+  }, []);
+  return visible;
+}
+
 /** Whether a media query matches, tracked. False on the server and the
  *  first render, so the markup never branches on it. */
 function useMedia(query: string) {
@@ -158,31 +189,38 @@ function useMedia(query: string) {
 /**
  * The home page's hero: the 3D gallery hall, and the page's only <h1>.
  *
- * Server and first render: a composed CSS poster of the hall (door glow,
- * floor, drafting grid) with the overlay copy and a real Enter link, so the
- * prerendered HTML and visitors without WebGL get a complete hero.
+ * Every layout opens on a still of the rendered 3D hall (scripts/
+ * hero-still.mjs), in the prerendered HTML already, with the overlay copy
+ * and the Enter door: the lit door itself is the link (EnterDoor), laid
+ * over the still's door. The live scene crossfades in over the same
+ * picture once it is drawing, and the still stays the hero whenever it does
+ * not run: no WebGL, reduced motion, Save-Data, a low-memory or slow device
+ * (device.ts). Once running, the scene watches its frame rate: a device that
+ * cannot hold it steps down to the light tier (GalleryScene `tier`), then,
+ * if even that is too slow or the WebGL context is lost, the scene fades
+ * back out to the still and stops.
  *
  * Phones (below 768px) and short landscape windows (500px tall or less, a
  * phone held sideways) lay the hero out as a CSS hall: the copy, then the
  * hall plan (upright: stacked; sideways: the copy on the left, the hall
- * beside it), which shows a still of the phone scene (HallStill, rendered
- * by scripts/hero-still.mjs) placed the way the scene frames it, with the
- * Enter slab on its door. On the first touch or scroll the lite scene
+ * beside it), which shows a still of the phone scene (HallStill) placed the
+ * way the scene frames it. On the first touch or scroll the lite scene
  * (GalleryScene `lite`: low pixel ratio, no reflection pass, one
  * half-resolution bloom) crossfades in over the same picture: upright, the
  * whole stage with the phone shot (frame.ts), the door under the type and
  * eight plinths down the floor above the Register bar; sideways, the hall's
  * column. No scroll dolly on phones, just an idle drift that eases in once
- * the scene is up; the still stays without WebGL or with reduced motion.
+ * the scene is up.
  *
- * From 768px wide and 501px tall (STAGE_QUERY) the scene loads once the page
- * is idle and crossfades in over
- * the poster, whose door and slab are placed from the same camera maths
- * (frame.ts). With motion allowed the section is 160svh behind a sticky
- * stage and scroll drives the entry (timeline.ts): the copy lifts away, the
- * camera walks up the runway past the sponsor plaques and stops square on
- * the lit door, and the stage's lower edge melts into the page.
- * Reduced motion gets a plain 100svh hero (a CSS-only switch, so SSR matches).
+ * From 768px wide and 501px tall (STAGE_QUERY) the stage shows the still for
+ * its aspect band (StageStill), slid and scaled so its door lands where the
+ * scene will draw it (frame.ts layStill); the scene loads once the page is
+ * idle and crossfades in over it. With motion allowed the section is 160svh
+ * behind a sticky stage and scroll drives the entry (timeline.ts): the copy
+ * lifts away, the camera walks up the runway past the sponsor plaques and
+ * stops square on the lit door, and the stage's lower edge melts into the
+ * page. Reduced motion gets a plain 100svh hero (a CSS-only switch, so SSR
+ * matches) on the still.
  */
 export default function Hero() {
   const sectionRef = useRef<HTMLElement>(null);
@@ -204,11 +242,17 @@ export default function Hero() {
   const [idle, setIdle] = useState(false);
   const [webgl, setWebgl] = useState<boolean | null>(null);
   const [ready, setReady] = useState(false);
+  // The scene's quality tier, and whether it has given up for this visit
+  // (too slow even light, a lost context, a crash): it then fades out over
+  // the still (`failed`) and is unmounted (`gone`).
+  const [tier, setTier] = useState<0 | 1>(() => (hallForce() === "light" ? 1 : 0));
+  const [failed, setFailed] = useState(false);
+  const [gone, setGone] = useState(false);
+  const visible = usePageVisible();
   const planRef = useRef<HTMLDivElement>(null);
-  // Phones get the lite scene, and only with motion allowed: reduced motion
-  // keeps the still of the hall.
+  // Phones get the lite scene. Reduced motion keeps the still everywhere.
   const lite = !wide;
-  const wants = hydrated && (wide || !reduced);
+  const wants = hydrated && !reduced;
 
   // Load the scene after the page's `load` and an idle moment (the poster
   // covers the wait).
@@ -220,7 +264,8 @@ export default function Hero() {
     let timer = 0;
     const go = () => {
       if (cancelled) return;
-      setWebgl((known) => known ?? canUseWebGL());
+      // A device that cannot draw the hall keeps the still (device.ts).
+      setWebgl((known) => known ?? (hallChoice(lite) === "live" && canUseWebGL()));
       setIdle(true);
     };
     const idleGo = () => {
@@ -250,10 +295,26 @@ export default function Hero() {
     };
   }, [wants, idle, lite]);
 
-  const scene = wants && idle && webgl === true;
+  const scene = wants && idle && webgl === true && !gone;
   useEffect(() => {
     if (!scene) setReady(false);
   }, [scene]);
+
+  // Giving up: the scene fades out over the still, then unmounts (which
+  // stops its frame loop and frees the WebGL context).
+  const fallBack = useCallback(() => {
+    setFailed(true);
+    setReady(false);
+  }, []);
+  useEffect(() => {
+    if (!failed) return;
+    const t = window.setTimeout(() => setGone(true), FADE_MS);
+    return () => window.clearTimeout(t);
+  }, [failed]);
+  const onSlow = useCallback(() => {
+    if (tier === 0) setTier(1);
+    else fallBack();
+  }, [tier, fallBack]);
 
   const dolly = hydrated && wide && !reduced;
 
@@ -342,10 +403,22 @@ export default function Hero() {
       const floor = (top + block.offsetHeight) / H;
       copyFloor.set(floor);
       if (!wide) return;
+      // Where the live scene will draw the door, and the still laid so its
+      // own door is there too; the poster's Enter door goes on the still's.
       const shot = restShot(W / H, floor, H);
-      stage.style.setProperty(DOOR_VARS[0], `${(((shot.rimTop + shot.rimBottom) / 2) * H).toFixed(1)}px`);
-      stage.style.setProperty(DOOR_VARS[1], `${((shot.rimBottom - shot.rimTop) * H).toFixed(1)}px`);
-      stage.style.setProperty(DOOR_VARS[2], `${(shot.cta * H).toFixed(1)}px`);
+      const band = STAGE_BANDS.find((b) => window.matchMedia(bandMedia(b)).matches);
+      const still = band && STAGE_STILLS[band.name as keyof typeof STAGE_STILLS];
+      let mid = ((shot.rimTop + shot.rimBottom) / 2) * H;
+      let doorH = (shot.rimBottom - shot.rimTop) * H;
+      if (band && still) {
+        const lay = layStill(W, H, band.fit, still, shot);
+        stage.style.setProperty(STAGE_VARS[0], `${lay.dy.toFixed(1)}px`);
+        stage.style.setProperty(STAGE_VARS[1], lay.k.toFixed(4));
+        mid = lay.doorMid;
+        doorH = lay.doorH;
+      }
+      stage.style.setProperty(STAGE_VARS[2], `${mid.toFixed(1)}px`);
+      stage.style.setProperty(STAGE_VARS[3], `${doorH.toFixed(1)}px`);
     };
     const ro = new ResizeObserver(measure);
     ro.observe(stage);
@@ -353,12 +426,11 @@ export default function Hero() {
     measure();
     return () => {
       ro.disconnect();
-      DOOR_VARS.forEach((p) => stage.style.removeProperty(p));
+      STAGE_VARS.forEach((p) => stage.style.removeProperty(p));
     };
   }, [wide, side, scene, copyFloor, typeRef]);
 
   const onReady = useCallback(() => setReady(true), []);
-  const onFail = useCallback(() => setReady(false), []);
 
   const enter = useCallback(
     (event: MouseEvent<HTMLAnchorElement>) => {
@@ -414,8 +486,15 @@ export default function Hero() {
     >
       {/* Layout (in flow, sideways or the sticky 3D stage) is set in hero.css
           on STAGE_QUERY, so the server render already has the right one. */}
-      <div ref={stageRef} data-ready={ready || undefined} className="hall-stage isolate min-h-[100svh] overflow-hidden">
+      <div
+        ref={stageRef}
+        data-ready={ready || undefined}
+        data-hall={failed ? "fallback" : ready ? "live" : "still"}
+        className="hall-stage isolate min-h-[100svh] overflow-hidden"
+        style={STAGE_STILL_VARS}
+      >
         <HeroPoster />
+        <StageStill />
 
         {/* poster type: eyebrow, the page's one h1, prize. In the flow
             on phones (the hall follows it, or stands beside it sideways),
@@ -446,22 +525,18 @@ export default function Hero() {
         </div>
 
         {/* The hall's floor plan. Phones: the still of the 3D hall under the
-            type (sideways: beside it), with the Enter slab on its door. On
-            the stage: the poster's Enter slab over the poster door. Either
-            way the slab steps aside once the scene brings its own (glued to
-            the 3D door). */}
+            type (sideways: beside it). Both layouts: the Enter door laid over
+            the still's door. It steps aside once the scene brings its own
+            (glued to the 3D door), and comes back if the scene gives up. */}
         <div ref={planRef} className="hall-plan" style={HALL_STILL_VARS}>
           <HallStill />
           <div className="hall-plan__doorway">
-            <div className="hall-cta hall-cta--poster">
+            <div className="hall-enter hall-enter--poster">
               <motion.div
                 style={{ opacity: ctaOpacity, visibility: ctaVisibility, pointerEvents: ctaPointer }}
-                className="hall-cta__fade"
+                className="hall-enter__fade"
               >
-                <a href={`#${NEXT}`} onClick={enter} aria-label={CTA.enter} className="hall-cta__btn">
-                  <span>{CTA.enter}</span>
-                  <ArrowDown aria-hidden="true" size={18} strokeWidth={1.5} />
-                </a>
+                <EnterDoor onEnter={enter} />
               </motion.div>
             </div>
           </div>
@@ -470,20 +545,25 @@ export default function Hero() {
         {scene && (
           <div
             data-lite={lite || undefined}
+            data-tier={tier}
             className="hall-scene absolute inset-0 z-[5] transition-opacity [transition-duration:900ms] ease-out"
-            style={{ opacity: ready ? 1 : 0 }}
+            style={{ opacity: ready && !failed ? 1 : 0 }}
           >
-            <SceneBoundary onFail={onFail}>
+            <SceneBoundary onFail={fallBack}>
               <Suspense fallback={null}>
                 <GalleryScene
                   progress={progress}
                   reduced={reduced}
-                  active={inView}
+                  active={inView && visible && !failed}
                   copyFloor={copyFloor}
                   onEnter={enter}
                   onReady={onReady}
                   lite={lite}
                   phoneFrame={phoneFrame}
+                  tier={tier}
+                  guard={hallForce() !== "live" && hallForce() !== "light"}
+                  onSlow={onSlow}
+                  onLost={fallBack}
                 />
               </Suspense>
             </SceneBoundary>

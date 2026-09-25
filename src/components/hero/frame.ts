@@ -326,7 +326,7 @@ function phoneFraming(aspect: number, floor: number, heightPx: number, bottomPx:
 }
 
 /** Where the phone scene's rest shot (no idle drift) puts the door rim's
- *  top, the nearest plinths' feet and the Enter slab, each as a share of the
+ *  top and bottom, the nearest plinths' feet and the Enter label, each as a share of the
  *  frame height from the top. scripts/hero-still.mjs records them with the
  *  phone stills (public/hero), so the page can lay a still where the live
  *  scene will draw the same hall. */
@@ -338,6 +338,7 @@ export function phoneShot(fit: number, floor: number, heightPx: number, bottomPx
   return {
     kind: f.kind,
     rimTop: at(RIM_TOP, DOOR.z),
+    rimBottom: at(RIM_BOTTOM, DOOR.z),
     feet: at(slabBottom(near), near.z),
     cta: at(CTA_AT.y, CTA_AT.z),
   };
@@ -478,4 +479,71 @@ export function wallCutAtStop(p: WallPlate, f: Framing, aspect: number) {
   // into it counts as cut.
   const whole = x1 <= 0.98 && y0 >= -0.98 && y1 <= 0.76;
   return inside && !whole;
+}
+
+/* ── The stage stills ─────────────────────────────────────────────────
+   From 768px wide and 501px tall the hero is the stage, and until the live
+   scene is drawing (or when it never will: no WebGL, a slow device, reduced
+   motion) it shows a still of the scene, rendered by scripts/hero-still.mjs
+   at one window per aspect band below. Landscape shots hold the hall's width
+   (the plinth rows) at every aspect, so a band's still is captured at its
+   narrowest aspect and laid width-first: every window in the band then sees
+   a crop of it. Upright tablets hold the height, so theirs is captured near
+   square and laid height-first. The page then slides and scales the still so
+   its door lands exactly where the live scene will draw it (Hero.tsx).
+
+   `min` is the band's lowest aspect as a media-query ratio; bands are tried
+   in this order and the first that matches wins, like <picture> sources.
+   hero.css repeats these ratios (the pre-hydration layout). */
+export interface StageBand {
+  name: string;
+  /** min-aspect-ratio of the band, or null for the rest (upright tablets). */
+  min: string | null;
+  /** The window it is rendered at, and its device pixel ratio. */
+  capture: { width: number; height: number; dpr: number };
+  /** Laid to the stage's width (landscape) or its height (upright). */
+  fit: "width" | "height";
+}
+export const STAGE_BANDS: StageBand[] = [
+  { name: "wide", min: "21/10", capture: { width: 2560, height: 1080, dpr: 0.75 }, fit: "height" },
+  { name: "land", min: "31/20", capture: { width: 1440, height: 900, dpr: 4 / 3 }, fit: "width" },
+  { name: "four", min: "13/10", capture: { width: 1024, height: 768, dpr: 1.5 }, fit: "width" },
+  { name: "five", min: "1/1", capture: { width: 1280, height: 1024, dpr: 1.2 }, fit: "width" },
+  { name: "tall", min: null, capture: { width: 960, height: 1000, dpr: 1.25 }, fit: "height" },
+];
+/** The stage layout's media query (Hero.tsx STAGE_QUERY, hero.css). */
+export const STAGE_MEDIA = "(min-width: 768px) and (min-height: 501px)";
+export const bandMedia = (b: Pick<StageBand, "min">) =>
+  b.min ? `${STAGE_MEDIA} and (min-aspect-ratio: ${b.min})` : STAGE_MEDIA;
+
+/** Where a stage still lies on the stage, as the transform over its CSS
+ *  layout (hero.css: centred, width- or height-fitted), so its door sits
+ *  where the live scene draws it: `dy` px down and `k` times larger about
+ *  its centre. Returned with where its door then is (px from the top, and
+ *  the rim's height), for the Enter door laid over it. `still` holds the
+ *  still's size and its rim's top and bottom as shares of its height;
+ *  `door` the live rest shot's (restShot), as shares of the stage's height.
+ *  Never leaves the stage uncovered: if it must, the still grows about its
+ *  door a little past the live one. */
+export function layStill(
+  W: number,
+  H: number,
+  fit: StageBand["fit"],
+  still: { width: number; height: number; rimTop: number; rimBottom: number },
+  door: { rimTop: number; rimBottom: number },
+) {
+  const A = still.width / still.height;
+  const w = fit === "width" ? W : H * A;
+  const h = fit === "width" ? W / A : H;
+  const mid = (still.rimTop + still.rimBottom) / 2;
+  const doorMid = ((door.rimTop + door.rimBottom) / 2) * H;
+  const doorH = (door.rimBottom - door.rimTop) * H;
+  const k = Math.max(
+    doorH / ((still.rimBottom - still.rimTop) * h),
+    W / w,
+    doorMid / (mid * h),
+    (H - doorMid) / ((1 - mid) * h),
+  );
+  const dy = doorMid - H / 2 - k * (mid - 0.5) * h;
+  return { k, dy, doorMid, doorH: k * (still.rimBottom - still.rimTop) * h };
 }

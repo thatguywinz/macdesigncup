@@ -156,6 +156,9 @@ function useLogoTexture(url: string, caption?: string) {
       texture.anisotropy = Math.min(8, gl.capabilities.getMaxAnisotropy());
       texture.needsUpdate = true;
       setLogo({ texture, k });
+      // The hall waits for every logo before it fades in over the still
+      // (LogoPlaques), and so does scripts/hero-still.mjs before a still.
+      window.dispatchEvent(new Event("hall:logo"));
     });
     return () => {
       alive = false;
@@ -444,13 +447,31 @@ interface LogoPlaquesProps {
   aspect: number;
   /** The phone scene: plinths only, and no dolly to fade anything for. */
   lite: boolean;
+  /** Called once every logo in the hall is on its plaque or plate. */
+  onLogos?: () => void;
 }
 
-export default function LogoPlaques({ reduced, progress, frame, aspect, lite }: LogoPlaquesProps) {
+export default function LogoPlaques({ reduced, progress, frame, aspect, lite, onLogos }: LogoPlaquesProps) {
   const layout = frame.kind[0];
   const slots = slotsFor(frame);
   const wall = lite ? [] : wallFor(frame);
   const onWall = HERO_SPONSORS.slice(slots.length, slots.length + wall.length);
+  const expected = onWall.length + Math.min(HERO_SPONSORS.length, slots.length);
+  // Count the logos as they land (useLogoTexture announces each), once.
+  const told = useRef(false);
+  useEffect(() => {
+    if (!onLogos || told.current) return;
+    let n = 0;
+    const one = () => {
+      n += 1;
+      if (n >= expected && !told.current) {
+        told.current = true;
+        onLogos();
+      }
+    };
+    window.addEventListener("hall:logo", one);
+    return () => window.removeEventListener("hall:logo", one);
+  }, [expected, onLogos]);
   return (
     <group>
       {onWall.map((sponsor, i) => {

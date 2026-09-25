@@ -13,14 +13,14 @@ import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Html, MeshReflectorMaterial, Sparkles, SpotLight } from "@react-three/drei";
 import { Bloom, EffectComposer, Vignette } from "@react-three/postprocessing";
 import type { MotionValue } from "framer-motion";
-import { ArrowDown } from "lucide-react";
 import type { BloomEffect } from "postprocessing";
 import * as THREE from "three";
-import { CTA, HERO } from "@/content/copy";
+import EnterDoor from "./EnterDoor";
+import { DOOR_LIT } from "./doorLight";
 import {
-  CTA_AT,
   DESIGN_FOV,
   DOOR,
+  PORTAL_H,
   PORTAL_Y,
   PTR,
   clamp01,
@@ -53,6 +53,17 @@ export interface GallerySceneProps {
   /** The phone scene's frame (the Register bar's room; sideways, the hall
    *  column to centre on). */
   phoneFrame?: PhoneFrame | null;
+  /** Quality tier: 0 the full hall; 1 the light one (pixel ratio 1, no
+   *  bloom or other post-processing, no floor reflection, no dust, no
+   *  printer), for a device that could not hold the frame rate. */
+  tier?: 0 | 1;
+  /** Watch the frame rate and call `onSlow` when the device cannot hold it
+   *  (false when a still is being rendered: scripts/hero-still.mjs). */
+  guard?: boolean;
+  /** The frame rate is too low for the current tier (frames per second). */
+  onSlow?: (fps: number) => void;
+  /** The WebGL context was lost: the page falls back to the still. */
+  onLost?: () => void;
 }
 
 /** The poster type's floor, as state: it changes on resize and font load only. */
@@ -83,9 +94,11 @@ interface RigProps {
   still: boolean;
   /** Screen px to move the picture right by (sideways: onto the hall column). */
   shift: number;
+  /** The hall is on screen (every logo in): the idle drift starts then. */
+  shown: boolean;
 }
 
-function CameraRig({ progress, reduced, frame: f, floor, still, shift }: RigProps) {
+function CameraRig({ progress, reduced, frame: f, floor, still, shift, shown }: RigProps) {
   const lean = useMemo(() => new THREE.Vector2(), []);
   const look = useMemo(() => new THREE.Vector3(), []);
   const eased = useRef(0);
@@ -127,7 +140,8 @@ function CameraRig({ progress, reduced, frame: f, floor, still, shift }: RigProp
 
     lean.x = THREE.MathUtils.damp(lean.x, reduced || still ? 0 : PTR.x * free, 2.4, dt);
     lean.y = THREE.MathUtils.damp(lean.y, reduced || still ? 0 : PTR.y * free, 2.4, dt);
-    if (born.current < 0) born.current = t;
+    // Held at rest until the hall is shown, so it fades in on the still.
+    if (born.current < 0 || !shown) born.current = t;
     const idle = t - born.current;
     const calm = reduced ? 0 : smoothstep(0.6, 4.5, idle) * free;
     const driftX = Math.sin(idle * 0.22) * 0.14 * calm;
@@ -180,19 +194,34 @@ function useCoreGlow() {
 const RIM = [5.2, 0.42, 0.06] as const;
 const CORE = [0.92, 0.3, 0.06] as const;
 
-function Portal({ reduced }: { reduced: boolean }) {
+/** The rim without bloom (the light tier): a colour the screen can show,
+ *  the hot amber the bloom would have made of it. */
+const RIM_FLAT = [1, 0.5, 0.1] as const;
+
+function Portal({ reduced, bloom }: { reduced: boolean; bloom: boolean }) {
   const rim = useRef<THREE.MeshBasicMaterial>(null!);
   const core = useRef<THREE.MeshBasicMaterial>(null!);
   const light = useRef<THREE.PointLight>(null!);
   const coreGlow = useCoreGlow();
+  // The visitor on the Enter door: it burns a little brighter.
+  const warm = useRef(0);
 
-  useFrame((state) => {
+  useFrame((state, dt) => {
     const t = state.clock.elapsedTime;
+    warm.current = THREE.MathUtils.damp(warm.current, DOOR_LIT.on ? 1 : 0, 9, Math.min(dt, 0.1));
+    const w = warm.current;
     // molten flicker, never perfectly steady (steady when motion is reduced)
     const f = reduced ? 1 : 1 + Math.sin(t * 7.3) * 0.05 + Math.sin(t * 13.7 + 2) * 0.035;
-    rim.current.color.setRGB(RIM[0] * f, RIM[1] * f, RIM[2]);
-    core.current.color.setRGB(CORE[0] * f, CORE[1] * f, CORE[2]);
-    light.current.intensity = 30 * f;
+    const r = bloom ? RIM : RIM_FLAT;
+    rim.current.color.setRGB(r[0] * f * (1 + 0.1 * w), r[1] * f * (1 + 0.25 * w), r[2]);
+    // without bloom's spill the core burns a touch hotter on its own
+    const c = bloom ? 1 : 1.12;
+    core.current.color.setRGB(
+      CORE[0] * c * f * (1 + 0.1 * w),
+      CORE[1] * c * f * (1 + 0.22 * w),
+      CORE[2] * (1 + 0.5 * w),
+    );
+    light.current.intensity = 30 * f * (1 + 0.3 * w);
   });
 
   return (
@@ -226,16 +255,37 @@ function Portal({ reduced }: { reduced: boolean }) {
   );
 }
 
-/* ── The Enter CTA, glued to the door in screen space ───────────────
-   One line, one slab. It fades out as the dolly starts and stops taking
-   the pointer and focus once it is gone. */
-function EnterDoor({ progress, onEnter }: { progress: MotionValue<number>; onEnter: GallerySceneProps["onEnter"] }) {
+/* ── The Enter door, glued to the portal in screen space ──────────────
+   The link is the door's lit opening itself (EnterDoor): each frame it is
+   sized to the rim's projected height, so it covers exactly the glowing
+   door. It fades out as the dolly starts and stops taking the pointer and
+   focus once it is gone. */
+const RIM_TOP_Y = PORTAL_Y + PORTAL_H / 2;
+const RIM_BOTTOM_Y = PORTAL_Y - PORTAL_H / 2;
+const RIM_Z = DOOR.z + 0.02;
+/** The rim plane's width over its height (Portal). */
+const RIM_ASPECT = 2.5 / 3.6;
+
+function SceneEnter({ progress, onEnter }: { progress: MotionValue<number>; onEnter: GallerySceneProps["onEnter"] }) {
   const wrap = useRef<HTMLDivElement>(null);
   const shown = useRef(-1);
+  const sized = useRef("");
+  const v = useMemo(() => new THREE.Vector3(), []);
 
-  useFrame(() => {
+  useFrame(({ camera, size }) => {
     const el = wrap.current;
     if (!el) return;
+    // The rim's height on screen (the camera looks square down the hall, so
+    // its width follows from its shape).
+    const top = v.set(DOOR.x, RIM_TOP_Y, RIM_Z).project(camera).y;
+    const bottom = v.set(DOOR.x, RIM_BOTTOM_Y, RIM_Z).project(camera).y;
+    const h = Math.max(0, ((top - bottom) / 2) * size.height);
+    const key = `${Math.round(h * 2)}`;
+    if (key !== sized.current) {
+      sized.current = key;
+      el.style.width = `${(h * RIM_ASPECT).toFixed(1)}px`;
+      el.style.height = `${h.toFixed(1)}px`;
+    }
     const o = Math.round((1 - smoothstep(CTA_OUT[0], CTA_OUT[1], clamp01(progress.get()))) * 100) / 100;
     if (o === shown.current) return;
     shown.current = o;
@@ -245,12 +295,9 @@ function EnterDoor({ progress, onEnter }: { progress: MotionValue<number>; onEnt
   });
 
   return (
-    <Html position={[DOOR.x, CTA_AT.y, CTA_AT.z]} center zIndexRange={[30, 10]}>
-      <div ref={wrap} className="hall-cta">
-        <a href="#glance" onClick={onEnter} aria-label={CTA.enter} className="hall-cta__btn">
-          <span>{CTA.enter}</span>
-          <ArrowDown aria-hidden="true" size={18} strokeWidth={1.5} />
-        </a>
+    <Html position={[DOOR.x, PORTAL_Y, RIM_Z]} center zIndexRange={[30, 10]}>
+      <div ref={wrap} className="hall-enter">
+        <EnterDoor onEnter={onEnter} />
       </div>
     </Html>
   );
@@ -275,15 +322,24 @@ function BloomRig({ progress, bloom }: { progress: MotionValue<number>; bloom: M
   return null;
 }
 
-/** Tells the page the first frames are on screen, so the poster can hand over. */
-function ReadySignal({ onReady }: { onReady: () => void }) {
+/** Tells the page the hall is on screen, so the still can hand over: its
+ *  first frames drawn and (`gate`) every logo on its plaque, so the live
+ *  scene fades in over the still as the same picture, not a bare one. */
+function ReadySignal({ onReady, gate }: { onReady: () => void; gate: boolean }) {
   const frames = useRef(0);
+  const told = useRef(false);
   useFrame(() => {
     frames.current += 1;
-    if (frames.current === 3) onReady();
+    if (frames.current >= 3 && gate && !told.current) {
+      told.current = true;
+      onReady();
+    }
   });
   return null;
 }
+
+/** How long the hall waits for its logos before it shows anyway, ms. */
+const LOGO_WAIT_MS = 6000;
 
 /** Compiles every shader in the hall off the main thread (where the browser
  *  can: KHR_parallel_shader_compile) before the first frame is drawn, so the
@@ -487,7 +543,7 @@ function Floor() {
       <planeGeometry args={[60, 44]} />
       <MeshReflectorMaterial
         blur={[280, 90]}
-        resolution={1024}
+        resolution={512}
         mixBlur={1}
         mixStrength={2.4}
         roughness={0.7}
@@ -503,7 +559,7 @@ function Floor() {
 }
 
 /* Electric-blue lines snaking across the floor. */
-function NeonPath({ mirror = false }: { mirror?: boolean }) {
+function NeonPath({ mirror = false, bloom = true }: { mirror?: boolean; bloom?: boolean }) {
   const curve = useMemo(() => {
     const m = mirror ? -1 : 1;
     return new THREE.CatmullRomCurve3(
@@ -519,8 +575,9 @@ function NeonPath({ mirror = false }: { mirror?: boolean }) {
   }, [mirror]);
   return (
     <mesh>
-      <tubeGeometry args={[curve, 200, 0.022, 10, false]} />
-      <meshBasicMaterial color={[0.5, 1.3, 5]} toneMapped={false} />
+      <tubeGeometry args={[curve, 96, 0.022, 6, false]} />
+      {/* without bloom the blue would clip to white: a blue the screen can show */}
+      <meshBasicMaterial color={bloom ? [0.5, 1.3, 5] : [0.3, 0.62, 1]} toneMapped={false} />
     </mesh>
   );
 }
@@ -561,7 +618,15 @@ function Hall({
   onEnter,
   lite,
   phoneFrame,
-}: Pick<GallerySceneProps, "progress" | "reduced" | "copyFloor" | "onEnter" | "phoneFrame"> & { lite: boolean }) {
+  printer,
+  onLogos,
+  shown,
+}: Pick<GallerySceneProps, "progress" | "reduced" | "copyFloor" | "onEnter" | "phoneFrame"> & {
+  lite: boolean;
+  printer: boolean;
+  onLogos: () => void;
+  shown: boolean;
+}) {
   const width = useThree((s) => s.size.width);
   const height = useThree((s) => s.size.height);
   const floor = useFloor(copyFloor);
@@ -576,13 +641,134 @@ function Hall({
   const shift = column ? Math.round(column.left + column.width / 2 - width / 2) : 0;
   return (
     <>
-      <CameraRig progress={progress} reduced={reduced} frame={frame} floor={floor} still={lite} shift={shift} />
+      <CameraRig
+        progress={progress}
+        reduced={reduced}
+        frame={frame}
+        floor={floor}
+        still={lite}
+        shift={shift}
+        shown={shown}
+      />
       <Downlights kind={frame.kind} />
-      <LogoPlaques reduced={reduced} progress={progress} frame={frame} aspect={aspect} lite={lite} />
-      {!lite && <WirePrinter reduced={reduced} progress={progress} frame={frame} floor={floor} />}
-      <EnterDoor progress={progress} onEnter={onEnter} />
+      <LogoPlaques
+        reduced={reduced}
+        progress={progress}
+        frame={frame}
+        aspect={aspect}
+        lite={lite}
+        onLogos={onLogos}
+      />
+      {printer && <WirePrinter reduced={reduced} progress={progress} frame={frame} floor={floor} />}
+      <SceneEnter progress={progress} onEnter={onEnter} />
     </>
   );
+}
+
+/* ── Frame-rate guard ─────────────────────────────────────────────────
+   Counts the frames the canvas actually draws over a two-second window,
+   from a moment after the scene appears (its first frames compile shaders)
+   and then over and over while it is on screen. Below the tier's floor the
+   page steps down (tier 1, then the still): the first window decides at
+   once, a later one only when two in a row fall short, so a single hiccup
+   (a tab switch, a GC pause) never costs the visitor the hall. Restarts
+   whenever the canvas stops drawing (off screen, tab hidden) or the tier
+   changes. */
+const GUARD_WINDOW_MS = 2000;
+const GUARD_SETTLE_MS = 700;
+/** Frames per second a tier must hold: under 45 the full hall steps down to
+ *  the light one; under 30 the light one gives way to the still. */
+const GUARD_FLOOR = [45, 30] as const;
+
+function FpsGuard({ tier, active, onSlow }: { tier: 0 | 1; active: boolean; onSlow: (fps: number) => void }) {
+  const w = useRef({ from: -1, frames: 0, settle: -1, windows: 0, strikes: 0 });
+  useEffect(() => {
+    w.current = { from: -1, frames: 0, settle: -1, windows: 0, strikes: 0 };
+  }, [tier, active]);
+  useFrame(() => {
+    const now = performance.now();
+    const g = w.current;
+    if (g.settle < 0) g.settle = now + GUARD_SETTLE_MS;
+    if (now < g.settle) return;
+    if (g.from < 0) {
+      g.from = now;
+      g.frames = 0;
+      return;
+    }
+    g.frames += 1;
+    const span = now - g.from;
+    if (span < GUARD_WINDOW_MS) return;
+    const fps = (g.frames * 1000) / span;
+    g.from = now;
+    g.frames = 0;
+    g.windows += 1;
+    if (fps >= GUARD_FLOOR[tier]) {
+      g.strikes = 0;
+      return;
+    }
+    g.strikes += 1;
+    if (g.windows === 1 || g.strikes >= 2) onSlow(fps);
+  });
+  return null;
+}
+
+/* The door's halo for the light tier, which has no bloom: a soft ember glow
+   laid behind the rim, so the door still reads as light, not a flat card. */
+function useHaloTexture() {
+  const texture = useMemo(() => {
+    const c = document.createElement("canvas");
+    c.width = 128;
+    c.height = 160;
+    const ctx = c.getContext("2d");
+    if (ctx) {
+      const g = ctx.createRadialGradient(64, 88, 8, 64, 88, 80);
+      g.addColorStop(0, "rgba(255,255,255,0.9)");
+      g.addColorStop(0.45, "rgba(255,255,255,0.35)");
+      g.addColorStop(1, "rgba(255,255,255,0)");
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, c.width, c.height);
+    }
+    const t = new THREE.CanvasTexture(c);
+    t.colorSpace = THREE.SRGBColorSpace;
+    return t;
+  }, []);
+  useEffect(() => () => texture.dispose(), [texture]);
+  return texture;
+}
+
+function DoorHalo() {
+  const map = useHaloTexture();
+  return (
+    <mesh position={[DOOR.x, PORTAL_Y + 0.1, DOOR.z - 0.05]}>
+      <planeGeometry args={[6.4, 7]} />
+      <meshBasicMaterial
+        map={map}
+        color={[1, 0.36, 0.08]}
+        transparent
+        blending={THREE.AdditiveBlending}
+        depthWrite={false}
+        toneMapped={false}
+        fog={false}
+      />
+    </mesh>
+  );
+}
+
+/** Hands a lost WebGL context (a GPU reset, a driver crash, too many
+ *  canvases) to the page, which falls back to the still. */
+function ContextWatch({ onLost }: { onLost?: () => void }) {
+  const gl = useThree((s) => s.gl);
+  useEffect(() => {
+    if (!onLost) return;
+    const canvas = gl.domElement;
+    const lost = (e: Event) => {
+      e.preventDefault();
+      onLost();
+    };
+    canvas.addEventListener("webglcontextlost", lost);
+    return () => canvas.removeEventListener("webglcontextlost", lost);
+  }, [gl, onLost]);
+  return null;
 }
 
 /* ── Scene root ─────────────────────────────────────────────────────── */
@@ -595,6 +781,10 @@ export default function GalleryScene({
   onReady,
   lite = false,
   phoneFrame = null,
+  tier = 0,
+  guard = true,
+  onSlow,
+  onLost,
 }: GallerySceneProps) {
   const bloom = useRef<BloomEffect | null>(null);
   // Nothing is drawn until the shaders are compiled. Under reduced motion
@@ -603,16 +793,28 @@ export default function GalleryScene({
   const [warm, setWarm] = useState(false);
   const [drawn, setDrawn] = useState(false);
   const onWarm = useCallback(() => setWarm(true), []);
+  const [logos, setLogos] = useState(false);
+  const onLogos = useCallback(() => setLogos(true), []);
+  useEffect(() => {
+    const t = window.setTimeout(onLogos, LOGO_WAIT_MS);
+    return () => window.clearTimeout(t);
+  }, [onLogos]);
   const onDrawn = useCallback(() => {
     setDrawn(true);
     onReady();
   }, [onReady]);
-  const frameloop = !warm || !active ? "never" : reduced && drawn ? "demand" : "always";
+  // Until every logo is on its plaque the canvas draws only on demand: the
+  // logos are painted in the main thread's idle moments, which a 60 fps
+  // loop behind an invisible canvas would only starve.
+  const frameloop = !warm || !active ? "never" : !logos || (reduced && drawn) ? "demand" : "always";
+  const full = tier === 0;
+  const onSlowFrame = useCallback((fps: number) => onSlow?.(fps), [onSlow]);
 
   return (
     <Canvas
       frameloop={frameloop}
-      dpr={lite ? [1, 1.25] : [1, 1.75]}
+      // The light tier draws at one device pixel per CSS pixel.
+      dpr={!full ? 1 : lite ? [1, 1.25] : [1, 1.5]}
       camera={{ position: [0, 2.05, 8.6], fov: DESIGN_FOV }}
       // Everything reaches the screen through the composer (multisampling 0),
       // so canvas MSAA would only smooth a fullscreen quad.
@@ -624,7 +826,9 @@ export default function GalleryScene({
       <StudioLight />
       <Warmup onDone={onWarm} />
       <BloomRig progress={progress} bloom={bloom} />
-      <ReadySignal onReady={onDrawn} />
+      <ReadySignal onReady={onDrawn} gate={logos} />
+      <ContextWatch onLost={onLost} />
+      {guard && drawn && active && <FpsGuard tier={tier} active={active} onSlow={onSlowFrame} />}
 
       <ambientLight intensity={0.18} />
       {/* faint cold rim from the neon floor lines */}
@@ -632,10 +836,12 @@ export default function GalleryScene({
       <pointLight position={[3.4, 0.4, 0.5]} color="#3d7bff" intensity={4} distance={7} decay={2} />
 
       <Architecture />
-      {lite ? <LiteFloor /> : <Floor />}
-      <NeonPath />
-      <NeonPath mirror />
-      <Portal reduced={reduced} />
+      {/* the reflection pass draws the hall twice: the full desktop tier only */}
+      {lite || !full ? <LiteFloor /> : <Floor />}
+      <NeonPath bloom={full} />
+      <NeonPath mirror bloom={full} />
+      <Portal reduced={reduced} bloom={full} />
+      {!full && <DoorHalo />}
       <Hall
         progress={progress}
         reduced={reduced}
@@ -643,29 +849,36 @@ export default function GalleryScene({
         onEnter={onEnter}
         lite={lite}
         phoneFrame={phoneFrame}
+        printer={!lite && full}
+        onLogos={onLogos}
+        shown={logos}
       />
 
-      {/* drifting dust: cool ambient + warm near the door */}
-      <Sparkles
-        count={lite ? 44 : 140}
-        scale={[16, 7, 14]}
-        position={[0, 3, -1]}
-        size={1.6}
-        speed={reduced ? 0 : 0.25}
-        opacity={0.35}
-        color="#9fb8ff"
-      />
-      <Sparkles
-        count={lite ? 26 : 70}
-        scale={[4, 5, 3]}
-        position={[0, 2, -4.6]}
-        size={2.2}
-        speed={reduced ? 0 : 0.45}
-        opacity={0.5}
-        color="#ffb37a"
-      />
+      {/* drifting dust: cool ambient + warm near the door (full tier) */}
+      {full && (
+        <>
+          <Sparkles
+            count={lite ? 44 : 110}
+            scale={[16, 7, 14]}
+            position={[0, 3, -1]}
+            size={1.6}
+            speed={reduced ? 0 : 0.25}
+            opacity={0.35}
+            color="#9fb8ff"
+          />
+          <Sparkles
+            count={lite ? 26 : 56}
+            scale={[4, 5, 3]}
+            position={[0, 2, -4.6]}
+            size={2.2}
+            speed={reduced ? 0 : 0.45}
+            opacity={0.5}
+            color="#ffb37a"
+          />
+        </>
+      )}
 
-      {lite ? (
+      {!full ? null : lite ? (
         // One cheap pass: the door's halo at half resolution. The page's own
         // CSS vignette darkens the edges.
         <EffectComposer multisampling={0}>
@@ -685,6 +898,7 @@ export default function GalleryScene({
           <Bloom
             ref={bloom as unknown as Ref<typeof BloomEffect>}
             mipmapBlur
+            resolutionScale={0.75}
             intensity={BLOOM_REST}
             luminanceThreshold={1}
             luminanceSmoothing={0.2}

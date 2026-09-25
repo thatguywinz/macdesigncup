@@ -1,13 +1,20 @@
-// Renders the phone stills of the 3D hall: public/hero/hall-phone.{webp,avif}
-// (upright, 390x844 @2x) and public/hero/hall-side.{webp,avif} (a phone held
-// sideways, 844x390 @2x), and writes src/components/hero/still.ts with where
-// the door, the nearest plinths and the Enter slab sit in each, so the page
-// lays the still where the live scene will draw the same hall.
+// Renders the stills of the 3D hall and writes src/components/hero/still.ts
+// with where the door (and on phones the nearest plinths and the Enter
+// label) sits in each, so the page lays each still where the live scene will
+// draw the same hall:
+//   public/hero/hall-phone.{webp,avif}  phones upright, 390x844 @2x
+//   public/hero/hall-side.{webp,avif}   phones held sideways, 844x390 @2x
+//   public/hero/stage-<band>.{webp,avif} the stage (768px+ wide, 501px+
+//     tall), one per aspect band (frame.ts STAGE_BANDS: 21:9, 16:10, 4:3,
+//     5:4 and upright tablets)
 //
-// Phones show the still on arrival and only load the live three.js scene on
-// the first touch or scroll (Hero.tsx). Re-run after anything that changes
-// the phone hall: a sponsor added or re-ordered (src/config/sponsors.ts), the
-// scene (GalleryScene, LogoPlaques) or its framing (frame.ts):
+// Every visitor sees a still first: phones until their first touch or
+// scroll, the stage until the live scene is drawing, and anyone whose device
+// never gets the live scene (no WebGL, slow, reduced motion, Save-Data) for
+// good (Hero.tsx). Re-run after anything that changes the hall: a sponsor
+// added or re-ordered (src/config/sponsors.ts), the scene (GalleryScene,
+// LogoPlaques, WirePrinter) or its framing (frame.ts). HERO_STILL_ONLY=a,b
+// re-renders only those (e.g. stage-land), keeping the rest:
 //
 //   npm run build && node scripts/hero-still.mjs && npm run build
 //
@@ -29,15 +36,21 @@ const dist = path.join(repo, "dist");
 const outDir = path.join(repo, "public", "hero");
 const moduleOut = path.join(repo, "src", "components", "hero", "still.ts");
 const PORT = Number(process.env.HERO_STILL_PORT || 8391);
-/** Largest acceptable file, bytes: the still must not cost the page its LCP. */
-const BUDGET = 90 * 1024;
+/** Largest acceptable file, bytes: a still must not cost the page its LCP. */
+const PHONE_BUDGET = 90 * 1024;
+const STAGE_BUDGET = 140 * 1024;
 
-const { phoneShot } = await import(pathToFileURL(path.join(repo, "src", "components", "hero", "frame.ts")).href);
+const { phoneShot, restShot, STAGE_BANDS } = await import(
+  pathToFileURL(path.join(repo, "src", "components", "hero", "frame.ts")).href
+);
 
+const ONLY = process.env.HERO_STILL_ONLY ? new Set(process.env.HERO_STILL_ONLY.split(",")) : null;
 const SHOTS = [
-  { name: "hall-phone", width: 390, height: 844 },
-  { name: "hall-side", width: 844, height: 390 },
+  { name: "hall-phone", width: 390, height: 844, dpr: 2, phone: true },
+  { name: "hall-side", width: 844, height: 390, dpr: 2, phone: true },
+  ...STAGE_BANDS.map((b) => ({ name: `stage-${b.name}`, band: b.name, ...b.capture, phone: false })),
 ];
+const moduleText = fs.existsSync(moduleOut) ? fs.readFileSync(moduleOut, "utf8") : "";
 
 if (!fs.existsSync(path.join(dist, "index.html"))) {
   console.error("hero-still: dist/index.html not found. Run `npm run build` first.");
@@ -67,7 +80,7 @@ for (let i = 0; ; i++) {
 const CANVAS_ONLY = `
   body * { visibility: hidden !important; }
   .hall-scene, .hall-scene canvas { visibility: visible !important; }
-  .hall-scene .hall-cta, .hall-scene .hall-cta * { visibility: hidden !important; }
+  .hall-scene .hall-enter, .hall-scene .hall-enter * { visibility: hidden !important; }
 `;
 
 function ffmpeg(args) {
@@ -76,7 +89,7 @@ function ffmpeg(args) {
 }
 
 /** WebP at the best quality under budget; AVIF too when ffmpeg can. */
-async function encode(page, png, name) {
+async function encode(page, png, name, BUDGET) {
   const webp = path.join(outDir, `${name}.webp`);
   const avif = path.join(outDir, `${name}.avif`);
   let size = Infinity;
@@ -104,9 +117,12 @@ async function encode(page, png, name) {
   }
   let hasAvif = false;
   if (hasFfmpeg) {
-    ffmpeg(["-i", png, "-c:v", "libaom-av1", "-still-picture", "1", "-crf", "30", "-b:v", "0", "-cpu-used", "3", "-pix_fmt", "yuv420p", "-frames:v", "1", avif]);
-    const aSize = fs.statSync(avif).size;
-    console.log(`  ${name}.avif: ${(aSize / 1024).toFixed(1)} KB`);
+    let aSize = Infinity;
+    for (let crf = 22; crf <= 48 && aSize > BUDGET * 0.6; crf += 4) {
+      ffmpeg(["-i", png, "-c:v", "libaom-av1", "-still-picture", "1", "-crf", String(crf), "-b:v", "0", "-cpu-used", "3", "-pix_fmt", "yuv420p", "-frames:v", "1", avif]);
+      aSize = fs.statSync(avif).size;
+      console.log(`  ${name}.avif crf${crf}: ${(aSize / 1024).toFixed(1)} KB`);
+    }
     hasAvif = aSize < size;
   }
   if (!hasAvif) fs.rmSync(avif, { force: true });
@@ -114,17 +130,29 @@ async function encode(page, png, name) {
 }
 
 const stills = {};
+const stage = {};
 try {
   for (const shot of SHOTS) {
+    if (ONLY && !ONLY.has(shot.name)) continue;
     // A fresh browser per viewport: a reused one can hand back a black canvas.
     const browser = await chromium.launch({ headless: false, args: ["--window-position=0,0"] });
     try {
       const context = await browser.newContext({
         viewport: { width: shot.width, height: shot.height },
-        deviceScaleFactor: 2,
-        isMobile: true,
-        hasTouch: true,
+        deviceScaleFactor: shot.dpr,
+        isMobile: shot.phone,
+        hasTouch: shot.phone,
         reducedMotion: "no-preference",
+      });
+      // The live scene at full quality whatever this machine measures like
+      // (Hero.tsx skips it or steps it down on slow devices).
+      await context.addInitScript(() => {
+        window.__MDC_HALL = "live";
+        window.__hallLogos = { n: 0, at: 0 };
+        window.addEventListener("hall:logo", () => {
+          window.__hallLogos.n += 1;
+          window.__hallLogos.at = performance.now();
+        });
       });
       const page = await context.newPage();
       const errors = [];
@@ -139,8 +167,15 @@ try {
       }
       await page.waitForSelector(".hall-stage[data-ready]", { state: "attached", timeout: 60_000 });
       await page.waitForLoadState("networkidle");
-      // Logos onto their plaques, and the 900ms crossfade over.
-      await page.waitForTimeout(1600);
+      // Every logo onto its plaque (they are painted one per idle moment):
+      // none new for 2.5 s. Then the 900ms crossfade over.
+      await page.waitForFunction(
+        () => window.__hallLogos.n > 0 && performance.now() - window.__hallLogos.at > 2500,
+        null,
+        { timeout: 60_000, polling: 250 },
+      );
+      const logos = await page.evaluate(() => window.__hallLogos.n);
+      await page.waitForTimeout(1000);
       await page.addStyleTag({ content: CANVAS_ONLY });
       await page.waitForTimeout(250);
 
@@ -164,7 +199,7 @@ try {
           }
           floor = (top + type.offsetHeight) / H;
         }
-        const btn = document.querySelector(".hall-scene .hall-cta__btn")?.getBoundingClientRect();
+        const btn = document.querySelector(".hall-scene .hall-enter__door")?.getBoundingClientRect();
         return {
           W,
           H,
@@ -173,34 +208,51 @@ try {
           bottomPx: Math.round(parseFloat(cs.paddingBottom) || 0),
           column: side ? { left: plan.offsetLeft, width: plan.offsetWidth } : null,
           liveCta: btn ? (btn.top + btn.height / 2) / H : null,
+          liveDoor: btn ? [btn.top / H, btn.bottom / H] : null,
         };
       });
-      const fit = m.column ? m.column.width / m.H : m.W / m.H;
-      const s = phoneShot(fit, m.floor, m.H, m.bottomPx);
       const png = path.join(tmp, `${shot.name}.png`);
       await page.screenshot({ path: png, clip: { x: 0, y: 0, width: m.W, height: m.H } });
-      const avif = await encode(page, png, shot.name);
+      const avif = await encode(page, png, shot.name, shot.phone ? PHONE_BUDGET : STAGE_BUDGET);
       const round = (v) => Math.round(v * 10000) / 10000;
-      stills[m.side ? "side" : "phone"] = {
+      const files = {
         src: `/hero/${shot.name}.webp`,
         avif: avif ? `/hero/${shot.name}.avif` : null,
-        width: m.W * 2,
-        height: m.H * 2,
-        // the type's clearance line (the door rim's guard sits on it), the
-        // nearest plinths' feet and the Enter slab: shares of the height
-        a: round(Math.min(0.92, m.floor + 22 / m.H)),
-        b: round(s.feet),
-        c: round(s.cta),
-        // the hall's centre line, a share of the width
-        x: round(m.column ? (m.column.left + m.column.width / 2) / m.W : 0.5),
-        // height per px of the width the plinth files are fitted to
-        r: round(m.H / (m.column ? m.column.width : m.W)),
+        width: Math.round(m.W * shot.dpr),
+        height: Math.round(m.H * shot.dpr),
       };
-      console.log(
-        `${shot.name}: ${m.W}x${m.H} kind=${s.kind} floor=${m.floor} bottom=${m.bottomPx}px`,
-        `cta ${s.cta.toFixed(4)} (live ${m.liveCta?.toFixed(4)})`,
-        errors.length ? `\n  page errors: ${errors.join(" | ")}` : "",
-      );
+      if (shot.phone) {
+        const fit = m.column ? m.column.width / m.H : m.W / m.H;
+        const s = phoneShot(fit, m.floor, m.H, m.bottomPx);
+        stills[m.side ? "side" : "phone"] = {
+          ...files,
+          // the type's clearance line (the door rim's guard sits on it), the
+          // nearest plinths' feet and the Enter label: shares of the height
+          a: round(Math.min(0.92, m.floor + 22 / m.H)),
+          b: round(s.feet),
+          c: round(s.cta),
+          // the door rim's top and bottom
+          t: round(s.rimTop),
+          u: round(s.rimBottom),
+          // the hall's centre line, a share of the width
+          x: round(m.column ? (m.column.left + m.column.width / 2) / m.W : 0.5),
+          // height per px of the width the plinth files are fitted to
+          r: round(m.H / (m.column ? m.column.width : m.W)),
+        };
+        console.log(
+          `${shot.name}: ${m.W}x${m.H} kind=${s.kind} floor=${m.floor} bottom=${m.bottomPx}px logos=${logos}`,
+          `rim ${s.rimTop.toFixed(4)}..${s.rimBottom.toFixed(4)} (live door ${m.liveDoor?.map((v) => v.toFixed(4)).join("..")})`,
+          errors.length ? `\n  page errors: ${errors.join(" | ")}` : "",
+        );
+      } else {
+        const s = restShot(m.W / m.H, m.floor, m.H);
+        stage[shot.band] = { ...files, rimTop: round(s.rimTop), rimBottom: round(s.rimBottom) };
+        console.log(
+          `${shot.name}: ${m.W}x${m.H} floor=${m.floor} logos=${logos}`,
+          `rim ${s.rimTop.toFixed(4)}..${s.rimBottom.toFixed(4)} (live door ${m.liveDoor?.map((v) => v.toFixed(4)).join("..")})`,
+          errors.length ? `\n  page errors: ${errors.join(" | ")}` : "",
+        );
+      }
       if (errors.length) process.exitCode = 1;
     } finally {
       await browser.close();
@@ -211,15 +263,30 @@ try {
   fs.rmSync(tmp, { recursive: true, force: true });
 }
 
+// A partial run (HERO_STILL_ONLY) keeps the other entries from the last one.
+const previous = (name) => {
+  const m = moduleText.match(new RegExp(`export const ${name} = ([\\s\\S]*?) as const;`));
+  return m ? JSON.parse(m[1]) : {};
+};
+const phoneStills = { ...previous("HALL_STILLS"), ...stills };
+const stageStills = { ...previous("STAGE_STILLS"), ...stage };
 fs.writeFileSync(
   moduleOut,
   `// Generated by scripts/hero-still.mjs: do not edit by hand, re-run it.
-// The phone stills of the 3D hall (public/hero) and where the hall sits in
-// each: a = the type's clearance line (the door rim's top), b = the nearest
-// plinths' feet, c = the Enter slab, as shares of the still's height; x = the
-// hall's centre line as a share of its width; r = its height per px of the
-// width the plinth files were fitted to. hero.css lays the still with them.
-export const HALL_STILLS = ${JSON.stringify(stills, null, 2)} as const;
+// The stills of the 3D hall (public/hero).
+//
+// HALL_STILLS, the phone stills, and where the hall sits in each: a = the
+// type's clearance line (the door rim's guard), b = the nearest plinths'
+// feet, c = the Enter label, t and u = the door rim's top and bottom, as
+// shares of the still's height; x = the hall's centre line as a share of its
+// width; r = its height per px of the width the plinth files were fitted to.
+// hero.css lays the still with them.
+export const HALL_STILLS = ${JSON.stringify(phoneStills, null, 2)} as const;
+
+// STAGE_STILLS, one per aspect band (frame.ts STAGE_BANDS): the door rim's
+// top and bottom as shares of the still's height. Hero.tsx lays the still
+// with them (frame.ts layStill) so its door lands on the live scene's.
+export const STAGE_STILLS = ${JSON.stringify(stageStills, null, 2)} as const;
 `,
 );
 console.log(`wrote ${path.relative(repo, moduleOut)} and public/hero/`);

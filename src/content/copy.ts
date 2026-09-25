@@ -60,6 +60,8 @@ const HOUR = (t: string) => t.replace(":00 ", " ");
 export const CTA = {
   register: "Register now",
   enter: "Enter the hall",
+  /** What the hero's lit door says on its face (its accessible name is `enter`). */
+  door: "Enter",
   partner: "Partner with us",
   ask: "Ask us",
   map: "Map",
