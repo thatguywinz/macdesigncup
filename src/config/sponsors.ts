@@ -88,12 +88,12 @@ export const SPONSORS: Sponsor[] = [
  * neighbours in every layout), the rest hang on the lit back wall beside and
  * over the door (wallFor). Slot 1 and slot 5 stand side by side, so
  * startGBC stands right next to George Brown Polytechnic; the host school's
- * crest has the front plinth at slot 2. Phones show the eight plinths only.
+ * crest hangs over the door (the last wall slot). Phones show the eight plinths only.
  */
 const HALL_ORDER = [
   "Shop3D.ca",
   "George Brown Polytechnic",
-  "William Lyon Mackenzie CI",
+  "TriMech Group",
   "Siemens",
   "Ansys",
   "startGBC",
@@ -103,7 +103,8 @@ const HALL_ORDER = [
   "Applied Precision 3D",
   "Chatforce",
   "Agile Manufacturing",
-  "TriMech Group",
+  // Last slot = the sign over the door: the host school.
+  "William Lyon Mackenzie CI",
 ] as const;
 
 const byName = new Map(SPONSORS.map((s) => [s.name, s]));

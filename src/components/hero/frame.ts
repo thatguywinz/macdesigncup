@@ -149,8 +149,8 @@ export const LANDSCAPE_WALL: WallPlate[] = [
   { x: 3.02, ...BAND },
   { x: -5.2, ...BAND },
   { x: 5.2, ...BAND },
-  // over the door, a long sign on the wall above its lintel
-  { x: 0, y: 4.74, w: 2.3, h: 0.6 },
+  // over the door, a square plate for the host school's crest
+  { x: 0, y: 5.0, w: 1.25, h: 1.05 },
 ];
 /* Upright tablets: a narrower frame, so the band closes in and rises to sit
    between the door's rim and the far plinths (which stand lower). */
@@ -160,7 +160,7 @@ export const PORTRAIT_WALL: WallPlate[] = [
   { x: 2.32, ...P_BAND },
   { x: -3.55, ...P_BAND },
   { x: 3.55, ...P_BAND },
-  { x: 0, y: 4.74, w: 1.7, h: 0.46 },
+  { x: 0, y: 4.95, w: 0.95, h: 0.8 },
 ];
 export const wallFor = (f: Pick<Framing, "kind">) =>
   isLite(f.kind) ? [] : f.kind === "portrait" ? PORTRAIT_WALL : LANDSCAPE_WALL;
