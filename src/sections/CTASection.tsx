@@ -141,6 +141,8 @@ export default function CTASection() {
       className="overflow-hidden py-10 text-center md:py-16 xl:py-16"
       containerClassName="flex flex-col items-center"
     >
+      {/* The old For teachers sheet (#teachers) folded into registration: its links land here. */}
+      <span id="teachers" className="anchor-alias absolute left-0 top-0" aria-hidden="true" />
       {/* the pill and heading stand in the doorway; the floor is under them */}
       <div ref={doorRef} className="relative flex w-full flex-col items-center pb-3 pt-2 md:pb-6">
         <PortalDoor progress={progress} />
@@ -174,7 +176,7 @@ export default function CTASection() {
         <RegisterBlock
           align="center"
           buttonClassName="min-h-[52px] px-10 py-4 text-sm"
-          className="gap-5 md:gap-6 lg:[&_li]:max-w-[40rem]"
+          className="gap-5 md:gap-6"
         />
       </Reveal>
 

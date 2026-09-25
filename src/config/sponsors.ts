@@ -45,7 +45,13 @@ export interface Sponsor {
    * Wordmarks leave it off. The link's accessible name stays `name`.
    */
   caption?: string;
-  /** Shown on a plinth in the 3D hero hall. Order in this list is hall order. */
+  /**
+   * Stands in the hero hall. Every sponsor does except a speaker-only one
+   * (METAVRSE: their part is a featured talk). Order in this list is hall
+   * order: the first eight on plinths, the next four on the lit back wall
+   * beside the door, the last (the host school's crest) over the door.
+   * The phone hall shows them all as a small grid.
+   */
   hero?: boolean;
 }
 
@@ -58,9 +64,10 @@ export const SPONSORS: Sponsor[] = [
   { name: "TriMech Group", logo: trimechLogo, href: "https://trimech.com/", maxH: 44, maxW: 212, hero: true },
   { name: "Stratasys", logo: stratasysLogo, href: "https://www.stratasys.com/", maxH: 72, maxW: 236, hero: true },
   { name: "Scrimba", logo: scrimbaLogo, href: "https://scrimba.com/", maxH: 22, maxW: 236, hero: true },
-  { name: "Aseprite", logo: asepriteLogo, href: "https://www.aseprite.org/", maxH: 64, maxW: 176 },
-  { name: "Applied Precision 3D", logo: appliedPrecisionLogo, href: "https://www.appliedprecision.ca/", maxH: 32, maxW: 236 },
-  { name: "Chatforce", logo: chatforceLogo, href: "https://chatforce.com/", maxH: 44, maxW: 228 },
+  { name: "Aseprite", logo: asepriteLogo, href: "https://www.aseprite.org/", maxH: 64, maxW: 176, hero: true },
+  { name: "Applied Precision 3D", logo: appliedPrecisionLogo, href: "https://www.appliedprecision.ca/", maxH: 32, maxW: 236, hero: true },
+  { name: "Chatforce", logo: chatforceLogo, href: "https://chatforce.com/", maxH: 44, maxW: 228, hero: true },
+  // Speaker-only (a featured talk): on the sponsor wall, not in the hero hall.
   { name: "METAVRSE", logo: metavrseLogo, href: "https://metavrse.com/", maxH: 30, maxW: 210 },
   // Symbol-only marks: captioned, so the wall names them.
   {
@@ -70,9 +77,10 @@ export const SPONSORS: Sponsor[] = [
     maxH: 64,
     maxW: 190,
     caption: "Agile Manufacturing",
+    hero: true,
   },
   // "WLMAC": the school's own short name (wlmac.ca, and the club's name in site.ts).
-  { name: "William Lyon Mackenzie CI", logo: wlmacLogo, href: "https://wlmac.ca/", maxH: 100, maxW: 200, caption: "WLMAC" },
+  { name: "William Lyon Mackenzie CI", logo: wlmacLogo, href: "https://wlmac.ca/", maxH: 100, maxW: 200, caption: "WLMAC", hero: true },
 ];
 
 export const HERO_SPONSORS = SPONSORS.filter((s) => s.hero);

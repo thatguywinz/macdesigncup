@@ -135,7 +135,7 @@ function glide(to: number, ms: number, done: () => void) {
  *
  * Phones (below 768px) and short landscape windows (500px tall or less, a
  * phone held sideways) keep that poster as a CSS hall: the copy, then the lit
- * door with the Enter slab, then four sponsor plaques on the floor, laid out
+ * door with the Enter slab, then every hall sponsor as a small plaque grid on the floor, laid out
  * in the flow so the door can never sit on the copy (upright: stacked;
  * sideways: the copy on the left, the hall beside it). No three.js is
  * downloaded.

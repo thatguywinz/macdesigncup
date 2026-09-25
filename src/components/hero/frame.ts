@@ -63,8 +63,8 @@ export const LANDSCAPE_SLOTS: Slot[] = [
   { x: 1.72, ...FRONT_ROW },
   { x: -OUTER, ...BACK },
   { x: OUTER, ...BACK },
-  { x: -3.25, ...FRONT_ROW },
-  { x: 3.25, ...FRONT_ROW },
+  { x: -3.02, ...FRONT_ROW },
+  { x: 3.02, ...FRONT_ROW },
 ];
 
 /* Portrait (tablets held upright): the plaques line both sides of the aisle
@@ -85,6 +85,44 @@ export const PORTRAIT_SLOTS: Slot[] = [
 ];
 
 export const slotsFor = (aspect: number) => (aspect < 1 ? PORTRAIT_SLOTS : LANDSCAPE_SLOTS);
+
+/* ── The lit back wall ───────────────────────────────────────────────
+   The sponsors past the plinths hang on the back wall as lit plates, flat
+   to the wall (they face the camera square): a band of four beside the
+   door, low enough to sit under the poster type and high enough to clear
+   the back row's slabs in front of them, and one crest over the door.
+   Plate centres, in hall order after the plinths. */
+export interface WallPlate {
+  x: number;
+  y: number;
+  /** plate width and height */
+  w: number;
+  h: number;
+}
+/** Depth of the plates: a hair in front of the back wall's face (z -6.17). */
+export const WALL_Z = -6.13;
+const BAND = { y: 1.45, w: 1.95, h: 0.84 };
+export const LANDSCAPE_WALL: WallPlate[] = [
+  { x: -3.02, ...BAND },
+  { x: 3.02, ...BAND },
+  { x: -5.2, ...BAND },
+  { x: 5.2, ...BAND },
+  // over the door, on the wall above its lintel
+  { x: 0, y: 4.8, w: 1.2, h: 1.0 },
+];
+/* Upright tablets: a narrower frame, so the band closes in and rises to sit
+   between the door's rim and the far plinths (which stand lower). */
+const P_BAND = { y: 3.15, w: 1.1, h: 0.52 };
+export const PORTRAIT_WALL: WallPlate[] = [
+  { x: -2.32, ...P_BAND },
+  { x: 2.32, ...P_BAND },
+  { x: -3.55, ...P_BAND },
+  { x: 3.55, ...P_BAND },
+  { x: 0, y: 4.75, w: 0.9, h: 0.78 },
+];
+export const wallFor = (aspect: number) => (aspect < 1 ? PORTRAIT_WALL : LANDSCAPE_WALL);
+/** The band's top (landscape): it too must stay under the poster type. */
+const BAND_TOP = BAND.y + BAND.h / 2 + 0.03;
 
 /** Height of a slot's slab top and bottom (a hair over, for its bob). */
 const slabTop = (s: Pick<Slot, "h" | "s">) => s.h + LIFT + SLAB_H * s.s + 0.03;
@@ -158,7 +196,7 @@ function lookYFor(camY: number, camZ: number, tanV: number, y: number, z: number
  *  the door's lit rim (the type spans the door there) and the plaques
  *  beside it. */
 function guards(aspect: number): Array<[number, number]> {
-  if (aspect >= 1) return [[slabTop(BACK_ROW), BACK_ROW.z]];
+  if (aspect >= 1) return [[slabTop(BACK_ROW), BACK_ROW.z], [BAND_TOP, WALL_Z]];
   const [, , , , far, , mid] = PORTRAIT_SLOTS;
   return [
     [RIM_TOP + 0.06, DOOR.z],
@@ -202,7 +240,10 @@ export function framing(aspect: number, floor = 0, heightPx = 0): Framing {
   // Their span on screen scales with 1 / tan(fov / 2) for a fixed camera.
   if (floor > 0 && heightPx > 0) {
     const tanV0 = Math.tan(rad(fov / 2));
-    const top = ndcY(y, z, lookY, tanV0, slabTop(BACK_ROW), BACK_ROW.z);
+    const top = Math.max(
+      ndcY(y, z, lookY, tanV0, slabTop(BACK_ROW), BACK_ROW.z),
+      ndcY(y, z, lookY, tanV0, BAND_TOP, WALL_Z),
+    );
     const bottom = ndcY(y, z, lookY, tanV0, slabBottom(FRONT_ROW), FRONT_ROW.z);
     const room = clearLine(aspect, floor, heightPx) - (-1 + (2 * BOTTOM_PX) / heightPx);
     if (room > 0 && top - bottom > room) {
@@ -276,5 +317,22 @@ export function cutAtStop(slot: Slot, f: Framing, aspect: number) {
   const y1 = (slot.h + LIFT + SLAB_H * slot.s - DOOR.y) / halfH;
   const inside = x0 < 1 && y1 > -1 && y0 < 1; // some of it is in frame
   const whole = x1 <= 0.98 && y0 >= -0.98 && y1 <= 0.98;
+  return inside && !whole;
+}
+
+/** The same test for a wall plate: part in, part out of the stop frame. */
+export function wallCutAtStop(p: WallPlate, f: Framing, aspect: number) {
+  const d = f.endZ - WALL_Z;
+  const tanV = Math.tan(rad(f.fov / 2));
+  const halfW = d * tanV * aspect;
+  const halfH = d * tanV;
+  const x0 = (Math.abs(p.x) - p.w / 2) / halfW;
+  const x1 = (Math.abs(p.x) + p.w / 2) / halfW;
+  const y0 = (p.y - p.h / 2 - DOOR.y) / halfH;
+  const y1 = (p.y + p.h / 2 - DOOR.y) / halfH;
+  const inside = x0 < 1 && y1 > -1 && y0 < 1;
+  // The top ~12% of the frame sits under the fixed nav: a plate reaching
+  // into it counts as cut.
+  const whole = x1 <= 0.98 && y0 >= -0.98 && y1 <= 0.76;
   return inside && !whole;
 }

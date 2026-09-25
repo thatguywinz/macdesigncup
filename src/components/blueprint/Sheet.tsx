@@ -5,8 +5,8 @@ import { useReducedMotionSafe } from "@/hooks/useReducedMotionSafe";
 import { DURATION, EASE, VIEWPORT_ONCE } from "@/components/motion/tokens";
 import CropMarks from "./CropMarks";
 
-/** Numbered sheets on the home page (01 At a glance … 06 FAQ). */
-export const SHEET_COUNT = 6;
+/** Numbered sheets on the home page (01 At a glance … 05 FAQ). */
+export const SHEET_COUNT = 5;
 
 const pad2 = (n: number) => String(n).padStart(2, "0");
 
@@ -62,7 +62,7 @@ export function SheetEyebrow({ children, className }: SheetEyebrowProps) {
 }
 
 export interface SheetProps extends Omit<ComponentPropsWithoutRef<"section">, "id" | "title" | "children"> {
-  /** Section anchor (`glance`, `prizes`, `sponsors`, `day`, `teachers`, `faq`, `register`). */
+  /** Section anchor (`glance`, `prizes`, `sponsors`, `day`, `faq`, `register`). */
   id: string;
   /** Section eyebrow from copy.ts, e.g. `SECTIONS.prizes.eyebrow` ("02 · Prizes").
    *  Omit to render no eyebrow. */

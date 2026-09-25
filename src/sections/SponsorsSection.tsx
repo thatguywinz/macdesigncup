@@ -6,9 +6,9 @@ import SponsorMarquee from "./sponsors/SponsorMarquee";
 const s = SECTIONS.sponsors;
 
 /**
- * 03 · Sponsors. The heading, then the wall in motion: two rows of logos
- * drifting in opposite directions, coupled to the page's scroll, closing
- * on the open partner slot. Every logo links to its sponsor.
+ * 03 · Sponsors. The heading, then the wall: two rows of logos gliding at
+ * one calm, constant pace, with the open partner slot always in view beside
+ * (or, on phones, under) them. Every logo links to its sponsor.
  */
 export default function SponsorsSection() {
   return (

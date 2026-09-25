@@ -18,23 +18,21 @@ export default function HeroPoster() {
   );
 }
 
-/** How many sponsors stand in the phone hall (the first of HERO_SPONSORS,
- *  startGBC among them), and the share of the flat wall's optical caps
- *  (sponsors.ts maxW/maxH, px) their logos get on a plaque. */
-const PHONE_PLAQUES = 4;
-const CAP = 0.5;
+/** The share of the flat wall's optical caps (sponsors.ts maxW/maxH, px)
+ *  a logo gets on a phone plaque. */
+const CAP = 0.36;
 
 /**
- * Phones: the sponsor plaques on the hall floor in front of the door, two
- * rows of plinths like the 3D hall's (one row when held sideways, hero.css),
- * each a dark slab with the logo in bone
- * (the flat sponsor wall's knockout filter). The sponsor section further down
- * names and links every sponsor, so this row is decorative.
+ * Phones: every hall sponsor (HERO_SPONSORS) as a small plaque on the hall
+ * floor in front of the door, a tidy grid of plinths like the 3D hall's
+ * (five across, the last row centred), each a dark slab with the logo in
+ * bone (the flat sponsor wall's knockout filter). The sponsor section
+ * further down names and links every sponsor, so this is decorative.
  */
 export function HallPlaques() {
   return (
     <ul aria-hidden="true" className="hall-plan__plaques">
-      {HERO_SPONSORS.slice(0, PHONE_PLAQUES).map((s) => (
+      {HERO_SPONSORS.map((s) => (
         <li key={s.name} className="hall-plan__plaque">
           <span className="hall-plan__slab">
             <img
@@ -43,7 +41,7 @@ export function HallPlaques() {
               loading="lazy"
               decoding="async"
               draggable={false}
-              style={{ maxWidth: `min(${s.maxW * CAP}px, 80%)`, maxHeight: `min(${s.maxH * CAP}px, 64%)` }}
+              style={{ maxWidth: `min(${s.maxW * CAP}px, 84%)`, maxHeight: `min(${s.maxH * CAP}px, 66%)` }}
             />
           </span>
           <span className="hall-plan__plinth" />

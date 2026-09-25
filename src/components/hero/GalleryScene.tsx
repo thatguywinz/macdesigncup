@@ -91,16 +91,18 @@ function CameraRig({ progress, reduced, frame: f, aspect, floor }: RigProps) {
       cam.updateProjectionMatrix();
     }
 
-    // Smooth the scroll a touch so wheel steps glide instead of stepping.
+    // Smooth the scroll so wheel steps glide instead of stepping: a
+    // critically damped follow (no overshoot), then the eased dolly curve.
     const target = reduced ? 0 : clamp01(progress.get());
-    eased.current = THREE.MathUtils.damp(eased.current, target, 6, dt);
+    eased.current = THREE.MathUtils.damp(eased.current, target, 3.8, dt);
+    if (Math.abs(eased.current - target) < 0.0005) eased.current = target;
     const e = dollyAmount(eased.current);
     const free = 1 - e;
 
     lean.x = THREE.MathUtils.damp(lean.x, reduced ? 0 : PTR.x * free, 2.4, dt);
     lean.y = THREE.MathUtils.damp(lean.y, reduced ? 0 : PTR.y * free, 2.4, dt);
-    const driftX = reduced ? 0 : Math.sin(t * 0.26) * 0.22 * free;
-    const driftY = reduced ? 0 : Math.sin(t * 0.18) * 0.12 * free;
+    const driftX = reduced ? 0 : Math.sin(t * 0.22) * 0.14 * free;
+    const driftY = reduced ? 0 : Math.sin(t * 0.16) * 0.08 * free;
 
     const camY = THREE.MathUtils.lerp(f.y, DOOR.y, e) + lean.y * 0.55 + driftY;
     const camZ = THREE.MathUtils.lerp(f.z, f.endZ, e);

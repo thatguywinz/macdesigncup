@@ -4,14 +4,28 @@ import type { MotionValue } from "framer-motion";
 import * as THREE from "three";
 import { HERO_SPONSORS, type Sponsor } from "@/config/sponsors";
 import { LIFT, SLAB_H, SLAB_W } from "./frame";
-import { BONE, clamp01, cutAtStop, slotsFor, smoothstep, type Framing, type Slot } from "./hall";
+import {
+  BONE,
+  WALL_Z,
+  clamp01,
+  cutAtStop,
+  slotsFor,
+  smoothstep,
+  wallCutAtStop,
+  wallFor,
+  type Framing,
+  type Slot,
+  type WallPlate,
+} from "./hall";
 import { PLAQUE_OUT } from "./timeline";
 
 /* ── The sponsor hall ──────────────────────────────────────────────────
-   Every sponsor in HERO_SPONSORS stands on a plinth as a thin dark plaque
-   with its logo knocked out in bone, the same one-colour treatment the flat
-   sponsor wall gets from its CSS filter. Plaques face the camera's rest pose
-   enough to read, bob and sway a little, and brighten under the cursor. */
+   The first sponsors in HERO_SPONSORS stand on plinths as thin dark plaques
+   with their logos knocked out in bone, the same one-colour treatment the
+   flat sponsor wall gets from its CSS filter. Plaques face the camera's rest
+   pose enough to read, bob and sway a touch, and brighten under the cursor.
+   The rest hang on the back wall as lit plates beside and over the door
+   (frame.ts, wallFor). */
 
 // ── Knockout ─────────────────────────────────────────────────────────
 /** Logo height in the texture, px (wide wordmarks are capped by width).
@@ -59,8 +73,12 @@ const enqueue = (job: () => void) => {
   );
 };
 
-/** Repaint every opaque pixel of a loaded logo bone, keeping its alpha. */
-function paint(img: HTMLImageElement): Knockout | null {
+/** Caption type under a symbol-only mark, as a share of the logo height. */
+const CAPTION_K = 0.2;
+
+/** Repaint every opaque pixel of a loaded logo bone, keeping its alpha. A
+ *  symbol-only mark gets its caption (sponsors.ts) set in mono under it. */
+function paint(img: HTMLImageElement, caption?: string): Knockout | null {
   // sponsors.ts requires SVGs to carry an explicit width/height, so every
   // file here has an intrinsic size.
   const nw = img.naturalWidth || img.width;
@@ -69,46 +87,69 @@ function paint(img: HTMLImageElement): Knockout | null {
   const s = Math.min(TEX_H / nh, TEX_MAX_W / nw);
   const w = Math.max(1, Math.round(nw * s));
   const h = Math.max(1, Math.round(nh * s));
+  const font = Math.round(h * CAPTION_K);
+  const capH = caption ? Math.round(font * 1.9) : 0;
+  const face = `700 ${font}px "Space Mono", ui-monospace, monospace`;
+  // letter-spaced by hand (hair spaces): canvas letterSpacing is not everywhere yet
+  const text = caption ? caption.toUpperCase().split("").join("\u200A") : "";
+  let capW = 0;
+  const measure = caption ? document.createElement("canvas").getContext("2d") : null;
+  if (measure) {
+    measure.font = face;
+    capW = Math.ceil(measure.measureText(text).width * 1.06);
+  }
+  const bw = Math.max(w, capW);
+  const bh = h + capH;
   const canvas = document.createElement("canvas");
-  canvas.width = w + TEX_PAD * 2;
-  canvas.height = h + TEX_PAD * 2;
+  canvas.width = bw + TEX_PAD * 2;
+  canvas.height = bh + TEX_PAD * 2;
   const ctx = canvas.getContext("2d");
   if (!ctx) return null;
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = "high";
-  ctx.drawImage(img, TEX_PAD, TEX_PAD, w, h);
+  ctx.drawImage(img, TEX_PAD + (bw - w) / 2, TEX_PAD, w, h);
   ctx.globalCompositeOperation = "source-in";
   ctx.fillStyle = BONE;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
+  if (caption) {
+    ctx.globalCompositeOperation = "source-over";
+    ctx.font = face;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "alphabetic";
+    ctx.globalAlpha = 0.82;
+    ctx.fillText(text, canvas.width / 2, TEX_PAD + h + capH * 0.82);
+    ctx.globalAlpha = 1;
+  }
   // Every logo is a Vite import (same origin or a data: URI), so the canvas
   // is never tainted and can go straight to WebGL.
-  return { canvas, aspect: w / h, padX: canvas.width / w, padY: canvas.height / h };
+  return { canvas, aspect: bw / bh, padX: canvas.width / bw, padY: canvas.height / bh };
 }
 
-function knockout(url: string): Promise<Knockout | null> {
-  let job = knockouts.get(url);
+function knockout(url: string, caption?: string): Promise<Knockout | null> {
+  const key = caption ? `${url}#${caption}` : url;
+  let job = knockouts.get(key);
   if (!job) {
     job = new Promise<Knockout | null>((resolve) => {
       const img = new Image();
       img.decoding = "async";
       img.src = url;
       img.decode().then(
-        () => enqueue(() => resolve(paint(img))),
+        () => enqueue(() => resolve(paint(img, caption))),
         () => resolve(null),
       );
     });
-    knockouts.set(url, job);
+    knockouts.set(key, job);
   }
   return job;
 }
 
-function useLogoTexture(url: string) {
+function useLogoTexture(url: string, caption?: string) {
   const gl = useThree((s) => s.gl);
   const [logo, setLogo] = useState<{ texture: THREE.CanvasTexture; k: Knockout } | null>(null);
   useEffect(() => {
     let alive = true;
     let texture: THREE.CanvasTexture | null = null;
-    knockout(url).then((k) => {
+    knockout(url, caption).then((k) => {
       if (!alive || !k) return;
       texture = new THREE.CanvasTexture(k.canvas);
       texture.colorSpace = THREE.SRGBColorSpace;
@@ -120,7 +161,7 @@ function useLogoTexture(url: string) {
       alive = false;
       texture?.dispose();
     };
-  }, [url, gl]);
+  }, [url, caption, gl]);
   return logo;
 }
 
@@ -151,7 +192,7 @@ const slabEdges = new THREE.EdgesGeometry(slabGeo);
 const planeGeo = new THREE.PlaneGeometry(1, 1);
 
 function Plaque({ sponsor, slot, seed, reduced, progress, fades }: PlaqueProps) {
-  const logo = useLogoTexture(sponsor.logo);
+  const logo = useLogoTexture(sponsor.logo, sponsor.caption);
   const root = useRef<THREE.Group>(null!);
   const float = useRef<THREE.Group>(null!);
   const logoMat = useRef<THREE.MeshBasicMaterial>(null!);
@@ -186,8 +227,8 @@ function Plaque({ sponsor, slot, seed, reduced, progress, fades }: PlaqueProps) 
     const t = state.clock.elapsedTime;
     const g = float.current;
     // Reduced motion: still, in the resting pose.
-    g.position.y = reduced ? baseY : baseY + Math.sin(t * 0.75 + seed * 1.7) * 0.022;
-    g.rotation.y = reduced ? yaw : yaw + Math.sin(t * 0.33 + seed * 2.3) * 0.055;
+    g.position.y = reduced ? baseY : baseY + Math.sin(t * 0.6 + seed * 1.7) * 0.014;
+    g.rotation.y = reduced ? yaw : yaw + Math.sin(t * 0.27 + seed * 2.3) * 0.028;
     const target = hovered.current ? 1 : 0;
     glow.current = THREE.MathUtils.damp(glow.current, target, 8, dt);
     // Under reduced motion the canvas only draws on demand: keep asking for
@@ -280,6 +321,119 @@ function Plaque({ sponsor, slot, seed, reduced, progress, fades }: PlaqueProps) 
   );
 }
 
+// ── One lit plate on the back wall ───────────────────────────────────
+interface WallLogoProps {
+  sponsor: Sponsor;
+  plate: WallPlate;
+  progress: MotionValue<number>;
+  fades: boolean;
+}
+
+const PLATE_D = 0.04;
+
+/** A dark plate flat on the back wall, its logo in bone, a lamp strip over
+ *  it. Still: the wall doesn't sway. */
+function WallLogo({ sponsor, plate, progress, fades }: WallLogoProps) {
+  const logo = useLogoTexture(sponsor.logo, sponsor.caption);
+  const root = useRef<THREE.Group>(null!);
+  const logoMat = useRef<THREE.MeshBasicMaterial>(null!);
+  const edgeMat = useRef<THREE.LineBasicMaterial>(null!);
+  const hovered = useRef(false);
+  const glow = useRef(0);
+  const shown = useRef(-1);
+  const invalidate = useThree((s) => s.invalidate);
+  const { w, h } = plate;
+  const box = useMemo(() => new THREE.BoxGeometry(w, h, PLATE_D), [w, h]);
+  const edges = useMemo(() => new THREE.EdgesGeometry(box), [box]);
+  useEffect(
+    () => () => {
+      box.dispose();
+      edges.dispose();
+    },
+    [box, edges],
+  );
+
+  const size = useMemo(() => {
+    if (!logo) return null;
+    // Wall plates are read from further off: the caps count a little more.
+    const k = 1.4;
+    const maxW = Math.min(sponsor.maxW * PX * k, w - 0.28);
+    const maxH = Math.min(sponsor.maxH * PX * k * (sponsor.caption ? 1.25 : 1), h - 0.2);
+    let lw = maxW;
+    let lh = lw / logo.k.aspect;
+    if (lh > maxH) {
+      lh = maxH;
+      lw = lh * logo.k.aspect;
+    }
+    return [lw * logo.k.padX, lh * logo.k.padY] as const;
+  }, [logo, sponsor.maxW, sponsor.maxH, sponsor.caption, w, h]);
+
+  useFrame((state, rawDt) => {
+    const dt = Math.min(rawDt, 0.1);
+    const target = hovered.current ? 1 : 0;
+    glow.current = THREE.MathUtils.damp(glow.current, target, 8, dt);
+    if (Math.abs(glow.current - target) > 0.004) state.invalidate();
+    const k = glow.current;
+    const keep = fades ? 1 - smoothstep(PLAQUE_OUT[0], PLAQUE_OUT[1], clamp01(progress.get())) : 1;
+    const o = Math.round(keep * 100) / 100;
+    if (o !== shown.current) {
+      shown.current = o;
+      root.current.visible = o > 0.01;
+      if (fades) {
+        root.current.traverse((obj) => {
+          const m = (obj as THREE.Mesh).material as THREE.Material | undefined;
+          if (m && !Array.isArray(m) && m !== logoMat.current && m !== edgeMat.current) m.opacity = o;
+        });
+      }
+    }
+    if (logoMat.current) {
+      logoMat.current.color.setScalar(0.96 + k * 0.34);
+      logoMat.current.opacity = o;
+    }
+    if (edgeMat.current) edgeMat.current.opacity = (0.22 + k * 0.35) * o;
+  });
+
+  const over = (e: ThreeEvent<PointerEvent>) => {
+    e.stopPropagation();
+    hovered.current = true;
+    invalidate();
+  };
+  const out = () => {
+    hovered.current = false;
+    invalidate();
+  };
+
+  return (
+    <group ref={root} position={[plate.x, plate.y, WALL_Z + PLATE_D / 2]}>
+      <mesh geometry={box} onPointerOver={over} onPointerOut={out}>
+        <meshStandardMaterial
+          color="#101114"
+          roughness={0.5}
+          metalness={0.3}
+          envMapIntensity={0.5}
+          polygonOffset
+          polygonOffsetFactor={1}
+          polygonOffsetUnits={1}
+          transparent={fades}
+        />
+      </mesh>
+      <lineSegments geometry={edges}>
+        <lineBasicMaterial ref={edgeMat} color={BONE} transparent opacity={0.22} toneMapped={false} fog={false} />
+      </lineSegments>
+      {/* the lamp strip over the plate: the ember seam the plinths carry */}
+      <mesh position={[0, h / 2 + 0.05, 0.03]}>
+        <boxGeometry args={[w * 0.56, 0.018, 0.02]} />
+        <meshBasicMaterial color={[1.3, 0.34, 0.05]} toneMapped={false} transparent={fades} />
+      </mesh>
+      {logo && size && (
+        <mesh geometry={planeGeo} position={[0, 0, PLATE_D / 2 + 0.004]} scale={[size[0], size[1], 1]}>
+          <meshBasicMaterial ref={logoMat} map={logo.texture} transparent depthWrite={false} toneMapped={false} fog={false} />
+        </mesh>
+      )}
+    </group>
+  );
+}
+
 // ── The hall ─────────────────────────────────────────────────────────
 interface LogoPlaquesProps {
   reduced: boolean;
@@ -292,8 +446,22 @@ interface LogoPlaquesProps {
 export default function LogoPlaques({ reduced, progress, frame, aspect }: LogoPlaquesProps) {
   const portrait = aspect < 1;
   const slots = slotsFor(aspect);
+  const wall = wallFor(aspect);
+  const onWall = HERO_SPONSORS.slice(slots.length, slots.length + wall.length);
   return (
     <group>
+      {onWall.map((sponsor, i) => {
+        const fades = wallCutAtStop(wall[i], frame, aspect);
+        return (
+          <WallLogo
+            key={`w${portrait ? "p" : "l"}${fades ? "f" : ""}-${sponsor.name}`}
+            sponsor={sponsor}
+            plate={wall[i]}
+            progress={progress}
+            fades={fades}
+          />
+        );
+      })}
       {HERO_SPONSORS.slice(0, slots.length).map((sponsor, i) => {
         const fades = cutAtStop(slots[i], frame, aspect);
         return (

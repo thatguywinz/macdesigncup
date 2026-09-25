@@ -13,7 +13,7 @@ import NavAnchor from "./nav/NavAnchor";
 import NavRuler from "./nav/NavRuler";
 import { SECTION_IDS, SECTION_LINKS } from "./nav/sectionLinks";
 import { useScrollSpy } from "./nav/useScrollSpy";
-import { WhoRegistersList, WhoRegistersShort, WhoRegistersSr } from "./nav/WhoRegisters";
+import { WhoRegistersNote, WhoRegistersSr } from "./nav/WhoRegisters";
 
 const PARTNER_PATH = "/partner";
 /** Base width of the underline; it is scaled to each link (transform only). */
@@ -30,15 +30,12 @@ const useIsoLayoutEffect = typeof window === "undefined" ? useEffect : useLayout
  * - Left: the lion + MDC wordmark (+ the full name from `xl`; between lg
  *   and xl the six links need that width). On `/` it scrolls back to the
  *   top; elsewhere it links home.
- * - Centre (`lg`+): the numbered section links, 01 At a glance to 06 FAQ,
- *   with a scrollspy. The section you are in lights ember with a sliding
+ * - Centre (`lg`+): four short section links (Prizes, Sponsors, The day,
+ *   FAQ), with a scrollspy. The section you are in lights ember with a sliding
  *   2px underline and `aria-current`.
  * - Right: Partner and Register (`md`+). Register is described (for screen
- *   readers) by the who-registers note; from 1440px the phone bar's two short
- *   lines ("Teachers sign up students" / "Students bring a teacher") also sit
- *   beside it on screen (below that the six links need the room; the At a
- *   glance block under the hero shows the rule). The menu shows the note
- *   under its Register row. Below `lg` the section links (plus Partner and
+ *   readers) as one form for students and teachers; the menu shows the tiny
+ *   "Students and teachers" note under its Register row. Below `lg` the section links (plus Partner and
  *   Register) live in the menu; phones get Register from the sticky bar too.
  * - Bottom edge: a drafting ruler that fills ember with page scroll.
  *
@@ -114,13 +111,12 @@ export default function SiteNav() {
     window.scrollTo({ top: 0, behavior: reduce ? "auto" : "smooth" });
   };
 
-  // Screen readers get the full who-registers sentences as the desktop
-  // Register button's description; the short visible lines (1440px+) are
-  // aria-hidden so they are not read twice.
+  // Screen readers hear "one form for students and teachers" as the desktop
+  // Register button's description.
   const noteId = useId();
 
   const menuLinks: MobileNavLink[] = [
-    ...SECTION_LINKS.map((l) => ({ n: l.n, label: l.label, href: l.href, current: active === l.href.slice(1) })),
+    ...SECTION_LINKS.map((l) => ({ label: l.label, href: l.href, current: active === l.href.slice(1) })),
     { label: CTA.partner, to: PARTNER_PATH, arrow: true },
     {
       label: CTA.register,
@@ -128,7 +124,7 @@ export default function SiteNav() {
       accent: true,
       arrow: true,
       current: onRegister,
-      detail: <WhoRegistersList />,
+      detail: <WhoRegistersNote />,
     },
   ];
 
@@ -173,7 +169,7 @@ export default function SiteNav() {
               <span className="font-display text-xl uppercase leading-none tracking-[0.02em] text-foreground transition-colors group-hover:text-ember">
                 {NAV.mark}
               </span>
-              {/* From xl: between lg and xl the six links need its width. */}
+              {/* From xl, beside the mark. */}
               <span className="sr-only xl:not-sr-only xl:mt-1.5 xl:font-mono xl:text-[10px] xl:uppercase xl:leading-none xl:tracking-[0.22em] xl:text-foreground/70">
                 {EVENT_FULL}
               </span>
@@ -191,18 +187,11 @@ export default function SiteNav() {
                     href={l.href}
                     aria-current={isActive ? "true" : undefined}
                     className={cn(
-                      "focus-ember flex min-h-[44px] items-center whitespace-nowrap px-1.5 font-mono text-[11px] uppercase tracking-[0.1em] transition-colors duration-300 xl:px-2.5 xl:text-xs xl:tracking-[0.12em]",
+                      "focus-ember flex min-h-[44px] items-center whitespace-nowrap px-3 font-mono text-[11px] uppercase tracking-[0.14em] transition-colors duration-300 xl:px-4 xl:text-xs xl:tracking-[0.16em]",
                       isActive ? "text-ember" : "text-foreground/85 hover:text-foreground",
                     )}
                   >
-                    <span data-nav-ink={id} className="flex items-baseline gap-2">
-                      {/* Full ember at every state (4.5:1+ on the bar); where
-                          you are shows in the label colour and the underline. */}
-                      <span aria-hidden="true" className="tabular-nums text-ember">
-                        {l.n}
-                      </span>
-                      <span>{l.label}</span>
-                    </span>
+                    <span data-nav-ink={id}>{l.label}</span>
                   </NavAnchor>
                 </li>
               );
@@ -225,9 +214,6 @@ export default function SiteNav() {
             {/* Phones get Register from the sticky bar (and the menu). */}
             {!onRegister && (
               <>
-                <span aria-hidden="true" className="hidden min-[1440px]:-mr-2 min-[1440px]:block">
-                  <WhoRegistersShort className="whitespace-nowrap border-l border-ember/70 pl-2.5" />
-                </span>
                 <RegisterButton
                   aria-describedby={noteId}
                   className="hidden min-h-[40px] px-4 py-2.5 text-[11px] md:inline-flex xl:px-5"

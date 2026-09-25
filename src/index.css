@@ -461,6 +461,28 @@
   100% { transform: translateX(420%); }
 }
 
+/* The sponsor wall: a track of two identical sets slides one set width left,
+   at one constant pace (--marquee-dur is set per row, from its cell count, so
+   every row moves at the same speed), and loops without a seam. Held still
+   while a row is hovered or holds focus; off for reduced motion. */
+@keyframes sponsor-marquee {
+  from { transform: translate3d(0, 0, 0); }
+  to   { transform: translate3d(-50%, 0, 0); }
+}
+.marquee-track {
+  animation: sponsor-marquee var(--marquee-dur, 60s) linear infinite;
+  will-change: transform;
+}
+.marquee-row:focus-within .marquee-track {
+  animation-play-state: paused;
+}
+@media (hover: hover) {
+  .marquee-row:hover .marquee-track { animation-play-state: paused; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .marquee-track { animation: none; will-change: auto; }
+}
+
 ::-webkit-scrollbar { width: 8px; }
 ::-webkit-scrollbar-track { background: hsl(220 8% 4%); }
 ::-webkit-scrollbar-thumb { background: hsl(220 6% 20%); }

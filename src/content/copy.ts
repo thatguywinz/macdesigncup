@@ -18,7 +18,7 @@
 // teacher. Locale en-CA (colour, centre, licence, program). Short sentences,
 // contractions yes, plain and practical; teachers get logistics first.
 // Em dash replacement: period, or a middot in labels.
-// Sounds like: "Doors open at 8:00 AM at Limberlost Place. Bring a laptop and
+// Sounds like: "We start at 9:00 AM at Limberlost Place. Bring a laptop and
 // its charger." Does not sound like: "Unlock your creative potential at an
 // immersive, cutting-edge design experience."
 // ─────────────────────────────────────────────
@@ -53,7 +53,7 @@ import {
   VENUE_STREET,
 } from "@/config/site";
 
-/** "8:00 AM" -> "8 AM" (on-the-hour times in tight spots). */
+/** "9:00 AM" -> "9 AM" (on-the-hour times in tight spots). */
 const HOUR = (t: string) => t.replace(":00 ", " ");
 
 /** The only wording any Register button or link uses. */
@@ -66,22 +66,13 @@ export const CTA = {
 } as const;
 
 /**
- * Who registers. Shown beside every Register button, because the answer
- * differs for teachers and students (organizer, 2026-09-23; the Tally form's
- * Student / Teacher branch).
+ * Who registers: everyone, on one form (organizer, 2026-09-23; the Tally
+ * form's Student / Teacher branch). The tiny note beside every Register
+ * button; `sr` is the button's screen-reader description.
  */
 export const WHO_REGISTERS = {
-  teachers: { label: "Teachers", line: "register your group" },
-  students: { label: "Students", line: "bring a teacher from your school" },
-} as const;
-
-/**
- * The phone sticky bar's two short lines, each read after its WHO_REGISTERS
- * label ("Teachers sign up students" / "Students bring a teacher"), short
- * enough to hold one line each at 360px beside the button.
- */
-export const MOBILE_BAR = {
-  lines: { teachers: "sign up students", students: "bring a teacher" },
+  note: "Students and teachers",
+  sr: "One form for students and teachers.",
 } as const;
 
 // ── Hero (the 3D hall) ────────────────────────
@@ -110,12 +101,22 @@ export const PATHS = {
   routes: {
     register: {
       label: "Students & teachers",
-      line: "One form. Teachers register a group, students bring a teacher.",
+      line: "One form for everyone.",
       cta: CTA.register,
     },
     partners: { label: "Partners", line: "Back TDSB students in design", cta: CTA.partner },
   },
 } as const;
+
+/** One stop on The day's timeline. */
+export interface DayStep {
+  time: string;
+  title: string;
+  /** A few words under the title. */
+  note?: string;
+  /** Add the venue map link. */
+  map?: boolean;
+}
 
 // ── Headings, in page order ───────────────────
 // `outline` is the substring set in wire (outlined) type.
@@ -127,7 +128,7 @@ export const SECTIONS = {
     body: "One theme, revealed on the day. Build it in any 3D software.",
     // The four-cell spec strip: values only (Where keeps its map link).
     spec: {
-      when: { label: "When", value: `${EVENT_WEEKDAY.slice(0, 3)}, ${EVENT_MONTH_DAY.replace("November", "Nov")} · ${HOUR(TIMES.doors)}` },
+      when: { label: "When", value: `${EVENT_WEEKDAY.slice(0, 3)}, ${EVENT_MONTH_DAY.replace("November", "Nov")} · ${HOUR(TIMES.start)} start` },
       where: { label: "Where", value: VENUE_BUILDING },
       who: { label: "Who", value: `TDSB, grades ${GRADES}` },
       cost: { label: "Cost", value: "TBA" },
@@ -138,8 +139,8 @@ export const SECTIONS = {
     countdown: {
       aria: "Countdown to event day",
       units: { days: "Days", hours: "Hrs", mins: "Min", secs: "Sec" },
-      until: "Until doors open",
-      done: "Doors are open.",
+      until: "Until we start",
+      done: "We've started.",
       tba: ["Date drops", "soon."],
     },
   },
@@ -149,14 +150,13 @@ export const SECTIONS = {
     outline: "in prizes.",
     firstPlace: {
       label: "1st place",
+      value: GRAND_PRIZE_VALUE,
       item: GRAND_PRIZE_ITEM,
-      detail: `Valued at ${GRAND_PRIZE_VALUE} · plus 6 spools`,
+      detail: "Plus 6 spools of filament",
     },
     // The one dimension on the printer drawing (from xl only).
     callouts: ["1st place"],
     figureAlt: "Line drawing of a desktop 3D printer laying down its first layer",
-    /** Phones: the ledgers fold away behind this toggle (still in the HTML). */
-    toggle: { show: "Full prize table", hide: "Hide prize table" },
     groups: {
       extras: "Also up for grabs",
       everyBuilder: "Every builder gets",
@@ -171,7 +171,7 @@ export const SECTIONS = {
   },
   day: {
     eyebrow: "04 · The day",
-    lines: ["Doors at eight.", "Awards by four."],
+    lines: ["Nine to four.", "Awards at 3:30."],
     outline: "Awards",
     bring: {
       title: "Bring",
@@ -181,31 +181,23 @@ export const SECTIONS = {
     timesTag: "Working times",
     // The one label on the scroll drawing of the cup (decorative, aria-hidden).
     figure: { theme: "Theme" },
+    // Five stops, one per stage of the cup drawing. A kicker and a short
+    // title each; at most a few words more. No sentences.
     steps: [
-      { time: TIMES.doors, title: "Doors open" },
-      { time: TIMES.opening, title: "Opening and theme" },
+      {
+        time: `${EVENT_WEEKDAY.slice(0, 3)}, ${EVENT_MONTH_DAY.replace("November", "Nov")}`,
+        title: VENUE_BUILDING,
+        note: VENUE_INSTITUTION,
+        map: true,
+      },
+      { time: TIMES.start, title: "Start and theme" },
       { time: `${TIMES.sprint} to ${TIMES.sprintEnd}`, title: "Design sprint" },
-      { time: TIMES.judging, title: "Judging and presentations" },
-      { time: TIMES.awards, title: "Closing and awards" },
-    ],
-  },
-  teachers: {
-    eyebrow: "05 · For teachers",
-    lines: ["Bring your students", `to ${VENUE_BUILDING}.`],
-    outline: VENUE_BUILDING,
-    steps: [
-      { title: "Register your group", desc: "One form for your whole group." },
-      { title: "Watch your inbox", desc: "We email cost and schedule." },
-      { title: "Come with them", desc: `On the day, ${HOUR(TIMES.doors)} to ${HOUR(TIMES.end)}.` },
-    ],
-    // Labels on the drafting-sheet drawing of the teacher form.
-    sheet: {
-      title: "Registration · Teacher",
-      fields: ["School", "Number of students", "Names", "Grades", "Student emails (optional)"],
-    },
+      { time: TIMES.judging, title: "Judging" },
+      { time: TIMES.awards, title: "Awards", note: `Done by ${TIMES.end}` },
+    ] as readonly DayStep[],
   },
   faq: {
-    eyebrow: "06 · FAQ",
+    eyebrow: "05 · FAQ",
     lines: ["Questions?", "Answered."],
     outline: "Answered.",
     filters: { all: "All", students: "Students", teachers: "Teachers" },
@@ -222,7 +214,7 @@ export const SECTIONS = {
     pill: "Registration open · Limited spots",
     lines: ["Build the", "Impossible."],
     /** The mono line under the button, joined with " · ". */
-    meta: [EVENT_DATE_SHORT, `${VENUE_BUILDING}, ${VENUE_CITY}`],
+    meta: [EVENT_DATE_SHORT, `${HOUR(TIMES.start)} start`, `${VENUE_BUILDING}, ${VENUE_CITY}`],
   },
 } as const;
 
@@ -275,7 +267,7 @@ export const FAQS: Faq[] = [
   {
     for: "everyone",
     q: "When is it?",
-    a: `The Mackenzie Design Cup is on ${EVENT_WEEKDAY}, ${EVENT_DATE_LABEL}. Doors open at ${TIMES.doors} at ${VENUE_BUILDING}, and the whole competition runs in one day.`,
+    a: `The Mackenzie Design Cup is on ${EVENT_WEEKDAY}, ${EVENT_DATE_LABEL}, at ${VENUE_BUILDING}. We start at ${TIMES.start} and the whole competition runs in one day.`,
   },
   {
     for: "everyone",
@@ -292,14 +284,17 @@ export const FAQS: Faq[] = [
     for: "students",
     q: "What can I win?",
     a: `First place at the Mackenzie Design Cup takes home a ${GRAND_PRIZE_ITEM} valued at ${GRAND_PRIZE_VALUE}, plus ${GRAND_PRIZE_EXTRA} to keep it running, from ${GRAND_PRIZE_FROM}. That tops a ${PRIZE_POOL} prize table that also has ${list(
-      PRIZE_EXTRAS.map((p) => (p.from === "Stratasys" ? `${p.item} from Stratasys` : p.item)),
-    )} up for grabs. Every builder also gets ${list(
-      EVERY_BUILDER.map((p) =>
+      PRIZE_EXTRAS.filter((p) => p.from !== "Ansys").map((p) =>
+        p.from === "Stratasys" ? `${p.item} from Stratasys` : p.item,
+      ),
+    )} up for grabs. Builders also get ${list([
+      "50 seats of Ansys Discovery / Mechanical",
+      ...EVERY_BUILDER.map((p) =>
         p.from === "Siemens & TriMech"
           ? `${p.item} from Siemens and TriMech`
           : p.item.replace(/^Your /, "their ").replace(/^\w/, (c) => c.toLowerCase()),
       ),
-    )}.`,
+    ])}.`,
   },
   {
     for: "students",
@@ -342,20 +337,8 @@ export const REGISTER_PAGE = {
   intro: `Register for the ${EVENT_FULL} on ${EVENT_WEEKDAY}, ${EVENT_DATE_LABEL}, at ${VENUE_NAME}.`,
   faqLead: "Questions first?",
   faqLink: "Read the FAQ",
-  /** Kicker over the two notes: students and teachers share the form. */
-  oneForm: "One form for students and teachers",
-  paths: {
-    teachers: {
-      label: "Teachers",
-      title: "Registering a group",
-      note: "You come with your students on the day.",
-    },
-    students: {
-      label: "Students",
-      title: "Registering yourself",
-      note: "A teacher from your school comes with you.",
-    },
-  },
+  /** The one line over the form. */
+  oneForm: "Students and teachers use the same form.",
   fallbackLead: "Form not loading?",
   fallbackLink: "Open it in a new tab",
   back: "Back to the hall",
@@ -385,7 +368,7 @@ export const FOOTER = {
   descriptor: `Run by the ${CLUB} at William Lyon Mackenzie CI.`,
   labels: { where: "Where", when: "When", contact: "Contact", sections: "On this site" },
   addressLines: [VENUE_BUILDING, VENUE_INSTITUTION, VENUE_STREET, `${VENUE_CITY}, ${VENUE_REGION} ${VENUE_POSTAL}`],
-  when: `${EVENT_WEEKDAY}, ${EVENT_DATE_LABEL} · Doors ${TIMES.doors}`,
+  when: `${EVENT_WEEKDAY}, ${EVENT_DATE_LABEL} · Starts ${TIMES.start}`,
   backToTop: "Back to top",
   copyright: "© 2026 Mac Design Cup",
 } as const;
@@ -396,7 +379,7 @@ export const NOT_FOUND = {
   /** Heading over the list of pages that do exist. */
   index: "Sheets in the set",
   links: { home: "Home", register: "Registration", faq: "FAQ", partner: "Partner with us" },
-  /** Dimension label under the 404 plate; the page adds " / 06" (the sheet count). */
+  /** Dimension label under the 404 plate; the page adds " / 05" (the sheet count). */
   sheet: "Sheet 404",
 } as const;
 

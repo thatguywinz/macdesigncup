@@ -1,17 +1,15 @@
 import { useEffect, useId, useRef } from "react";
 import { NAV } from "@/content/copy";
 import RegisterButton from "./RegisterButton";
-import { WhoRegistersShort } from "./nav/WhoRegisters";
+import { WhoRegistersNote } from "./nav/WhoRegisters";
 
 /** What the bar steps aside for: the final CTA and the footer. */
 const AWAY_FROM = ["#register", "[data-site-footer]"];
 
 /**
  * Phones only: the one sticky Register, pinned to the bottom of the screen,
- * with who registers beside it in two short lines ("Teachers sign up
- * students" / "Students bring a teacher"), which also describe the button.
- * Through Prizes, Sponsors, The day and FAQ it is the only Register a phone
- * shows, so it carries the teacher/student rule itself.
+ * with the tiny "Students and teachers" note beside it (which also
+ * describes the button): one form for everyone.
  *
  * It slides away while the final CTA (#register) or the footer is on screen,
  * so a phone never shows two Register buttons at once, and comes back when
@@ -52,10 +50,7 @@ export default function MobileRegisterBar() {
       style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
     >
       <div className="flex items-center gap-3 px-4 py-2.5 min-[380px]:gap-4">
-        <WhoRegistersShort
-          id={captionId}
-          className="min-w-0 flex-1 border-l border-ember/70 pl-2.5"
-        />
+        <WhoRegistersNote id={captionId} className="min-w-0 flex-1" />
         <RegisterButton aria-describedby={captionId} className="min-h-[48px] shrink-0 px-5 py-3.5 text-[11px]" />
       </div>
     </aside>

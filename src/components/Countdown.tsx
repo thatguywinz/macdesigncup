@@ -32,7 +32,7 @@ const TARGET = EVENT_DATE ? new Date(EVENT_DATE).getTime() : null;
 
 /**
  * The launch clock, drawn as a small drafting plate: crop marks, an ember
- * seam, one mono label ("Until doors open") and Anton figures. Counts down to EVENT_DATE; while the
+ * seam, one mono label ("Until we start") and Anton figures. Counts down to EVENT_DATE; while the
  * date is unset it shows the "date drops soon" state instead of a deadline.
  *
  * SSR-safe: the server and the first client render show `--` in every cell;
@@ -41,7 +41,7 @@ const TARGET = EVENT_DATE ? new Date(EVENT_DATE).getTime() : null;
  * 30s instead of every second.
  *
  * Used on the home page (At a glance) and on /partner. At a glance passes
- * `showDate={false}`: its spec strip already carries the date and doors.
+ * `showDate={false}`: its spec strip already carries the date and start time.
  *
  * Phones get one compact plate: each figure carries its unit on its own
  * baseline.

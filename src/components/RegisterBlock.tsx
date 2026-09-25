@@ -1,7 +1,6 @@
 import { useId } from "react";
-import { User, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { WHO_REGISTERS } from "@/content/copy";
+import { WhoRegistersNote } from "./nav/WhoRegisters";
 import RegisterButton from "./RegisterButton";
 
 export interface RegisterBlockProps {
@@ -19,16 +18,10 @@ export interface RegisterBlockProps {
   className?: string;
 }
 
-const ROWS = [
-  { key: "teachers", Icon: Users, ...WHO_REGISTERS.teachers },
-  { key: "students", Icon: User, ...WHO_REGISTERS.students },
-] as const;
-
 /**
  * The primary Register call to action: the `CTA.register` button (to
- * `/register`) plus the two-line "who registers" note, Teachers and
- * Students, with lucide icons (16px, stroke 1.5). The button is described by
- * the note (`aria-describedby`), so screen readers hear both.
+ * `/register`) plus the tiny "Students and teachers" note (one form for
+ * everyone). The button is described by the note (`aria-describedby`).
  *
  * @example
  * <RegisterBlock mobileButton={false} />
@@ -58,30 +51,7 @@ export default function RegisterBlock({
         className={cn("px-8 py-4", !mobileButton && "hidden md:inline-flex", buttonClassName)}
         aria-describedby={noteId}
       />
-      <ul
-        id={noteId}
-        className={cn(
-          "space-y-1.5 text-left",
-          inline && "md:border-l md:border-line md:pl-10",
-        )}
-      >
-        {ROWS.map(({ key, Icon, label, line }) => (
-          <li key={key} className="flex items-start gap-2.5">
-            <Icon
-              aria-hidden="true"
-              size={16}
-              strokeWidth={1.5}
-              className="mt-[2px] shrink-0 text-ember/80"
-            />
-            <p className="font-body text-sm font-light leading-snug text-concrete">
-              <span className="mr-1 font-mono text-[10px] font-bold uppercase tracking-[0.24em] text-foreground/85">
-                {label}
-              </span>{" "}
-              {line}
-            </p>
-          </li>
-        ))}
-      </ul>
+      <WhoRegistersNote id={noteId} className={cn(inline && "md:border-l md:border-line md:py-2 md:pl-10")} />
     </div>
   );
 }

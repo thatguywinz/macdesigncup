@@ -61,7 +61,7 @@ describe("primitives render on the server", () => {
     expect(renderToString(<BlueprintBackdrop />)).toContain("draft-grid");
   });
 
-  it("RegisterBlock: links to /register with the verbatim CTA and both notes", () => {
+  it("RegisterBlock: links to /register with the verbatim CTA and the one note", () => {
     const html = renderToString(
       <MemoryRouter>
         <RegisterBlock />
@@ -69,8 +69,7 @@ describe("primitives render on the server", () => {
     );
     expect(html).toContain('href="/register"');
     expect(html).toContain(CTA.register);
-    expect(html).toContain(WHO_REGISTERS.teachers.line);
-    expect(html).toContain(WHO_REGISTERS.students.line);
+    expect(html).toContain(WHO_REGISTERS.note);
   });
 
   it("SponsorMarquee: every sponsor is one announced, focusable link; copies are hidden", () => {

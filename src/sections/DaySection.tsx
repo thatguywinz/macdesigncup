@@ -3,7 +3,9 @@ import { motion, useTransform, type MotionValue } from "framer-motion";
 import Sheet from "@/components/blueprint/Sheet";
 import DisplayHeading from "@/components/motion/DisplayHeading";
 import { useSectionProgress, type ScrollOffset } from "@/components/motion/useSectionProgress";
-import { SECTIONS } from "@/content/copy";
+import { CTA, SECTIONS } from "@/content/copy";
+import { VENUE_MAP_URL } from "@/config/site";
+import { keepTimes } from "./day/nbsp";
 import { useReducedMotionSafe } from "@/hooks/useReducedMotionSafe";
 import BringGlyph from "./day/BringGlyph";
 import CupFigure from "./day/CupFigure";
@@ -129,12 +131,12 @@ export default function DaySection() {
                 ref={(el) => {
                   stepRefs.current[i] = el;
                 }}
-                className="group grid grid-cols-[4rem_minmax(0,1fr)] gap-x-4 md:grid-cols-[7rem_minmax(0,1fr)] md:gap-x-8 lg:min-h-[max(15vh,8.5rem)] lg:grid-cols-[1.5rem_minmax(0,1fr)] lg:gap-x-6 motion-reduce:lg:min-h-0"
+                className="group grid grid-cols-[5.25rem_minmax(0,1fr)] gap-x-5 md:grid-cols-[7rem_minmax(0,1fr)] md:gap-x-8 lg:min-h-[max(12vh,7rem)] lg:grid-cols-[1.5rem_minmax(0,1fr)] lg:gap-x-6 motion-reduce:lg:min-h-0"
               >
                 {/* Phones and tablets: this step's frame of the drawing, joined to the next.
                     Desktop: the waypoint diamond and the rail to the next one. */}
                 <div className="flex flex-col items-center">
-                  <CupFrame stage={i as 0 | 1 | 2 | 3 | 4} width={64} className="w-16 md:w-28 lg:hidden" />
+                  <CupFrame stage={i as 0 | 1 | 2 | 3 | 4} width={84} className="w-[5.25rem] md:w-28 lg:hidden" />
                   <span
                     aria-hidden="true"
                     className="relative z-10 mt-[0.3rem] hidden h-[11px] w-[11px] shrink-0 rotate-45 border border-ember bg-ember transition-[transform,background-color,border-color,box-shadow] duration-500 group-data-[phase=active]:scale-125 group-data-[phase=future]:border-bone/35 group-data-[phase=future]:bg-background group-data-[phase=active]:shadow-[0_0_0_5px_hsl(var(--ember)/0.16)] motion-reduce:transition-none lg:block"
@@ -147,13 +149,29 @@ export default function DaySection() {
                   )}
                 </div>
 
-                <div className="pb-4 pt-0.5 md:pb-10 md:pt-1 lg:pb-5 lg:pt-0 motion-reduce:lg:pb-8">
+                <div className="pb-7 pt-1 md:pb-10 md:pt-1 lg:pb-5 lg:pt-0 motion-reduce:lg:pb-8">
                   <p className="font-mono text-[11px] font-bold uppercase tracking-[0.22em] text-ember transition-colors duration-500 motion-reduce:transition-none lg:group-data-[phase=future]:text-concrete">
-                    {step.time}
+                    {keepTimes(step.time)}
                   </p>
-                  <h3 className="mt-1 font-display text-[1.5rem] uppercase leading-[1.02] text-foreground transition-opacity duration-500 motion-reduce:transition-none md:mt-2 md:text-[2.1rem] lg:mt-1.5 lg:text-[2.25rem] lg:group-data-[phase=future]:opacity-45 lg:group-data-[phase=past]:opacity-70 xl:text-[2.5rem]">
+                  <h3 className="mt-1 font-display text-[1.65rem] uppercase leading-[1.02] text-foreground transition-opacity duration-500 motion-reduce:transition-none md:mt-2 md:text-[2.1rem] lg:mt-1.5 lg:text-[2.25rem] lg:group-data-[phase=future]:opacity-45 lg:group-data-[phase=past]:opacity-70 xl:text-[2.5rem]">
                     {step.title}
                   </h3>
+                  {(step.note || step.map) && (
+                    <p className="mt-1.5 flex flex-wrap items-baseline gap-x-3 gap-y-1 font-body text-[15px] leading-snug text-foreground/75 md:mt-2 md:text-base lg:group-data-[phase=future]:opacity-60">
+                      {step.note && <span>{keepTimes(step.note)}</span>}
+                      {step.map && (
+                        <a
+                          href={VENUE_MAP_URL}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          aria-label={SECTIONS.glance.mapLabel}
+                          className="focus-ember font-mono text-[11px] uppercase tracking-[0.22em] text-ember underline decoration-ember/40 underline-offset-4 hover:decoration-ember"
+                        >
+                          {CTA.map}
+                        </a>
+                      )}
+                    </p>
+                  )}
                 </div>
               </li>
             ))}

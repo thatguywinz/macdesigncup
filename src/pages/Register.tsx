@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState, type SyntheticEvent } from "react";
 import { Link } from "react-router-dom";
-import { ArrowLeft, ArrowRight, ArrowUpRight, User, Users } from "lucide-react";
+import { ArrowLeft, ArrowRight, ArrowUpRight, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { REGISTRATION_EMBED_URL, REGISTRATION_URL } from "@/config/site";
 import { BREADCRUMBS, REGISTER_PAGE } from "@/content/copy";
@@ -31,38 +31,21 @@ declare global {
   }
 }
 
-const PATHS = [
-  { key: "teachers", Icon: Users, ...REGISTER_PAGE.paths.teachers },
-  { key: "students", Icon: User, ...REGISTER_PAGE.paths.students },
-] as const;
-
 /**
- * One form for everyone: a kicker, then one row each for what the form asks
- * of a teacher and of a student (its first question is "student or
- * teacher?"). Short, so a phone reaches the form on its first screen. Plain
- * elements: this sits above the fold, so nothing waits on JavaScript.
+ * One form for everyone, said in one line. Plain elements: this sits above
+ * the fold, so nothing waits on JavaScript.
  */
 function PathRows({ className }: { className?: string }) {
   return (
-    <div className={className}>
-      <p className="mb-3 flex items-center gap-2.5 font-mono text-[10px] uppercase tracking-[0.28em] text-concrete">
-        <span aria-hidden="true" className="h-1.5 w-1.5 shrink-0 rotate-45 border border-ember" />
-        {REGISTER_PAGE.oneForm}
-      </p>
-      <ul className="border-t border-foreground/15">
-        {PATHS.map(({ key, Icon, label, title, note }) => (
-          <li key={key} className="flex gap-3 border-b border-dashed border-foreground/20 py-3">
-            <Icon aria-hidden="true" size={16} strokeWidth={1.5} className="mt-[2px] shrink-0 text-ember" />
-            <p className="font-body text-sm font-light leading-snug text-concrete">
-              <span className="mr-1 font-mono text-[10px] font-bold uppercase tracking-[0.24em] text-ember">
-                {label}
-              </span>{" "}
-              <span className="font-normal text-foreground">{title}.</span> {note}
-            </p>
-          </li>
-        ))}
-      </ul>
-    </div>
+    <p
+      className={cn(
+        "flex items-center gap-3 border-y border-foreground/15 py-3 font-body text-[15px] leading-snug text-foreground/90",
+        className,
+      )}
+    >
+      <Users aria-hidden="true" size={16} strokeWidth={1.5} className="shrink-0 text-ember" />
+      {REGISTER_PAGE.oneForm}
+    </p>
   );
 }
 

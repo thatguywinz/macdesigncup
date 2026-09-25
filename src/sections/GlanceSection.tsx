@@ -35,7 +35,7 @@ export default function GlanceSection() {
       <div className="grid gap-6 md:grid-cols-[minmax(0,1fr)_20rem] md:items-end md:gap-10 xl:grid-cols-[minmax(0,1fr)_22rem] xl:gap-x-12 min-[1400px]:grid-cols-[minmax(0,1fr)_25rem] min-[1400px]:gap-x-16">
         <DisplayHeading lines={s.lines} outline={s.outline} />
         <Reveal delay={0.15} className="max-md:order-last">
-          {/* The strip below carries the date and doors; the clock just counts. */}
+          {/* The strip below carries the date and start time; the clock just counts. */}
           <Countdown showDate={false} />
         </Reveal>
         <PathBand className="md:col-span-2 md:mt-2" />

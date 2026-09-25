@@ -190,9 +190,6 @@ export default function SiteFooter() {
                 {SECTION_LINKS.map((l) => (
                   <li key={l.href}>
                     <NavAnchor href={l.href} className={cn(LINK, "text-foreground/75 hover:text-ember")}>
-                      <span aria-hidden="true" className="text-ember">
-                        {l.n}
-                      </span>
                       {l.label}
                     </NavAnchor>
                   </li>

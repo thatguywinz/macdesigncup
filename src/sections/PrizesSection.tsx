@@ -1,11 +1,8 @@
-import { useId, useState } from "react";
-import { ChevronDown } from "lucide-react";
 import Sheet from "@/components/blueprint/Sheet";
 import CountUp from "@/components/motion/CountUp";
 import DisplayHeading from "@/components/motion/DisplayHeading";
 import Reveal from "@/components/motion/Reveal";
 import { PRIZE_POOL_NUMBER } from "@/config/site";
-import { cn } from "@/lib/utils";
 import { SECTIONS } from "@/content/copy";
 import PrinterDrawing from "./prizes/PrinterDrawing";
 import PrizeGroups from "./prizes/PrizeGroups";
@@ -13,15 +10,15 @@ import PrizeGroups from "./prizes/PrizeGroups";
 /**
  * 02 · Prizes. The pool counts up in the heading; the visual anchor is the
  * 1st-place printer, drawn isometric and built by scroll; the 1st-place
- * legend (the only place its facts are written) and the rest of the table as
- * three tight ledgers sit beside it (spec 5.2). Nothing is said twice: the
+ * legend (its value set big) and the rest of the table as a few calm tiles
+ * and chips sit beside it. Nothing is said twice: the
  * "1st place" mark shows once per width (the legend's eyebrow below `xl`, the
  * drawing's ember dimension from `xl`).
  *
  * Layout: phones put a smaller drawing plate beside the legend (the same
- * pairing tablets get, at pocket size), then the ledgers. Tablets and small
- * laptops put the legend beside the drawing and the ledgers three across
- * under both. From `xl` the heading runs in one line over two columns: the
+ * pairing tablets get, at pocket size), then the tiles and chips. Tablets and
+ * small laptops put the legend beside the drawing and the rest under both.
+ * From `xl` the heading runs in one line over two columns: the
  * drawing plate on the left, stretched to the height of the legend plus the
  * ledgers on the right, so neither column leaves a hole.
  */
@@ -67,7 +64,7 @@ export default function PrizesSection() {
           <Reveal delay={0.12} className="min-w-0 self-center md:col-span-5 md:max-w-md xl:max-w-none">
             <FirstPlace />
           </Reveal>
-          <FoldedLedgers />
+          <PrizeGroups className="col-span-2 md:col-span-12 xl:mt-9" />
         </div>
       </div>
     </Sheet>
@@ -75,54 +72,24 @@ export default function PrizesSection() {
 }
 
 /**
- * The 1st-place legend: the prize in words, next to its drawing. From `xl`
- * the drawing's ember dimension shows "1st place", so the eyebrow stays for
- * screen readers and crawlers only.
+ * The 1st-place legend: the value set big, the prize under it, next to its
+ * drawing. From `xl` the drawing's ember dimension shows "1st place", so the
+ * eyebrow stays for screen readers and crawlers only.
  */
 function FirstPlace() {
   const f = SECTIONS.prizes.firstPlace;
   return (
     <div className="border-t border-ember/60 pt-3 sm:pt-5">
-      <p className="mb-2 font-mono text-[10px] font-bold uppercase tracking-[0.24em] text-ember sm:mb-3 sm:text-[11px] sm:tracking-[0.28em] xl:sr-only">
+      <p className="mb-1 font-mono text-[10px] font-bold uppercase tracking-[0.24em] text-ember sm:mb-2 sm:text-[11px] sm:tracking-[0.28em] xl:sr-only">
         {f.label}
       </p>
-      <p className="text-balance font-display text-[1.45rem] uppercase leading-[1.02] text-foreground sm:text-[2rem] md:text-[2.5rem]">
+      <p className="font-display text-[2.9rem] leading-[0.9] text-ember sm:text-[4rem] md:text-[4.75rem] xl:text-[5.5rem]">
+        {f.value}
+      </p>
+      <p className="mt-2 text-balance font-display text-[1.2rem] uppercase leading-[1.02] text-foreground sm:mt-3 sm:text-[1.7rem] md:text-[2rem]">
         {f.item}
       </p>
-      <p className="mt-2 max-w-[30rem] font-body text-[13px] font-light leading-snug text-foreground/75 sm:mt-3 sm:text-base sm:leading-relaxed">
-        {f.detail}
-      </p>
-    </div>
-  );
-}
-
-/**
- * The rest of the table. Phones see 1st place and a "Full prize table"
- * toggle; the ledgers stay in the HTML (crawlers, no-JS readers and the FAQ
- * answer's facts are unchanged) and open in place. From md they always show.
- */
-function FoldedLedgers() {
-  const [open, setOpen] = useState(false);
-  const id = useId();
-  const t = SECTIONS.prizes.toggle;
-  return (
-    <div className="col-span-2 md:col-span-12 xl:mt-7">
-      <button
-        type="button"
-        aria-expanded={open}
-        aria-controls={id}
-        onClick={() => setOpen((v) => !v)}
-        className="focus-ember flex min-h-[44px] w-full items-center justify-between gap-3 border-y border-bone/20 font-mono text-[11px] uppercase tracking-[0.24em] text-foreground/85 transition-colors hover:text-ember md:hidden"
-      >
-        {open ? t.hide : t.show}
-        <ChevronDown
-          aria-hidden="true"
-          size={16}
-          strokeWidth={1.5}
-          className={cn("shrink-0 text-ember transition-transform duration-300", open && "rotate-180")}
-        />
-      </button>
-      <PrizeGroups id={id} className={cn(open ? "mt-4" : "max-md:hidden", "md:mt-0")} />
+      <p className="mt-1.5 font-body text-[14px] leading-snug text-foreground/75 sm:mt-2 sm:text-base">{f.detail}</p>
     </div>
   );
 }

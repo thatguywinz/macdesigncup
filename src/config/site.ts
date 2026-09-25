@@ -48,24 +48,27 @@ export const VENUE_MAP_URL = `https://www.google.com/maps/search/?api=1&query=${
 
 // ─────────────────────────────────────────────
 // Date. Monday, November 16, 2026 (checked: Nov 1 2026 is a Sunday).
-// Doors at 8:00 AM Eastern; DST has ended by then, so the offset is -05:00.
+// Starts at 9:00 AM Eastern (the organizers' marketing and the partner
+// schedule: partner check-in 8 to 9, opening at 9:00). No doors time is
+// published, so the site says "starts", never "doors". DST has ended by
+// then, so the offset is -05:00.
 // While EVENT_DATE is null, the countdown renders its "date announced soon" state.
 // ─────────────────────────────────────────────
-export const EVENT_DATE: string | null = "2026-11-16T08:00:00-05:00";
+export const EVENT_DATE: string | null = "2026-11-16T09:00:00-05:00";
 export const EVENT_WEEKDAY = "Monday";
 export const EVENT_DATE_LABEL = "November 16, 2026";
 export const EVENT_DATE_SHORT = "Nov 16, 2026";
 export const EVENT_MONTH_DAY = "November 16";
-export const DOORS_OPEN = "8:00 AM";
+export const START_TIME = "9:00 AM";
 
 // Working times for the day. Source: the organizers' schedule already
 // published on /partner (src/pages/partner/sections/EventScheduleSection.tsx):
-// opening 9:00 to 9:30, design sessions 9:30 to 12:00 and 1:00 to 2:30,
+// opening (the start) 9:00 to 9:30, design sessions 9:30 to 12:00 and 1:00 to 2:30,
 // judging + student presentations 2:30 to 3:30, closing + awards 3:30 to 4:00.
 // Everyone who registers gets the final schedule; label these as working times.
 export const TIMES = {
-  doors: DOORS_OPEN,
-  opening: "9:00 AM",
+  /** The start: opening and theme reveal, 9:00 AM. */
+  start: START_TIME,
   sprint: "9:30 AM",
   sprintEnd: "2:30 PM",
   judging: "2:30 PM",
@@ -119,15 +122,18 @@ export const GRAND_PRIZE = `A ${GRAND_PRIZE_ITEM} valued at ${GRAND_PRIZE_VALUE}
 
 // The rest of the table, straight from the sponsor commitments sheet. How the
 // extras are split between builders isn't set yet, so nothing here names a rank.
+// `count` + `unit` are the prize tile's big figure and its words; a line
+// with no count shows its words as the figure (no number is ever made up).
 export const PRIZE_EXTRAS = [
-  { item: "10 Scrimba subscriptions", from: "Scrimba" },
-  { item: "10 Aseprite software licences", from: "Aseprite" },
-  { item: "3D printing materials", from: "Stratasys" },
+  { item: "10 Scrimba subscriptions", from: "Scrimba", count: 10, unit: "Subscriptions" },
+  { item: "10 Aseprite software licences", from: "Aseprite", count: 10, unit: "Licences" },
+  // Organizer's sponsor sheet, 2026-09-24: 50 seats on the machines, not one per builder.
+  { item: "50 Ansys Discovery / Mechanical seats on the machines", from: "Ansys", count: 50, unit: "Seats" },
+  { item: "3D printing materials", from: "Stratasys", count: null, unit: "3D printing materials" },
 ] as const;
 
 // `short` is the ledger spelling of the same line; both must never drift apart.
 export const EVERY_BUILDER = [
-  { item: "An Ansys Discovery / Mechanical licence", short: "Ansys licence", from: "Ansys" },
   // Siemens and TriMech asked us not to publish what their software is worth,
   // so this line names what you get and stops there.
   { item: "Solid Edge and Altair software", short: "Solid Edge + Altair", from: "Siemens & TriMech" },
@@ -137,27 +143,26 @@ export const EVERY_BUILDER = [
 ] as const;
 
 export const ON_THE_FLOOR = [
-  { item: "Reps judging your work and mentoring you through it", from: "Shop3D.ca" },
-  { item: "A live product demo", from: "Shop3D.ca" },
+  // `short`: the chip on the prize sheet.
+  { item: "Reps judging your work and mentoring you through it", short: "Judges and mentors", from: "Shop3D.ca" },
+  { item: "A live product demo", short: "Live demo", from: "Shop3D.ca" },
   // TODO(owner): Ken's surname and role, once the club confirms how he wants it printed.
-  { item: "A talk from Ken", from: "Shop3D.ca" },
-  { item: "Chatforce's CEO, in the room", from: "Chatforce" },
+  { item: "A talk from Ken", short: "Talk from Ken", from: "Shop3D.ca" },
+  { item: "Chatforce's CEO, in the room", short: "Chatforce's CEO", from: "Chatforce" },
   // Organizer, 2026-09-24 (marketing repo, sponsors/12-metavrse).
-  { item: "A featured talk from Julie Smithson, CEO", from: "METAVRSE" },
+  { item: "A featured talk from Julie Smithson, CEO", short: "Talk from Julie Smithson", from: "METAVRSE" },
 ] as const;
 
 export const CONTACT_EMAIL = "wlmac.3ddesignclub@gmail.com";
 
-// Section anchors, in page order. Old anchors (#why, #timeline) are aliased
-// in the page so links shared before the redesign still land somewhere real.
-// `n` matches the section eyebrow numbers in copy.ts (01 is At a glance).
+// The nav's section anchors, in page order: short, unnumbered. Old anchors
+// (#why, #timeline, #teachers) are aliased in the page so links shared
+// before the redesign still land somewhere real.
 export const NAV_LINKS = [
-  { n: "01", label: "At a glance", href: "#glance" },
-  { n: "02", label: "Prizes", href: "#prizes" },
-  { n: "03", label: "Sponsors", href: "#sponsors" },
-  { n: "04", label: "The day", href: "#day" },
-  { n: "05", label: "For teachers", href: "#teachers" },
-  { n: "06", label: "FAQ", href: "#faq" },
+  { label: "Prizes", href: "#prizes" },
+  { label: "Sponsors", href: "#sponsors" },
+  { label: "The day", href: "#day" },
+  { label: "FAQ", href: "#faq" },
 ] as const;
 
 // TODO: add Instagram/LinkedIn here once the club accounts have real URLs.

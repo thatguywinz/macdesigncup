@@ -16,8 +16,12 @@ export {
   framing,
   restLookY,
   slotsFor,
+  wallCutAtStop,
+  wallFor,
+  WALL_Z,
   type Framing,
   type Slot,
+  type WallPlate,
 } from "./frame";
 
 export const BONE = "#eae2cc";
