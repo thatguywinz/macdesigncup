@@ -1,6 +1,12 @@
 import { useEffect, useState } from "react";
-import { useReducedMotion } from "framer-motion";
-import { EVENT_DATE, EVENT_DATE_LABEL, MODEL_NO } from "@/config/site";
+import CropMarks from "@/components/blueprint/CropMarks";
+import { useHydrated } from "@/hooks/useHydrated";
+import { useReducedMotionSafe } from "@/hooks/useReducedMotionSafe";
+import { EVENT_DATE, EVENT_DATE_LABEL } from "@/config/site";
+import { SECTIONS } from "@/content/copy";
+import { cn } from "@/lib/utils";
+
+const C = SECTIONS.glance.countdown;
 
 interface Remaining {
   days: number;
@@ -22,81 +28,130 @@ function remaining(target: number): Remaining {
 }
 
 const pad = (n: number) => String(n).padStart(2, "0");
+const TARGET = EVENT_DATE ? new Date(EVENT_DATE).getTime() : null;
 
 /**
- * Launch-clock placard. Counts down to EVENT_DATE; until the date is locked
- * in, it runs the "date drops soon" state instead of inventing a deadline.
+ * The launch clock, drawn as a small drafting plate: crop marks, an ember
+ * seam, one mono label ("Until doors open") and Anton figures. Counts down to EVENT_DATE; while the
+ * date is unset it shows the "date drops soon" state instead of a deadline.
+ *
+ * SSR-safe: the server and the first client render show `--` in every cell;
+ * the clock reads `Date.now()` only after mount. Reduced motion drops the
+ * seconds cell from the first paint (CSS `motion-reduce:`) and ticks every
+ * 30s instead of every second.
+ *
+ * Used on the home page (At a glance) and on /partner. At a glance passes
+ * `showDate={false}`: its spec strip already carries the date and doors.
+ *
+ * Phones get one compact plate: each figure carries its unit on its own
+ * baseline.
  */
-export default function Countdown({ className = "" }: { className?: string }) {
-  const reduced = !!useReducedMotion();
-  const target = EVENT_DATE ? new Date(EVENT_DATE).getTime() : null;
-  const [left, setLeft] = useState<Remaining | null>(target ? remaining(target) : null);
+export default function Countdown({
+  className = "",
+  showDate = true,
+}: {
+  className?: string;
+  showDate?: boolean;
+}) {
+  const hydrated = useHydrated();
+  const reduced = useReducedMotionSafe();
+  const [left, setLeft] = useState<Remaining | null>(null);
 
-  // Reduced motion: no per-second churn — drop the seconds cell and tick slowly.
   useEffect(() => {
-    if (!target) return;
-    const id = setInterval(() => setLeft(remaining(target)), reduced ? 30_000 : 1000);
+    if (!TARGET) return;
+    setLeft(remaining(TARGET));
+    const id = setInterval(
+      () => setLeft(remaining(TARGET)),
+      reduced ? 30_000 : 1000,
+    );
     return () => clearInterval(id);
-  }, [target, reduced]);
+  }, [reduced]);
+
+  const live = hydrated && left;
+  const cells = [
+    { key: "days", value: live ? pad(left.days) : "--", label: C.units.days },
+    {
+      key: "hours",
+      value: live ? pad(left.hours) : "--",
+      label: C.units.hours,
+    },
+    { key: "mins", value: live ? pad(left.mins) : "--", label: C.units.mins },
+    { key: "secs", value: live ? pad(left.secs) : "--", label: C.units.secs },
+  ];
 
   return (
-    <aside className={`concrete-panel relative p-6 md:p-7 ${className}`} aria-label="Countdown to event day">
+    <aside
+      className={cn(
+        "relative border border-bone/15 bg-background/70 px-4 pb-3 pt-3.5 md:px-7 md:pb-6 md:pt-7",
+        className,
+      )}
+      aria-label={C.aria}
+    >
+      <CropMarks inset={-9} />
       {/* ember seam along the top edge */}
-      <span className="ember-rule absolute inset-x-0 top-0 opacity-60" aria-hidden="true" />
+      <span
+        className="ember-rule absolute inset-x-0 top-0 opacity-70"
+        aria-hidden="true"
+      />
 
-      <div className="flex items-center justify-between gap-4">
-        <span className="flex items-center gap-2.5">
+      {TARGET && (
+        <p className="flex items-center gap-2.5">
           <span
-            className="h-1.5 w-1.5 rounded-full bg-ember shadow-[0_0_10px_hsl(24_100%_54%/0.9)] animate-[blink_1.8s_ease-in-out_infinite]"
+            className="h-1.5 w-1.5 rounded-full bg-ember shadow-[0_0_10px_hsl(24_100%_54%/0.9)] animate-[blink_1.8s_ease-in-out_infinite] motion-reduce:animate-none"
             aria-hidden="true"
           />
-          <span className="font-mono text-[10px] uppercase tracking-[0.3em] text-ember/90">T-minus</span>
-        </span>
-        <span className="font-mono text-[10px] uppercase tracking-[0.24em] text-concrete/70">{MODEL_NO}</span>
-      </div>
+          <span className="font-mono text-[10px] uppercase tracking-[0.26em] text-ember">
+            {live && left.done ? C.done : C.until}
+          </span>
+        </p>
+      )}
 
-      {target && left ? (
+      {TARGET ? (
         <>
-          <p className="mt-5 font-display text-2xl uppercase leading-none text-foreground md:text-[1.7rem]">
-            <span className="block font-mono text-[10px] tracking-[0.3em] text-concrete">Mon · 8:00 AM</span>
-            <span className="mt-2 block">{EVENT_DATE_LABEL}</span>
-          </p>
-          <div className={`mt-5 grid gap-2 text-center ${reduced ? "grid-cols-3" : "grid-cols-4"}`}>
-            {(
-              [
-                [left.days, "days"],
-                [left.hours, "hrs"],
-                [left.mins, "min"],
-                ...(reduced ? [] : [[left.secs, "sec"] as const]),
-              ] as ReadonlyArray<readonly [number, string]>
-            ).map(([v, label]) => (
-              <div key={label} className="border border-line bg-background/40 px-1 py-3">
-                <div className="font-display text-3xl leading-none text-foreground md:text-4xl">{pad(v)}</div>
-                <div className="mt-2 font-mono text-[9px] uppercase tracking-[0.28em] text-concrete">{label}</div>
+          {showDate && (
+            <p className="mt-3 block font-display text-[1.5rem] uppercase leading-none text-foreground md:mt-4 md:text-[1.7rem]">
+              {EVENT_DATE_LABEL}
+            </p>
+          )}
+
+          {/* The figures: hairline-ruled cells with a tick at each seam. */}
+          <div
+            role="timer"
+            className="relative mt-3 grid grid-cols-4 border-y border-bone/15 motion-reduce:grid-cols-3 md:mt-6"
+          >
+            {cells.map((c, i) => (
+              <div
+                key={c.key}
+                className={cn(
+                  // Phones: figure and unit on one baseline. From md: stacked. (No
+                  // display class from md: motion-reduce:hidden must win.)
+                  "relative flex items-baseline justify-center gap-1.5 px-1 py-2.5 text-center md:flex-col md:items-center md:gap-0 md:px-2 md:py-4",
+                  i > 0 && "border-l border-bone/15",
+                  c.key === "secs" && "motion-reduce:hidden",
+                )}
+              >
+                {i > 0 && (
+                  <span
+                    aria-hidden="true"
+                    className="absolute -left-px -top-[5px] h-[9px] w-px bg-ember/70"
+                  />
+                )}
+                <span className="block font-display text-[2rem] leading-none tabular-nums text-foreground md:text-5xl">
+                  {c.value}
+                </span>
+                <span className="block font-mono text-[9px] uppercase tracking-[0.2em] text-concrete md:mt-2.5 md:tracking-[0.28em]">
+                  {c.label}
+                </span>
               </div>
             ))}
           </div>
-          <p className="mt-4 font-mono text-[10px] uppercase tracking-[0.26em] text-concrete">
-            {left.done ? "Doors are open." : "Until doors open"}
-          </p>
         </>
       ) : (
-        <div className="mt-5">
-          <div className="font-display text-3xl uppercase leading-[0.95] text-foreground md:text-4xl">
-            Date drops
-            <span className="wire-text-ember block">soon.</span>
-          </div>
-        </div>
+        <p className="mt-6 font-display text-4xl uppercase leading-[0.95] text-foreground">
+          {C.tba[0]}
+          <span className="wire-text-ember block">{C.tba[1]}</span>
+        </p>
       )}
-
-      <div className="mt-5 border-t border-line pt-4">
-        <p className="font-mono text-[10px] uppercase leading-relaxed tracking-[0.26em] text-foreground/80">
-          Registration open
-        </p>
-        <p className="mt-1 font-mono text-[10px] uppercase leading-relaxed tracking-[0.26em] text-ember">
-          Limited spots
-        </p>
-      </div>
     </aside>
   );
 }

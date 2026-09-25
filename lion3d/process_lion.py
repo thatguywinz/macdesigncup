@@ -89,6 +89,8 @@ durs = []
 for idx in order:
     d = min(KEEP.index(idx), len(KEEP) - 1 - KEEP.index(idx))  # distance to a reversal
     durs.append(BASE_MS + {0: 200, 1: 90, 2: 45, 3: 20}.get(d, 0))
+# No longer shipped as-is: this output is kept as lion3d/lion-mark-source.webp,
+# and public/lion/lion-still.webp + lion-nod.webp are re-encoded from it.
 cycle[0].save(
     os.path.join(OUT, "lion-mark.webp"),
     save_all=True, append_images=cycle[1:], duration=durs, loop=1,

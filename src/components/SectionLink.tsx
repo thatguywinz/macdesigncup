@@ -1,5 +1,6 @@
-import type { AnchorHTMLAttributes, MouseEvent } from "react";
+import { forwardRef, type AnchorHTMLAttributes, type MouseEvent } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { focusTarget } from "@/lib/focusTarget";
 
 type SectionLinkProps = Omit<AnchorHTMLAttributes<HTMLAnchorElement>, "href"> & {
   href: `#${string}`;
@@ -8,14 +9,21 @@ type SectionLinkProps = Omit<AnchorHTMLAttributes<HTMLAnchorElement>, "href"> & 
 /**
  * Reliable same-page navigation, including repeat clicks on the current hash.
  * The native href remains in place for accessibility and no-JavaScript fallback.
+ * Only for anchors on the current page; for a section of the home page seen
+ * from another route, use `NavAnchor` (src/components/nav/NavAnchor.tsx).
  */
-export default function SectionLink({ href, onClick, ...props }: SectionLinkProps) {
+const SectionLink = forwardRef<HTMLAnchorElement, SectionLinkProps>(function SectionLink(
+  { href, onClick, ...props },
+  ref,
+) {
   const location = useLocation();
   const navigate = useNavigate();
 
   const handleClick = (event: MouseEvent<HTMLAnchorElement>) => {
     onClick?.(event);
     if (event.defaultPrevented) return;
+    // Leave ctrl/cmd/shift/middle clicks to the browser (new tab, new window).
+    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
 
     const target = document.getElementById(decodeURIComponent(href.slice(1)));
     if (!target) return;
@@ -27,6 +35,7 @@ export default function SectionLink({ href, onClick, ...props }: SectionLinkProp
       behavior: reduceMotion ? "auto" : "smooth",
       block: "start",
     });
+    focusTarget(target);
 
     navigate(
       { pathname: location.pathname, search: location.search, hash: href },
@@ -34,5 +43,7 @@ export default function SectionLink({ href, onClick, ...props }: SectionLinkProp
     );
   };
 
-  return <a href={href} onClick={handleClick} {...props} />;
-}
+  return <a ref={ref} href={href} onClick={handleClick} {...props} />;
+});
+
+export default SectionLink;

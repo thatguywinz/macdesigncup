@@ -1,77 +1,90 @@
-import { motion, useReducedMotion } from "framer-motion";
+import { ChevronDown, Clock, PlugZap, ShieldCheck } from "lucide-react";
+import Sheet from "@/components/blueprint/Sheet";
+import Reveal from "@/components/motion/Reveal";
 import { CONTACT_EMAIL } from "@/config/site";
 
-const EASE = [0.22, 1, 0.36, 1];
+const KEY_POINTS = [
+  { Icon: Clock, text: "Access from 7:00 AM" },
+  { Icon: PlugZap, text: "Table, power and AV on request" },
+  { Icon: ShieldCheck, text: "Students are minors: no recruiting" },
+] as const;
 
-const DETAILS = [
-  {
-    title: "Visitor clearance",
-    description: "Send each representative's name, role, email, and phone number.",
-  },
-  {
-    title: "Space and equipment",
-    description: "Request a table, power, AV, early setup, or equipment space.",
-  },
+const FINE_PRINT = [
+  { title: "Visitor clearance", description: "Send each representative's name, role, email, and phone number." },
+  { title: "Space and equipment", description: "Request a table, power, AV, early setup, or equipment space." },
   {
     title: "Student privacy",
-    description: "Students are minors. Direct recruitment and resume collection are not permitted.",
+    description: "Most students are minors. Direct recruitment and resume collection are not permitted.",
   },
   {
     title: "Arrival and hospitality",
     description: "Access starts at 7:00 AM. Speakers, mentors, and judges receive lunch and refreshments.",
   },
+  {
+    title: "Before the day",
+    description: "Confirmed partners receive parking, Wi-Fi, AV, arrival, and drop-off details.",
+  },
 ] as const;
 
+/**
+ * Practical details, folded: three key points in a row, and the rest behind
+ * a "Fine print" disclosure (in the HTML either way).
+ */
 export default function LogisticsComplianceSection() {
-  const reduce = useReducedMotion();
-
-  const reveal = (delay = 0) => ({
-    initial: reduce ? false : ({ y: 16 } as const),
-    whileInView: { y: 0 },
-    viewport: { once: true, margin: "-80px" } as const,
-    transition: { duration: 0.8, ease: EASE, delay },
-  });
-
   return (
-    <section id="logistics" className="relative z-10 border-t border-line px-5 py-24 md:px-10 md:py-32">
-      <div className="mx-auto max-w-[1300px]">
-        <div className="mb-6 flex items-baseline gap-4">
-          <span className="mono-label whitespace-nowrap !text-foreground/70">Practical details</span>
-          <span className="ember-rule flex-1 opacity-40" aria-hidden="true" />
-        </div>
+    <Sheet id="logistics" eyebrow="Practical details">
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,0.75fr)_minmax(0,1.25fr)] lg:items-start lg:gap-16">
+        <h2 className="font-display text-[clamp(2.25rem,1.2rem+3vw,3.75rem)] uppercase leading-[0.95] text-foreground">
+          Before you <span className="wire-text">arrive.</span>
+        </h2>
 
-        <div className="grid gap-12 lg:grid-cols-[0.8fr_1.2fr] lg:gap-20">
-          <div>
-            <motion.h2 {...reveal()} className="display-scene text-balance">
-              <span className="block">Before you</span>
-              <span className="wire-text block">arrive.</span>
-            </motion.h2>
-            <motion.p {...reveal(0.08)} className="mt-8 max-w-md font-body text-base font-light leading-relaxed text-concrete">
-              Confirmed partners receive parking, Wi-Fi, AV, arrival, and drop-off details.
-            </motion.p>
-          </div>
-
-          <motion.dl {...reveal(0.14)} className="border-t border-line">
-            {DETAILS.map((detail) => (
-              <div key={detail.title} className="grid gap-2 border-b border-line py-6 sm:grid-cols-[0.8fr_1.2fr] sm:gap-8">
-                <dt className="font-display text-xl uppercase tracking-[0.01em] text-foreground">{detail.title}</dt>
-                <dd className="max-w-xl text-sm leading-relaxed text-concrete md:text-base">{detail.description}</dd>
-              </div>
+        <div>
+          <Reveal as="ul" className="grid border-t border-bone/15 sm:grid-cols-3">
+            {KEY_POINTS.map(({ Icon, text }, i) => (
+              <li
+                key={text}
+                className={`flex items-center gap-3 border-b border-bone/15 py-4 sm:flex-col sm:items-start sm:gap-3 sm:px-5 sm:py-5 ${i === 0 ? "sm:pl-0" : "sm:border-l"}`}
+              >
+                <Icon aria-hidden="true" strokeWidth={1.5} className="size-5 shrink-0 text-ember md:size-6" />
+                <span className="font-display text-[1.05rem] uppercase leading-[1.1] text-foreground md:text-[1.2rem]">
+                  {text}
+                </span>
+              </li>
             ))}
-          </motion.dl>
-        </div>
+          </Reveal>
 
-        <motion.p {...reveal(0.22)} className="mt-10 text-sm text-concrete">
-          Have a specific setup question?{" "}
-          <a
-            href={`mailto:${CONTACT_EMAIL}?subject=MDC%202026%20partner%20question`}
-            className="text-ember underline underline-offset-4 transition-colors hover:text-foreground"
-          >
-            Email the MDC team
-          </a>
-          .
-        </motion.p>
+          <details className="group mt-2 border-b border-bone/15">
+            <summary className="focus-ember flex min-h-[48px] cursor-pointer list-none items-center justify-between gap-3 font-mono text-[11px] uppercase tracking-[0.24em] text-foreground/85 transition-colors hover:text-ember [&::-webkit-details-marker]:hidden">
+              Fine print
+              <ChevronDown
+                aria-hidden="true"
+                size={16}
+                strokeWidth={1.5}
+                className="shrink-0 text-ember transition-transform duration-300 group-open:rotate-180"
+              />
+            </summary>
+            <dl className="pb-5">
+              {FINE_PRINT.map((d) => (
+                <div key={d.title} className="grid gap-1 border-t border-bone/10 py-3 sm:grid-cols-[11rem_minmax(0,1fr)] sm:gap-6">
+                  <dt className="font-mono text-[10px] uppercase tracking-[0.2em] text-foreground/80">{d.title}</dt>
+                  <dd className="text-sm leading-relaxed text-concrete">{d.description}</dd>
+                </div>
+              ))}
+              <div className="border-t border-bone/10 pt-3">
+                <dt className="sr-only">Questions</dt>
+                <dd className="text-sm text-concrete">
+                  <a
+                    href={`mailto:${CONTACT_EMAIL}?subject=MDC%202026%20partner%20question`}
+                    className="focus-ember inline-flex min-h-11 items-center text-ember underline underline-offset-4 transition-colors hover:text-foreground"
+                  >
+                    Email the MDC team
+                  </a>
+                </dd>
+              </div>
+            </dl>
+          </details>
+        </div>
       </div>
-    </section>
+    </Sheet>
   );
 }

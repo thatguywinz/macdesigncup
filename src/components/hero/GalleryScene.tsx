@@ -1,406 +1,181 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Canvas, useFrame } from "@react-three/fiber";
 import {
-  Environment,
-  Html,
-  Lightformer,
-  MeshReflectorMaterial,
-  Sparkles,
-  SpotLight,
-} from "@react-three/drei";
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type MouseEvent,
+  type MutableRefObject,
+  type Ref,
+} from "react";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import { Html, MeshReflectorMaterial, Sparkles, SpotLight } from "@react-three/drei";
 import { Bloom, EffectComposer, Vignette } from "@react-three/postprocessing";
+import type { MotionValue } from "framer-motion";
+import { ArrowDown } from "lucide-react";
+import type { BloomEffect } from "postprocessing";
 import * as THREE from "three";
+import { CTA, HERO } from "@/content/copy";
+import {
+  CTA_AT,
+  DESIGN_FOV,
+  DOOR,
+  PORTAL_Y,
+  PTR,
+  clamp01,
+  copyLift,
+  dollyAmount,
+  framing,
+  smoothstep,
+  type Framing,
+} from "./hall";
+import { CTA_OUT, DOLLY_END } from "./timeline";
+import LogoPlaques from "./LogoPlaques";
+import WirePrinter from "./WirePrinter";
 
-export type GatePhase = "locked" | "entering";
-
-interface GalleryCanvasProps {
-  phase: GatePhase;
+export interface GallerySceneProps {
+  /** Hero scroll progress 0..1 (held at 0 for reduced motion). */
+  progress: MotionValue<number>;
   reduced: boolean;
-  lite: boolean;
-  nudge: number;
-  onEnter: () => void;
+  /** Render only while the hero is on screen. */
+  active: boolean;
+  /** Bottom of the poster type, as a share of the stage height (0 = unknown). */
+  copyFloor: MotionValue<number>;
+  onEnter: (event: MouseEvent<HTMLAnchorElement>) => void;
+  /** Called once, after the first frames have been drawn. */
+  onReady: () => void;
 }
 
-/* Door center in world space — camera, portal and CTA all agree on this. */
-const DOOR = new THREE.Vector3(0, 1.9, -6);
-
-/* Window-level cursor, in the same -1..1 space as r3f's state.pointer.
-   r3f only updates its pointer from events on the canvas, so the DOM overlays
-   (the CTA glued to the door) would freeze the parallax while hovered — the
-   camera "locks" onto the door. Reading the window keeps everything moving. */
-const PTR = { x: 0, y: 0 };
-if (typeof window !== "undefined") {
-  window.addEventListener(
-    "pointermove",
-    (e) => {
-      PTR.x = (e.clientX / window.innerWidth) * 2 - 1;
-      PTR.y = -((e.clientY / window.innerHeight) * 2 - 1);
-    },
-    { passive: true },
-  );
-}
-
-/* ── Framing ─────────────────────────────────────────────────────────
-   The hall is composed horizontally — portal dead centre, sculpture rows
-   flanking it — but a perspective camera's `fov` is *vertical*, so the
-   window's aspect ratio silently decides how much of that row you see.
-   Left alone, 16:9 drags the wall dressing into the bottom corners while
-   4:3 pushes the front pedestals out of frame entirely. So pin the
-   horizontal field of view instead and let the vertical one follow,
-   dollying back only once the fov would have to open wider than is
-   comfortable. Every landscape window then gets the same shot. */
-const DESIGN_FOV = 40;
-const DESIGN_ASPECT = 16 / 9;
-/** tan of the half-horizontal-fov held at every landscape aspect */
-const TAN_H = Math.tan(THREE.MathUtils.degToRad(DESIGN_FOV / 2)) * DESIGN_ASPECT;
-const SUBJECT_Z = 1.4; // depth of the front pedestal row
-const HALF_W = 4.66; // half-extent held across that row — matches the 16:9 shot
-
-function framing(aspect: number) {
-  // Portrait frames the portal, not the row: the hall has to read as a corridor.
-  if (aspect < 1) return { fov: DESIGN_FOV, z: 10.4, lookY: 2.5 };
-  const fov = THREE.MathUtils.clamp(
-    THREE.MathUtils.radToDeg(2 * Math.atan(TAN_H / aspect)),
-    30,
-    44,
-  );
-  const tanH = Math.tan(THREE.MathUtils.degToRad(fov / 2)) * aspect;
-  return {
-    fov,
-    // Where the fov clamp bites (very narrow or very wide), the dolly makes up the rest.
-    z: THREE.MathUtils.clamp(SUBJECT_Z + HALF_W / tanH, 7.6, 10.6),
-    lookY: 1.8,
-  };
+/** The poster type's floor, as state: it changes on resize and font load only. */
+function useFloor(copyFloor: MotionValue<number>) {
+  const snap = (v: number) => Math.round(v * 500) / 500;
+  const [floor, setFloor] = useState(() => snap(copyFloor.get()));
+  useEffect(() => {
+    setFloor(snap(copyFloor.get()));
+    return copyFloor.on("change", (v) => setFloor(snap(v)));
+  }, [copyFloor]);
+  return floor;
 }
 
 /* ── Camera ──────────────────────────────────────────────────────────
-   Locked: breathes on an idle sine drift and leans with the cursor so the
-   whole hall wiggles like a handheld dolly shot. Entering: flies at the door. */
-function CameraRig({ phase, reduced }: { phase: GatePhase; reduced: boolean }) {
-  const pos = useMemo(() => new THREE.Vector3(0, 2.05, 8.6), []);
+   At rest it breathes on an idle drift and leans with the cursor like a
+   handheld dolly shot, looking just high enough that the plaque rows (or,
+   upright, the door) sit clear under the poster type. Scroll progress walks
+   it up the runway, past the front plaques, and stops it square on the lit
+   door (framing().endZ): the door large, still framed by its jambs, the
+   wall and the floor. The cursor's pull fades out as it goes, so the
+   arrival is steady. */
+interface RigProps {
+  progress: MotionValue<number>;
+  reduced: boolean;
+  frame: Framing;
+  aspect: number;
+  floor: number;
+}
+
+function CameraRig({ progress, reduced, frame: f, aspect, floor }: RigProps) {
+  const lean = useMemo(() => new THREE.Vector2(), []);
   const look = useMemo(() => new THREE.Vector3(), []);
+  const eased = useRef(0);
+  const invalidate = useThree((s) => s.invalidate);
+  // A new framing needs a frame even when the canvas only draws on demand.
+  useEffect(() => invalidate(), [f, floor, invalidate]);
 
-  useFrame((state, dt) => {
+  useFrame((state, rawDt) => {
+    const dt = Math.min(rawDt, 0.1);
     const t = state.clock.elapsedTime;
-    const px = reduced ? 0 : PTR.x;
-    const py = reduced ? 0 : PTR.y;
-
     const cam = state.camera as THREE.PerspectiveCamera;
-    const { fov, z: baseZ, lookY } = framing(state.size.width / state.size.height);
-    if (cam.fov !== fov) {
-      cam.fov = fov;
+    if (cam.fov !== f.fov) {
+      cam.fov = f.fov;
       cam.updateProjectionMatrix();
     }
 
-    if (phase === "entering") {
-      pos.set(0, 1.9, -4.4);
-      look.copy(DOOR);
-      const k = 1 - Math.exp(-1.35 * dt);
-      state.camera.position.lerp(pos, k);
-    } else {
-      pos.set(
-        px * 1.15 + (reduced ? 0 : Math.sin(t * 0.26) * 0.22),
-        2.05 + py * 0.55 + (reduced ? 0 : Math.sin(t * 0.18) * 0.12),
-        baseZ,
-      );
-      look.set(px * 0.7, lookY + py * 0.3, DOOR.z);
-      const k = 1 - Math.exp(-2.4 * dt);
-      state.camera.position.lerp(pos, k);
-    }
-    state.camera.lookAt(look);
+    // Smooth the scroll a touch so wheel steps glide instead of stepping.
+    const target = reduced ? 0 : clamp01(progress.get());
+    eased.current = THREE.MathUtils.damp(eased.current, target, 6, dt);
+    const e = dollyAmount(eased.current);
+    const free = 1 - e;
+
+    lean.x = THREE.MathUtils.damp(lean.x, reduced ? 0 : PTR.x * free, 2.4, dt);
+    lean.y = THREE.MathUtils.damp(lean.y, reduced ? 0 : PTR.y * free, 2.4, dt);
+    const driftX = reduced ? 0 : Math.sin(t * 0.26) * 0.22 * free;
+    const driftY = reduced ? 0 : Math.sin(t * 0.18) * 0.12 * free;
+
+    const camY = THREE.MathUtils.lerp(f.y, DOOR.y, e) + lean.y * 0.55 + driftY;
+    const camZ = THREE.MathUtils.lerp(f.z, f.endZ, e);
+    let lookY = THREE.MathUtils.lerp(f.lookY, DOOR.y, e) + lean.y * 0.3;
+    // Checked every frame, so the cursor's lean can never lift the rows into
+    // the type; it eases away over the walk, which ends square on the door.
+    lookY += copyLift(f, aspect, camY, camZ, lookY, floor, state.size.height) * free;
+
+    cam.position.set(lean.x * 1.15 + driftX, camY, camZ);
+    look.set(lean.x * 0.7, lookY, DOOR.z);
+    cam.lookAt(look);
   });
   return null;
 }
 
-/* ── Sculptures ────────────────────────────────────────────────────── */
-type KnotVariant = "wire" | "clay" | "glass" | "chrome" | "porcelain";
-
-function KnotMaterial({ variant, hovered }: { variant: KnotVariant; hovered: boolean }) {
-  switch (variant) {
-    case "wire":
-      return <meshBasicMaterial wireframe color={hovered ? "#ffc98c" : "#d9d0b0"} />;
-    case "clay":
-      return (
-        <meshStandardMaterial
-          color="#8f7a63"
-          roughness={0.95}
-          flatShading
-          emissive="#ff6a14"
-          emissiveIntensity={hovered ? 0.22 : 0}
-        />
-      );
-    case "glass":
-      return (
-        <meshPhysicalMaterial
-          transmission={1}
-          thickness={0.7}
-          roughness={0.07}
-          ior={1.45}
-          color="#dceaff"
-          attenuationColor="#bcd8ff"
-          attenuationDistance={2.5}
-        />
-      );
-    case "chrome":
-      return (
-        <meshStandardMaterial
-          color="#ffffff"
-          metalness={1}
-          roughness={0.05}
-          envMapIntensity={1.25}
-          emissive="#ff6a14"
-          emissiveIntensity={hovered ? 0.15 : 0}
-        />
-      );
-    case "porcelain":
-      return (
-        <meshPhysicalMaterial
-          color="#f4efe6"
-          roughness={0.3}
-          clearcoat={1}
-          clearcoatRoughness={0.15}
-          emissive="#ff6a14"
-          emissiveIntensity={hovered ? 0.18 : 0}
-        />
-      );
-  }
-}
-
-interface KnotProps {
-  variant: KnotVariant;
-  scale?: number;
-  p?: number;
-  q?: number;
-  tube?: number;
-  seed?: number;
-  detail?: number;
-  reduced?: boolean;
-}
-
-/** A floating torus-knot exhibit. Hovering it wakes it up: it spins faster and swells. */
-function Knot({ variant, scale = 1, p = 2, q = 3, tube = 0.16, seed = 0, detail = 170, reduced = false }: KnotProps) {
-  const mesh = useRef<THREE.Mesh>(null!);
-  const [hovered, setHovered] = useState(false);
-
-  useFrame((state, dt) => {
-    if (reduced) return;
-    const t = state.clock.elapsedTime;
-    const m = mesh.current;
-    m.rotation.y += dt * (hovered ? 1.6 : 0.3);
-    m.rotation.x = Math.sin(t * 0.4 + seed) * 0.16;
-    m.position.y = Math.sin(t * 0.9 + seed) * 0.06;
-    const target = scale * (hovered ? 1.14 : 1);
-    const s = THREE.MathUtils.damp(m.scale.x, target, 7, dt);
-    m.scale.setScalar(s);
-  });
-
-  // Wireframe pieces need sparse geometry to read as line drawings, not mush.
-  const seg = variant === "clay" ? 90 : variant === "wire" ? 72 : detail;
-  const radial = variant === "clay" ? 14 : variant === "wire" ? 8 : 28;
-  return (
-    <mesh
-      ref={mesh}
-      scale={scale}
-      onPointerOver={(e) => {
-        e.stopPropagation();
-        setHovered(true);
-      }}
-      onPointerOut={() => setHovered(false)}
-    >
-      <torusKnotGeometry args={[0.42, tube, seg, radial, p, q]} />
-      <KnotMaterial variant={variant} hovered={hovered} />
-    </mesh>
-  );
-}
-
-function Pedestal({
-  x,
-  z,
-  h,
-  children,
-}: {
-  x: number;
-  z: number;
-  h: number;
-  children: React.ReactNode;
-}) {
-  return (
-    <group position={[x, 0, z]}>
-      <mesh position={[0, h / 2, 0]}>
-        <boxGeometry args={[0.78, h, 0.78]} />
-        <meshStandardMaterial color="#141518" roughness={0.92} />
-      </mesh>
-      <mesh position={[0, h + 0.025, 0]}>
-        <boxGeometry args={[0.86, 0.05, 0.86]} />
-        <meshStandardMaterial color="#1c1d21" roughness={0.8} metalness={0.15} />
-      </mesh>
-      <group position={[0, h + 0.62, 0]}>{children}</group>
-    </group>
-  );
-}
-
-function Sculptures({ reduced }: { reduced: boolean }) {
-  return (
-    <group>
-      {/* Nearest of the left row. Its x/z/height continue the row's rhythm rather
-          than breaking out of it — pushed further out it drops into the bottom
-          corner on its own, reading as an orphan instead of the front exhibit. */}
-      <Pedestal x={-3.3} z={1.2} h={1}>
-        <Knot variant="wire" p={2} q={3} seed={1} scale={0.6} reduced={reduced} />
-      </Pedestal>
-      <Pedestal x={-2.2} z={-0.15} h={1.3}>
-        <Knot variant="clay" p={3} q={4} tube={0.18} seed={2} reduced={reduced} />
-      </Pedestal>
-      <Pedestal x={-1.8} z={-2.6} h={1.55}>
-        <Knot variant="glass" p={2} q={5} seed={3} reduced={reduced} />
-      </Pedestal>
-      <Pedestal x={1.8} z={-2.6} h={1.55}>
-        <Knot variant="chrome" p={2} q={3} seed={4} reduced={reduced} />
-      </Pedestal>
-      <Pedestal x={2.2} z={-0.15} h={1.3}>
-        <Knot variant="porcelain" p={5} q={2} tube={0.14} seed={5} reduced={reduced} />
-      </Pedestal>
-
-      {/* leaning obsidian monolith — the odd one out */}
-      <group position={[3.35, 0, 2.1]}>
-        <mesh position={[0, 1.25, 0]} rotation={[0.02, 0.4, 0.14]}>
-          <boxGeometry args={[0.55, 2.5, 0.4]} />
-          <meshStandardMaterial color="#101115" roughness={0.35} metalness={0.4} />
-        </mesh>
-      </group>
-
-      {/* Sketch plaques leaning on the side walls, like framed blueprints. Both sit
-          outside the framed row on purpose — they're depth for the floor reflection,
-          not exhibits, so nothing reads as a second sculpture at the frame edge. */}
-      <group position={[-5.9, 0, 1.1]} rotation={[0, 0.6, 0]}>
-        <mesh position={[0, 1.05, 0]} rotation={[0, 0, 0.06]}>
-          <boxGeometry args={[0.09, 2.1, 1.7]} />
-          <meshStandardMaterial color="#131418" roughness={0.9} />
-        </mesh>
-      </group>
-      <group position={[5.4, 0, 1.6]} rotation={[0, -0.5, 0]}>
-        <mesh position={[0, 0.95, 0]} rotation={[0, 0, -0.07]}>
-          <boxGeometry args={[0.09, 1.9, 1.5]} />
-          <meshStandardMaterial color="#131418" roughness={0.9} />
-        </mesh>
-      </group>
-    </group>
-  );
-}
-
-/* ── Giant porcelain knot punching in from the upper right ─────────── */
-function Shard({
-  offset,
-  size,
-  seed,
-  reduced,
-}: {
-  offset: [number, number, number];
-  size: number;
-  seed: number;
-  reduced: boolean;
-}) {
-  const ref = useRef<THREE.Mesh>(null!);
-  useFrame((state, dt) => {
-    if (reduced) return;
-    const t = state.clock.elapsedTime;
-    ref.current.rotation.x += dt * (0.15 + (seed % 3) * 0.08);
-    ref.current.rotation.z += dt * 0.1;
-    ref.current.position.y = offset[1] + Math.sin(t * 0.55 + seed) * 0.12;
-  });
-  return (
-    <mesh ref={ref} position={offset}>
-      <dodecahedronGeometry args={[size, 0]} />
-      <meshStandardMaterial color="#191a1f" roughness={0.85} flatShading />
-    </mesh>
-  );
-}
-
-/* Rest pose for the big knot. It reads as the monolith's exhibit, so it is
-   placed the way the pedestal knots are: sat on the top of its support, not
-   floating past it. The monolith leans, which drags its top face left of its
-   base, so x aims at the *top* (world 3.19 / 2.49 / 2.19 once the lean is
-   applied) rather than the pillar's centre, and y puts the knot's underside on
-   that top edge. Both objects project through the same camera, so the stack
-   holds at every aspect ratio. Scale rides the whole group so the debris field
-   shrinks with it — oversized, the knot stops reading as a knot at all. */
-const GIANT_REST: [number, number, number] = [5.22, 3.74, -1.9];
-const GIANT_SCALE = 0.36;
-
-function GiantKnot({ reduced }: { reduced: boolean }) {
-  const group = useRef<THREE.Group>(null!);
-  const knot = useRef<THREE.Mesh>(null!);
-
-  const shards = useMemo(() => {
-    const rng = (i: number, f: number) => Math.sin(i * 127.1 + f * 311.7) * 0.5 + 0.5;
-    return Array.from({ length: 13 }, (_, i) => ({
-      offset: [
-        -2.6 + rng(i, 1) * 4.6,
-        -2.2 + rng(i, 2) * 4.4,
-        -1.4 + rng(i, 3) * 2.8,
-      ] as [number, number, number],
-      size: 0.09 + rng(i, 4) * 0.22,
-      seed: i,
-    }));
+/** The door's core as light, not a flat card: hottest low in the opening
+ *  (where the threshold is), cooling toward the jambs. Multiplies the core's
+ *  molten colour, so it only shapes the brightness (about 1 down to 0.55). */
+function useCoreGlow() {
+  const texture = useMemo(() => {
+    const c = document.createElement("canvas");
+    c.width = 64;
+    c.height = 96;
+    const ctx = c.getContext("2d");
+    if (ctx) {
+      const g = ctx.createRadialGradient(32, 60, 2, 32, 60, 60);
+      g.addColorStop(0, "#ffffff");
+      g.addColorStop(0.45, "#e2e2e2");
+      g.addColorStop(1, "#c2c2c2");
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, c.width, c.height);
+    }
+    const t = new THREE.CanvasTexture(c);
+    t.colorSpace = THREE.SRGBColorSpace;
+    return t;
   }, []);
-
-  useFrame((state, dt) => {
-    if (reduced) return;
-    const t = state.clock.elapsedTime;
-    knot.current.rotation.x += dt * 0.07;
-    knot.current.rotation.y += dt * 0.05;
-    const g = group.current;
-    const px = PTR.x;
-    const py = PTR.y;
-    // Moves *with* the cursor more than the room does — reads as closer to camera.
-    g.position.x = THREE.MathUtils.damp(g.position.x, GIANT_REST[0] + px * 0.6, 2.2, dt);
-    g.position.y = THREE.MathUtils.damp(
-      g.position.y,
-      GIANT_REST[1] + py * 0.4 + Math.sin(t * 0.35) * 0.12,
-      2.2,
-      dt,
-    );
-  });
-
-  return (
-    <group ref={group} position={GIANT_REST} scale={GIANT_SCALE}>
-      <mesh ref={knot} scale={1.9} rotation={[0.6, 0.4, 0.2]}>
-        <torusKnotGeometry args={[1, 0.42, 260, 40, 2, 3]} />
-        <meshPhysicalMaterial color="#f1ece2" roughness={0.27} clearcoat={1} clearcoatRoughness={0.12} />
-      </mesh>
-      {shards.map((s) => (
-        <Shard key={s.seed} {...s} reduced={reduced} />
-      ))}
-    </group>
-  );
+  useEffect(() => () => texture.dispose(), [texture]);
+  return texture;
 }
 
-/* ── Portal — the molten door at the end of the hall ───────────────── */
-function Portal({ lite, reduced }: { lite: boolean; reduced: boolean }) {
+/* ── Portal: the molten door at the end of the hall ─────────────────── */
+/** Rim and core, linear RGB before the flicker. The rim's red carries the
+ *  bloom (its halo reads ember), its green stays low enough that the rim
+ *  itself reads molten amber, not lemon; the core stays under the clip so
+ *  the glow texture's falloff shows. */
+const RIM = [5.2, 0.42, 0.06] as const;
+const CORE = [0.92, 0.3, 0.06] as const;
+
+function Portal({ reduced }: { reduced: boolean }) {
   const rim = useRef<THREE.MeshBasicMaterial>(null!);
   const core = useRef<THREE.MeshBasicMaterial>(null!);
   const light = useRef<THREE.PointLight>(null!);
+  const coreGlow = useCoreGlow();
 
   useFrame((state) => {
     const t = state.clock.elapsedTime;
-    // molten flicker — never perfectly steady (steady when motion is reduced)
+    // molten flicker, never perfectly steady (steady when motion is reduced)
     const f = reduced ? 1 : 1 + Math.sin(t * 7.3) * 0.05 + Math.sin(t * 13.7 + 2) * 0.035;
-    rim.current.color.setRGB(4.6 * f, 1.15 * f, 0.16);
-    core.current.color.setRGB(1.35 * f, 0.36 * f, 0.07);
-    light.current.intensity = (lite ? 22 : 30) * f;
+    rim.current.color.setRGB(RIM[0] * f, RIM[1] * f, RIM[2]);
+    core.current.color.setRGB(CORE[0] * f, CORE[1] * f, CORE[2]);
+    light.current.intensity = 30 * f;
   });
 
   return (
     <group position={[DOOR.x, 0, DOOR.z]}>
       {/* blazing rim (blooms hard) */}
-      <mesh position={[0, 1.92, 0.02]}>
+      <mesh position={[0, PORTAL_Y, 0.02]}>
         <planeGeometry args={[2.5, 3.6]} />
-        <meshBasicMaterial ref={rim} toneMapped={false} />
+        {/* no fog: from the portrait framing's distance it would dull the glow under the bloom threshold */}
+        <meshBasicMaterial ref={rim} toneMapped={false} fog={false} />
       </mesh>
       {/* cooler core so the CTA stays legible */}
-      <mesh position={[0, 1.92, 0.05]}>
+      <mesh position={[0, PORTAL_Y, 0.05]}>
         <planeGeometry args={[2.14, 3.26]} />
-        <meshBasicMaterial ref={core} toneMapped={false} />
+        <meshBasicMaterial ref={core} map={coreGlow} toneMapped={false} fog={false} />
       </mesh>
       {/* dark jambs framing the opening */}
       <mesh position={[-1.45, 1.9, 0.09]}>
@@ -420,48 +195,144 @@ function Portal({ lite, reduced }: { lite: boolean; reduced: boolean }) {
   );
 }
 
-/* The gate CTA, glued to the door in screen space. */
-function EnterDoor({
-  onEnter,
-  phase,
-  nudge,
-}: {
-  onEnter: () => void;
-  phase: GatePhase;
-  nudge: number;
-}) {
-  // A scroll attempt flashes the guidance for a moment, then settles back.
-  const [flash, setFlash] = useState(false);
-  useEffect(() => {
-    if (nudge === 0) return;
-    setFlash(true);
-    const t = setTimeout(() => setFlash(false), 1700);
-    return () => clearTimeout(t);
-  }, [nudge]);
+/* ── The Enter CTA, glued to the door in screen space ───────────────
+   One line, one slab. It fades out as the dolly starts and stops taking
+   the pointer and focus once it is gone. */
+function EnterDoor({ progress, onEnter }: { progress: MotionValue<number>; onEnter: GallerySceneProps["onEnter"] }) {
+  const wrap = useRef<HTMLDivElement>(null);
+  const shown = useRef(-1);
+
+  useFrame(() => {
+    const el = wrap.current;
+    if (!el) return;
+    const o = Math.round((1 - smoothstep(CTA_OUT[0], CTA_OUT[1], clamp01(progress.get()))) * 100) / 100;
+    if (o === shown.current) return;
+    shown.current = o;
+    el.style.opacity = String(o);
+    el.style.visibility = o <= 0.01 ? "hidden" : "visible";
+    el.style.pointerEvents = o < 0.6 ? "none" : "";
+  });
 
   return (
-    <Html position={[DOOR.x, DOOR.y + 0.1, DOOR.z + 0.2]} center zIndexRange={[30, 10]}>
-      <div
-        className="hero-cta"
-        data-entering={phase === "entering" || undefined}
-        style={flash ? { animation: "gate-shake 0.5s ease" } : undefined}
-      >
-        <span className="hero-cta-ring" />
-        <span className="hero-cta-ring hero-cta-ring--late" />
-        <button type="button" onClick={onEnter} aria-label="Enter the challenge and open the site">
-          <span>Enter</span>
-          <span>the</span>
-          <span>Challenge</span>
-        </button>
-        <p className="hero-cta-hint" data-nudged={flash || undefined}>
-          {flash ? "the way in is forward · scroll down or click" : "click or scroll to enter"}
-        </p>
+    <Html position={[DOOR.x, CTA_AT.y, CTA_AT.z]} center zIndexRange={[30, 10]}>
+      <div ref={wrap} className="hall-cta">
+        <a href="#glance" onClick={onEnter} aria-label={CTA.enter} className="hall-cta__btn">
+          <span>{CTA.enter}</span>
+          <ArrowDown aria-hidden="true" size={18} strokeWidth={1.5} />
+        </a>
       </div>
     </Html>
   );
 }
 
-/* ── Architecture — floor, walls, pylons, runway ────────────────────── */
+const BLOOM_REST = 1.15;
+const BLOOM_END = 0.85;
+
+/** Eases the bloom down as the door fills more of the frame, so its halo stays
+ *  a halo around the opening and never washes the whole shot. */
+function BloomRig({ progress, bloom }: { progress: MotionValue<number>; bloom: MutableRefObject<BloomEffect | null> }) {
+  const shown = useRef(-1);
+  useFrame(() => {
+    const b = bloom.current;
+    if (!b) return;
+    const k = smoothstep(0.2, DOLLY_END, clamp01(progress.get()));
+    const v = Math.round(THREE.MathUtils.lerp(BLOOM_REST, BLOOM_END, k) * 1000) / 1000;
+    if (v === shown.current) return;
+    shown.current = v;
+    b.intensity = v;
+  });
+  return null;
+}
+
+/** Tells the page the first frames are on screen, so the poster can hand over. */
+function ReadySignal({ onReady }: { onReady: () => void }) {
+  const frames = useRef(0);
+  useFrame(() => {
+    frames.current += 1;
+    if (frames.current === 3) onReady();
+  });
+  return null;
+}
+
+/** Compiles every shader in the hall off the main thread (where the browser
+ *  can: KHR_parallel_shader_compile) before the first frame is drawn, so the
+ *  first frame is not one long blocking task. The hall is only ever drawn
+ *  into render targets (the composer's buffer, the floor's reflection), which
+ *  three compiles differently from the canvas (linear output, no tone
+ *  mapping), so the warm-up compiles against one too. The composer's own
+ *  passes still compile on the first frame. */
+function Warmup({ onDone }: { onDone: () => void }) {
+  const gl = useThree((s) => s.gl);
+  const scene = useThree((s) => s.scene);
+  const camera = useThree((s) => s.camera);
+  useEffect(() => {
+    let alive = true;
+    const target = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType });
+    const done = () => {
+      target.dispose();
+      if (alive) onDone();
+    };
+    const previous = gl.getRenderTarget();
+    try {
+      gl.setRenderTarget(target);
+      const job = gl.compileAsync(scene, camera);
+      gl.setRenderTarget(previous);
+      job.then(done, done);
+    } catch {
+      gl.setRenderTarget(previous);
+      done();
+    }
+    return () => {
+      alive = false;
+    };
+    // once, for the hall as first mounted
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  return null;
+}
+
+/* ── Studio light for the plaques' sheen ──────────────────────────────
+   Four soft panels (a key from above, a cool left, the door's warm glow, a
+   warm right) baked once into a prefiltered environment map. Local and
+   network-free; no HDR loaders. */
+const PANELS: Array<{ at: [number, number, number]; size: [number, number]; color: string; intensity: number }> = [
+  { at: [0, 6, 0], size: [12, 6], color: "#e8ecf5", intensity: 2.6 },
+  { at: [-8, 3, 2], size: [8, 2], color: "#bcd0ff", intensity: 1.3 },
+  { at: [0, 2.5, -8], size: [4, 5], color: "#ff7a1a", intensity: 0.9 },
+  { at: [8, 4, 0], size: [8, 3], color: "#fff1dd", intensity: 0.7 },
+];
+
+function StudioLight() {
+  const gl = useThree((s) => s.gl);
+  const scene = useThree((s) => s.scene);
+  useLayoutEffect(() => {
+    const studio = new THREE.Scene();
+    const plane = new THREE.PlaneGeometry(1, 1);
+    const mats = PANELS.map(({ at, size, color, intensity }) => {
+      const m = new THREE.MeshBasicMaterial({ color, side: THREE.DoubleSide, toneMapped: false });
+      m.color.multiplyScalar(intensity);
+      const panel = new THREE.Mesh(plane, m);
+      panel.position.set(...at);
+      panel.scale.set(size[0], size[1], 1);
+      panel.lookAt(0, 0, 0);
+      studio.add(panel);
+      return m;
+    });
+    const pmrem = new THREE.PMREMGenerator(gl);
+    const target = pmrem.fromScene(studio, 0, 0.1, 1000);
+    pmrem.dispose();
+    plane.dispose();
+    mats.forEach((m) => m.dispose());
+    scene.environment = target.texture;
+    return () => {
+      if (scene.environment === target.texture) scene.environment = null;
+      target.dispose();
+    };
+  }, [gl, scene]);
+  return null;
+}
+
+/* ── Architecture: back wall, pylons, runway, leaning boards ────────── */
 function Architecture() {
   const pylons: Array<[number, number, number]> = [
     [-6.4, 3.4, -0.25],
@@ -503,17 +374,31 @@ function Architecture() {
           <meshStandardMaterial color="#16171b" roughness={0.75} metalness={0.1} />
         </mesh>
       ))}
+
+      {/* boards leaning on the side walls: depth for the floor reflection */}
+      <group position={[-5.9, 0, 1.1]} rotation={[0, 0.6, 0]}>
+        <mesh position={[0, 1.05, 0]} rotation={[0, 0, 0.06]}>
+          <boxGeometry args={[0.09, 2.1, 1.7]} />
+          <meshStandardMaterial color="#131418" roughness={0.9} />
+        </mesh>
+      </group>
+      <group position={[5.4, 0, 1.6]} rotation={[0, -0.5, 0]}>
+        <mesh position={[0, 0.95, 0]} rotation={[0, 0, -0.07]}>
+          <boxGeometry args={[0.09, 1.9, 1.5]} />
+          <meshStandardMaterial color="#131418" roughness={0.9} />
+        </mesh>
+      </group>
     </group>
   );
 }
 
-function Floor({ lite }: { lite: boolean }) {
+function Floor() {
   return (
     <mesh rotation-x={-Math.PI / 2} position={[0, 0, -1]}>
       <planeGeometry args={[60, 44]} />
       <MeshReflectorMaterial
         blur={[280, 90]}
-        resolution={lite ? 512 : 1024}
+        resolution={1024}
         mixBlur={1}
         mixStrength={2.4}
         roughness={0.7}
@@ -551,70 +436,126 @@ function NeonPath({ mirror = false }: { mirror?: boolean }) {
   );
 }
 
-/* ── Scene root ─────────────────────────────────────────────────────── */
-export default function GalleryCanvas({ phase, reduced, lite, nudge, onEnter }: GalleryCanvasProps) {
+/* Volumetric gallery downlights over the aisle. In a tall portrait frame the
+   cones cross the whole picture, so they are dimmed there. */
+function Downlights({ portrait }: { portrait: boolean }) {
+  const opacity = portrait ? 0.38 : 0.85;
   return (
-    <Canvas
-      dpr={lite ? [1, 1.5] : [1, 1.75]}
-      camera={{ position: [0, 2.05, 8.6], fov: DESIGN_FOV }}
-      gl={{ antialias: true, powerPreference: "high-performance" }}
-    >
-      <color attach="background" args={["#07080a"]} />
-      <fog attach="fog" args={["#07080a", 10, 30]} />
-
-      <CameraRig phase={phase} reduced={reduced} />
-
-      <ambientLight intensity={0.18} />
-      {/* volumetric gallery downlights over the aisle */}
-      <SpotLight
-        position={[-2.6, 7.4, -0.8]}
-        angle={0.42}
-        penumbra={0.9}
-        intensity={1.5}
-        distance={14}
-        attenuation={5.5}
-        anglePower={4}
-        color="#dfe6f2"
-      />
-      {!lite && (
+    <>
+      {[-2.6, 2.6].map((x) => (
         <SpotLight
-          position={[2.6, 7.4, -0.8]}
+          key={x}
+          position={[x, 7.4, -0.8]}
           angle={0.42}
           penumbra={0.9}
           intensity={1.5}
           distance={14}
           attenuation={5.5}
           anglePower={4}
+          opacity={opacity}
           color="#dfe6f2"
         />
-      )}
+      ))}
+    </>
+  );
+}
+
+/* ── The hall: everything that depends on the frame's shape ────────── */
+function Hall({
+  progress,
+  reduced,
+  copyFloor,
+  onEnter,
+}: Pick<GallerySceneProps, "progress" | "reduced" | "copyFloor" | "onEnter">) {
+  const width = useThree((s) => s.size.width);
+  const height = useThree((s) => s.size.height);
+  const floor = useFloor(copyFloor);
+  const aspect = width / Math.max(1, height);
+  const frame = useMemo(() => framing(aspect, floor, height), [aspect, floor, height]);
+  return (
+    <>
+      <CameraRig progress={progress} reduced={reduced} frame={frame} aspect={aspect} floor={floor} />
+      <Downlights portrait={aspect < 1} />
+      <LogoPlaques reduced={reduced} progress={progress} frame={frame} aspect={aspect} />
+      <WirePrinter reduced={reduced} progress={progress} frame={frame} floor={floor} />
+      <EnterDoor progress={progress} onEnter={onEnter} />
+    </>
+  );
+}
+
+/* ── Scene root ─────────────────────────────────────────────────────── */
+export default function GalleryScene({ progress, reduced, active, copyFloor, onEnter, onReady }: GallerySceneProps) {
+  const bloom = useRef<BloomEffect | null>(null);
+  // Nothing is drawn until the shaders are compiled. Under reduced motion
+  // the picture never changes, so once the first frames are up the canvas
+  // only draws on demand (a resize, a logo arriving, a hover).
+  const [warm, setWarm] = useState(false);
+  const [drawn, setDrawn] = useState(false);
+  const onWarm = useCallback(() => setWarm(true), []);
+  const onDrawn = useCallback(() => {
+    setDrawn(true);
+    onReady();
+  }, [onReady]);
+  const frameloop = !warm || !active ? "never" : reduced && drawn ? "demand" : "always";
+
+  return (
+    <Canvas
+      frameloop={frameloop}
+      dpr={[1, 1.75]}
+      camera={{ position: [0, 2.05, 8.6], fov: DESIGN_FOV }}
+      // Everything reaches the screen through the composer (multisampling 0),
+      // so canvas MSAA would only smooth a fullscreen quad.
+      gl={{ antialias: false, powerPreference: "high-performance" }}
+    >
+      <color attach="background" args={["#07080a"]} />
+      <fog attach="fog" args={["#07080a", 10, 30]} />
+
+      <StudioLight />
+      <Warmup onDone={onWarm} />
+      <BloomRig progress={progress} bloom={bloom} />
+      <ReadySignal onReady={onDrawn} />
+
+      <ambientLight intensity={0.18} />
       {/* faint cold rim from the neon floor lines */}
       <pointLight position={[-3.4, 0.4, 0.5]} color="#3d7bff" intensity={4} distance={7} decay={2} />
       <pointLight position={[3.4, 0.4, 0.5]} color="#3d7bff" intensity={4} distance={7} decay={2} />
 
       <Architecture />
-      <Floor lite={lite} />
+      <Floor />
       <NeonPath />
       <NeonPath mirror />
-      <Sculptures reduced={reduced} />
-      <GiantKnot reduced={reduced} />
-      <Portal lite={lite} reduced={reduced} />
-      <EnterDoor onEnter={onEnter} phase={phase} nudge={nudge} />
+      <Portal reduced={reduced} />
+      <Hall progress={progress} reduced={reduced} copyFloor={copyFloor} onEnter={onEnter} />
 
-      {/* drifting dust — cool ambient + warm near the door */}
-      <Sparkles count={lite ? 60 : 140} scale={[16, 7, 14]} position={[0, 3, -1]} size={1.6} speed={reduced ? 0 : 0.25} opacity={0.35} color="#9fb8ff" />
-      <Sparkles count={lite ? 30 : 70} scale={[4, 5, 3]} position={[0, 2, -4.6]} size={2.2} speed={reduced ? 0 : 0.45} opacity={0.5} color="#ffb37a" />
-
-      {/* local, network-free studio lighting for the chrome/porcelain/glass */}
-      <Environment resolution={256} frames={1}>
-        <Lightformer intensity={2.6} position={[0, 6, 0]} rotation-x={Math.PI / 2} scale={[12, 6, 1]} color="#e8ecf5" />
-        <Lightformer intensity={1.3} position={[-8, 3, 2]} rotation-y={Math.PI / 2} scale={[8, 2, 1]} color="#bcd0ff" />
-        <Lightformer intensity={0.9} position={[0, 2.5, -8]} scale={[4, 5, 1]} color="#ff7a1a" />
-        <Lightformer intensity={0.7} position={[8, 4, 0]} rotation-y={-Math.PI / 2} scale={[8, 3, 1]} color="#fff1dd" />
-      </Environment>
+      {/* drifting dust: cool ambient + warm near the door */}
+      <Sparkles
+        count={140}
+        scale={[16, 7, 14]}
+        position={[0, 3, -1]}
+        size={1.6}
+        speed={reduced ? 0 : 0.25}
+        opacity={0.35}
+        color="#9fb8ff"
+      />
+      <Sparkles
+        count={70}
+        scale={[4, 5, 3]}
+        position={[0, 2, -4.6]}
+        size={2.2}
+        speed={reduced ? 0 : 0.45}
+        opacity={0.5}
+        color="#ffb37a"
+      />
 
       <EffectComposer multisampling={0}>
-        <Bloom mipmapBlur intensity={1.15} luminanceThreshold={1} luminanceSmoothing={0.2} />
+        {/* the wrapper types its ref as the class, not the instance */}
+        <Bloom
+          ref={bloom as unknown as Ref<typeof BloomEffect>}
+          mipmapBlur
+          intensity={BLOOM_REST}
+          luminanceThreshold={1}
+          luminanceSmoothing={0.2}
+        />
         <Vignette eskil={false} offset={0.18} darkness={0.72} />
       </EffectComposer>
     </Canvas>

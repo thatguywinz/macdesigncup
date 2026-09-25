@@ -1,0 +1,29 @@
+# Mackenzie Design Cup 2026
+
+> The Mackenzie Design Cup is a one-day 3D design competition for TDSB high school students in grades 9 to 12, on Monday, November 16, 2026, at Limberlost Place, George Brown Polytechnic, in Toronto. We're the WLMAC 3D Design Club at William Lyon Mackenzie Collegiate Institute, and we run it.
+
+- **Who can enter?** Any Toronto District School Board (TDSB) high school student in grades 9 to 12 can enter the Mackenzie Design Cup. You don't need to be in a design club or have competed before. You do need a teacher from your school to come with you on the day.
+- **What does it cost?** We haven't set the Mackenzie Design Cup's entry cost yet: entry will be free or a small fee. Everyone who registers hears the final answer first.
+- **Can I register myself?** Yes. Pick Student on the registration form and fill in your details. It asks for the name and email of the teacher from your school who will come with you, so talk to them before you sign up.
+- **How do I register my students?** Pick Teacher on the registration form at www.macdesigncup.ca/register, and one form covers your whole group. It asks for your school, how many students you're bringing, and their names and grades; student emails are optional.
+- **Do students need a teacher with them?** Yes. Every student at the Mackenzie Design Cup needs a teacher from their own school with them on the day.
+- **When is it?** The Mackenzie Design Cup is on Monday, November 16, 2026. Doors open at 8:00 AM at Limberlost Place, and the whole competition runs in one day.
+- **Where is it?** The Mackenzie Design Cup is at Limberlost Place, 185 Queens Quay East, Toronto, ON M5A 1B6, on George Brown Polytechnic's Waterfront Campus. Before the day, we email directions to everyone who registers.
+- **What time does the day end?** The Mackenzie Design Cup ends at 4:00 PM on our working schedule, after the closing ceremony and awards from 3:30 PM. Everyone who registers gets the final schedule before Monday, November 16, 2026.
+- **What can I win?** First place at the Mackenzie Design Cup takes home a Snapmaker J1S 3D printer valued at $1,500, plus six spools of filament to keep it running, from Shop3D.ca. That tops a $10,000+ prize table that also has 10 Scrimba subscriptions, 10 Aseprite software licences and 3D printing materials from Stratasys up for grabs. Every builder also gets an Ansys Discovery / Mechanical licence, Solid Edge and Altair software from Siemens and TriMech, swag to take home, food all day at the venue and their own name tag.
+- **Do I need to know 3D software?** You should have some 3D design knowledge: enough to open a tool and model a simple object. Beyond that, you're free to use any software you want. Blender, Fusion 360, Onshape, Tinkercad, Maya: if you can build in it, you can compete in it.
+- **Can students compete in teams?** Solo entry is set for the Mackenzie Design Cup. We haven't decided yet whether teams also run this year, and we email the team rules to everyone who registers once we decide.
+- **What will I build?** You get the Mackenzie Design Cup's theme on the morning of the event and design a 3D response to it, start to finish: concept, blockout, model, final render. What it becomes is your call: a product, a space, a creature, a machine.
+- **What do students need to bring?** Every student at the Mackenzie Design Cup brings a laptop, its charger and the 3D software they build fastest in, already installed.
+- **Is food provided for students?** Yes. Every student competing gets food all day at Limberlost Place, from George Brown Polytechnic.
+- **How do I contact the organizers?** Email the WLMAC 3D Design Club at wlmac.3ddesignclub@gmail.com. We're the student club at William Lyon Mackenzie Collegiate Institute that runs the Mackenzie Design Cup, and we read everything.
+
+## Pages
+
+- [Home](https://www.macdesigncup.ca/): $10,000+ in prizes: our one-day 3D design competition for TDSB high school students and their teachers is Monday, November 16, 2026, at George Brown Polytechnic.
+- [Registration](https://www.macdesigncup.ca/register): Teachers, register your whole group on one form. Students, sign yourself up, then bring a teacher from your school with you on Monday, November 16, 2026.
+- [Partner](https://www.macdesigncup.ca/partner): Put your company in front of TDSB students who design in 3D. We need sponsors, mentors, judges and speakers for Monday, November 16, 2026, in Toronto.
+
+## Contact
+
+- [Email the organizers](mailto:wlmac.3ddesignclub@gmail.com): wlmac.3ddesignclub@gmail.com

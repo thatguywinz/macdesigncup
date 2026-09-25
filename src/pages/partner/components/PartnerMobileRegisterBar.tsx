@@ -1,4 +1,5 @@
 import { PARTNER_REGISTRATION_URL } from "@/config/site";
+import { NAV } from "@/content/copy";
 
 /** Sticky bottom CTA — mobile only. */
 export default function PartnerMobileRegisterBar() {
@@ -10,11 +11,12 @@ export default function PartnerMobileRegisterBar() {
       {/* "← Main site" moved into the menu; this bar holds the one CTA. */}
       <a
         href={PARTNER_REGISTRATION_URL}
-        className="btn-portal w-full whitespace-nowrap px-4 py-3.5 text-xs"
+        className="btn-portal focus-ember w-full whitespace-nowrap px-4 py-3.5 text-xs"
         target="_blank"
         rel="noopener noreferrer"
       >
         Partner with MDC ↗
+        <span className="sr-only"> {NAV.newTab}</span>
       </a>
     </div>
   );

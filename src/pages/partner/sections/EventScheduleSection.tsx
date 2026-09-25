@@ -1,77 +1,97 @@
-import { motion, useReducedMotion } from "framer-motion";
+import { motion } from "framer-motion";
+import { cn } from "@/lib/utils";
+import Sheet from "@/components/blueprint/Sheet";
+import DisplayHeading from "@/components/motion/DisplayHeading";
+import { DURATION, EASE, VIEWPORT_ONCE } from "@/components/motion/tokens";
+import { useReducedMotionSafe } from "@/hooks/useReducedMotionSafe";
 
-const EASE = [0.22, 1, 0.36, 1];
+// Working times; `min` is each block's length, which sizes it on the day bar.
+const SCHEDULE = [
+  { time: "8:00 AM", title: "Partner check-in and setup", min: 60 },
+  { time: "9:00 AM", title: "Opening ceremony", min: 30 },
+  { time: "9:30 AM", title: "Design session I", min: 150, design: true },
+  { time: "12:00 PM", title: "Lunch for speakers, mentors, judges", min: 60 },
+  { time: "1:00 PM", title: "Design session II", min: 90, design: true },
+  { time: "2:30 PM", title: "Judging and presentations", min: 60 },
+  { time: "3:30 PM", title: "Closing and awards", min: 30 },
+] as const;
+const END = "4:00 PM";
 
+/**
+ * The day as one drafted strip, 8:00 AM to 4:00 PM. From md each block is
+ * sized by its length (design sessions in ember, the rest hatched) with its
+ * start time and title under it; phones read the same list down a rail.
+ * The list itself is the schedule (no table repeating it).
+ */
 export default function EventScheduleSection() {
-  const reduce = useReducedMotion();
-
-  const reveal = (delay = 0) => ({
-    initial: reduce ? false : ({ y: 16 } as const),
-    whileInView: { y: 0 },
-    viewport: { once: true, margin: "-80px" } as const,
-    transition: { duration: 0.8, ease: EASE, delay },
-  });
-
-  const schedule = [
-    { time: "8:00 AM – 9:00 AM", activity: "Partner check-in, setup, and coffee" },
-    { time: "9:00 AM – 9:30 AM", activity: "Opening Ceremony" },
-    { time: "9:30 AM – 12:00 PM", activity: "Design Session I" },
-    { time: "12:00 PM – 1:00 PM", activity: "Lunch for speakers, mentors, and judges" },
-    { time: "1:00 PM – 2:30 PM", activity: "Design Session II" },
-    { time: "2:30 PM – 3:30 PM", activity: "Competition Judging & Student Presentations" },
-    { time: "3:30 PM – 4:00 PM", activity: "Closing Ceremony & Awards" },
-  ];
-
+  const reduced = useReducedMotionSafe();
   return (
-    <section id="schedule" className="relative z-10 border-t border-line px-5 py-24 md:px-10 md:py-32">
-      <div className="mx-auto max-w-[1300px]">
-        {/* header */}
-        <div className="mb-6 flex items-baseline gap-4">
-          <span className="mono-label whitespace-nowrap !text-foreground/70">The day</span>
-          <span className="ember-rule flex-1 opacity-40" aria-hidden="true" />
-        </div>
-
-        <motion.h2 {...reveal()} className="display-scene mb-8">
-          <span className="block">Event</span>
-          <span className="wire-text block">schedule.</span>
-        </motion.h2>
-
-        <motion.p
-          {...reveal(0.1)}
-          className="max-w-xl font-body text-base font-light leading-relaxed text-concrete"
-        >
-          Working times for November 16. Confirmed partners receive the final run-of-day.
-        </motion.p>
-
-        {/* table */}
-        <motion.div {...reveal(0.18)} className="mt-12 overflow-x-auto">
-          <table className="w-full border-collapse text-left">
-            <caption className="sr-only">Partner schedule for Mackenzie Design Cup 2026</caption>
-            <thead>
-              <tr>
-                <th className="px-4 py-3 text-[11px] font-mono uppercase tracking-[0.22em] text-concrete/70">
-                  Time
-                </th>
-                <th className="px-4 py-3 text-[11px] font-mono uppercase tracking-[0.22em] text-concrete/70">
-                  Activity
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-line">
-              {schedule.map((row) => (
-                <tr key={row.time} className="transition-colors hover:bg-white/[0.02]">
-                  <td className="whitespace-nowrap px-4 py-4 font-mono text-[11px] uppercase tracking-[0.16em] text-concrete">
-                    {row.time}
-                  </td>
-                  <td className="px-4 py-4 text-sm text-foreground md:text-base">
-                    {row.activity}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </motion.div>
+    <Sheet id="schedule" eyebrow="The day">
+      <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-3">
+        <DisplayHeading lines={["Event schedule."]} outline="schedule." />
+        <p className="flex items-center gap-2.5 font-mono text-[10px] uppercase tracking-[0.28em] text-concrete">
+          <span aria-hidden="true" className="h-1.5 w-1.5 shrink-0 rotate-45 border border-ember" />
+          Working times · Nov 16
+        </p>
       </div>
-    </section>
+
+      <div className="relative mt-8 md:mt-14">
+      <motion.ol
+        data-reveal=""
+        className="md:flex"
+        initial={{ opacity: 0 }}
+        whileInView={{ opacity: 1 }}
+        animate={reduced ? { opacity: 1 } : undefined}
+        viewport={VIEWPORT_ONCE}
+        transition={{ duration: DURATION.reveal, ease: EASE }}
+      >
+        {SCHEDULE.map((row, i) => {
+          const design = "design" in row;
+          return (
+            <li
+              key={row.time}
+              style={{ flexGrow: row.min, flexBasis: 0 }}
+              className="relative grid min-w-0 grid-cols-[4.75rem_12px_minmax(0,1fr)] gap-x-4 md:block"
+            >
+              <p className="py-2.5 font-mono text-[11px] uppercase tracking-[0.12em] text-ember md:hidden">{row.time}</p>
+              {/* The block: a rail segment on phones, the bar from md. */}
+              <motion.span
+                aria-hidden="true"
+                data-reveal=""
+                className={cn(
+                  "block origin-top border-foreground/25 max-md:border-x md:h-11 md:origin-left md:border-y md:border-l",
+                  i === SCHEDULE.length - 1 && "md:border-r",
+                  i === SCHEDULE.length - 1 && "max-md:border-b",
+                  "max-md:border-t",
+                  design ? "bg-ember/75" : "draft-hatch",
+                )}
+                initial={{ scale: 0.001 }}
+                whileInView={{ scale: 1 }}
+                animate={reduced ? { scale: 1 } : undefined}
+                viewport={VIEWPORT_ONCE}
+                transition={reduced ? { duration: 0 } : { duration: DURATION.draw * 0.5, ease: EASE, delay: 0.1 + i * 0.1 }}
+              />
+              <div className="py-2.5 md:py-0 md:pr-3 md:pt-3">
+                <p className="hidden font-mono text-[10px] uppercase tracking-[0.12em] text-ember md:block">{row.time}</p>
+                <p
+                  className={cn(
+                    "font-display text-[1.05rem] uppercase leading-[1.05] md:mt-1.5 md:text-[0.95rem] lg:text-[1.1rem] xl:text-[1.25rem]",
+                    design ? "text-foreground" : "text-foreground/85",
+                  )}
+                >
+                  {row.title}
+                </p>
+              </div>
+            </li>
+          );
+        })}
+      </motion.ol>
+      {/* The day's end: over the bar's right end from md, under the rail on phones. */}
+      <p className="mt-2 grid grid-cols-[4.75rem_minmax(0,1fr)] gap-x-4 font-mono text-[11px] uppercase tracking-[0.12em] text-concrete md:absolute md:right-0 md:top-0 md:mt-0 md:block md:-translate-y-[calc(100%+0.5rem)] md:text-[10px]">
+        {END}
+        <span className="md:hidden">End of day</span>
+      </p>
+      </div>
+    </Sheet>
   );
 }

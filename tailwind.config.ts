@@ -15,7 +15,7 @@ export default {
     },
     fontFamily: {
       display: ['"Anton"', 'system-ui', 'sans-serif'],
-      body: ['"Inter"', 'system-ui', 'sans-serif'],
+      body: ['"Archivo Variable"', 'system-ui', 'sans-serif'],
       mono: ['"Space Mono"', 'ui-monospace', 'monospace'],
     },
     extend: {
@@ -87,24 +87,10 @@ export default {
           from: { height: "var(--radix-accordion-content-height)" },
           to: { height: "0" },
         },
-        "origin-pulse": {
-          "0%, 100%": { opacity: "1", transform: "scale(1)" },
-          "50%": { opacity: "0.55", transform: "scale(0.82)" },
-        },
-        "scroll-cue": {
-          "0%, 100%": { transform: "translateY(0)", opacity: "0.4" },
-          "50%": { transform: "translateY(6px)", opacity: "1" },
-        },
-        "dash-draw": {
-          from: { strokeDashoffset: "1" },
-          to: { strokeDashoffset: "0" },
-        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
-        "origin-pulse": "origin-pulse 2.4s ease-in-out infinite",
-        "scroll-cue": "scroll-cue 1.8s ease-in-out infinite",
       },
     },
   },

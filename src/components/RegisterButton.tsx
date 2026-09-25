@@ -1,36 +1,40 @@
+import type { ComponentPropsWithoutRef, ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
-import { REGISTRATION_URL } from "@/config/site";
+import { REGISTER_PATH } from "@/config/site";
+import { CTA } from "@/content/copy";
 
-interface RegisterButtonProps {
-  children?: React.ReactNode;
+export interface RegisterButtonProps extends Omit<ComponentPropsWithoutRef<"a">, "href" | "children"> {
+  /** Button text. Default `CTA.register` ("Register now"); keep it verbatim. */
+  children?: ReactNode;
+  /** `"solid"` = `.btn-portal` (default), `"ghost"` = `.btn-ghost`. */
   variant?: "solid" | "ghost";
   className?: string;
 }
 
 /**
- * The single, working primary CTA. Resolves to REGISTRATION_URL — the live
- * Tally registration form, opened in a new tab. The internal-route branch
- * stays only in case registration ever moves back in-app.
+ * The one Register button. Every instance is an in-app link to
+ * REGISTER_PATH (`/register`), which explains who registers and embeds the
+ * live Tally form. Size and visibility come from `className` (padding,
+ * `hidden md:inline-flex`, …); other anchor props (`onClick`,
+ * `aria-describedby`, …) pass through.
+ *
+ * @example
+ * <RegisterButton className="px-8 py-4" />
  */
 export default function RegisterButton({
-  children = "Register",
+  children = CTA.register,
   variant = "solid",
   className,
+  ...rest
 }: RegisterButtonProps) {
-  const isInternal = REGISTRATION_URL.startsWith("/");
-  const cls = cn(variant === "solid" ? "btn-portal" : "btn-ghost", className);
-
-  if (isInternal) {
-    return (
-      <Link to={REGISTRATION_URL} className={cls}>
-        {children}
-      </Link>
-    );
-  }
   return (
-    <a href={REGISTRATION_URL} target="_blank" rel="noreferrer" className={cls}>
+    <Link
+      {...rest}
+      to={REGISTER_PATH}
+      className={cn(variant === "solid" ? "btn-portal" : "btn-ghost", "focus-ember", className)}
+    >
       {children}
-    </a>
+    </Link>
   );
 }

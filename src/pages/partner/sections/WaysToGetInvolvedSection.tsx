@@ -1,58 +1,57 @@
-import { motion, useReducedMotion } from "framer-motion";
-
-const EASE = [0.22, 1, 0.36, 1];
+import { Gavel, HandCoins, MessagesSquare, Mic, Package, Presentation } from "lucide-react";
+import Sheet from "@/components/blueprint/Sheet";
+import DisplayHeading from "@/components/motion/DisplayHeading";
+import Reveal from "@/components/motion/Reveal";
+import { cn } from "@/lib/utils";
 
 const OPTIONS = [
-  ["Speak", "Share a short opening or closing talk."],
-  ["Mentor", "Give practical feedback on the design floor."],
-  ["Judge", "Review final student presentations."],
-  ["Exhibit", "Show a product, project, or live demo."],
-  ["Contribute", "Provide tools, software, materials, swag, or prizes."],
-  ["Sponsor", "Help cover food, venue, and event costs."],
+  { title: "Speak", line: "An opening or closing talk", Icon: Mic },
+  { title: "Mentor", line: "Feedback on the design floor", Icon: MessagesSquare },
+  { title: "Judge", line: "The final presentations", Icon: Gavel },
+  { title: "Exhibit", line: "A product or live demo", Icon: Presentation },
+  { title: "Contribute", line: "Tools, software, swag or prizes", Icon: Package },
+  { title: "Sponsor", line: "Food, venue and event costs", Icon: HandCoins },
 ] as const;
 
+/**
+ * Ways to take part as icon tiles on one ruled grid (two across on phones,
+ * three from md): an icon in a drafted square, a one-word role, one short
+ * line. Join one session or the whole day.
+ */
 export default function WaysToGetInvolvedSection() {
-  const reduce = useReducedMotion();
-
-  const reveal = (delay = 0) => ({
-    initial: reduce ? false : ({ y: 16 } as const),
-    whileInView: { y: 0 },
-    viewport: { once: true, margin: "-80px" } as const,
-    transition: { duration: 0.8, ease: EASE, delay },
-  });
-
   return (
-    <section id="involvement" className="relative z-10 border-t border-line px-5 py-24 md:px-10 md:py-32">
-      <div className="mx-auto max-w-[1300px]">
-        <div className="mb-6 flex items-baseline gap-4">
-          <span className="mono-label whitespace-nowrap !text-foreground/70">Ways to take part</span>
-          <span className="ember-rule flex-1 opacity-40" aria-hidden="true" />
-        </div>
+    <Sheet id="involvement" eyebrow="Ways to take part">
+      <DisplayHeading lines={["Choose your role."]} outline="role." />
 
-        <div className="grid gap-12 lg:grid-cols-[0.8fr_1.2fr] lg:gap-20">
-          <div>
-            <motion.h2 {...reveal()} className="display-scene text-balance">
-              <span className="block">Choose your</span>
-              <span className="wire-text block">role.</span>
-            </motion.h2>
-            <motion.p {...reveal(0.08)} className="mt-8 max-w-md font-body text-base font-light leading-relaxed text-concrete">
-              Join one session or the full day. We will work around your team.
-            </motion.p>
-          </div>
-
-          <motion.div {...reveal(0.14)} className="grid border-t border-line sm:grid-cols-2">
-            {OPTIONS.map(([title, description], index) => (
-              <div
-                key={title}
-                className={`border-b border-line py-6 sm:px-6 ${index % 2 === 0 ? "sm:border-r" : ""}`}
-              >
-                <h3 className="font-display text-2xl uppercase tracking-[0.01em] text-foreground">{title}</h3>
-                <p className="mt-2 max-w-sm text-sm leading-relaxed text-concrete md:text-base">{description}</p>
-              </div>
-            ))}
-          </motion.div>
-        </div>
-      </div>
-    </section>
+      <ul className="mt-8 grid grid-cols-2 border-l border-t border-bone/15 md:mt-12 md:grid-cols-3">
+        {OPTIONS.map(({ title, line, Icon }, i) => (
+          <Reveal
+            as="li"
+            key={title}
+            delay={0.05 * i}
+            y={12}
+            className="group relative flex flex-col gap-3 border-b border-r border-bone/15 p-4 sm:p-6 md:flex-row md:items-center md:gap-6 md:p-8"
+          >
+            <span
+              aria-hidden="true"
+              className={cn(
+                "relative flex size-12 shrink-0 items-center justify-center border text-ember md:size-16",
+                "border-bone/25 [background:linear-gradient(hsl(var(--bone)/0.12),hsl(var(--bone)/0.12))_center/100%_1px_no-repeat,linear-gradient(hsl(var(--bone)/0.12),hsl(var(--bone)/0.12))_center/1px_100%_no-repeat]",
+              )}
+            >
+              <span className="flex size-9 items-center justify-center bg-background md:size-11">
+                <Icon strokeWidth={1.5} className="size-5 md:size-7" />
+              </span>
+            </span>
+            <div className="min-w-0">
+              <h3 className="font-display text-[1.45rem] uppercase leading-none text-foreground md:text-[2rem]">{title}</h3>
+              <p className="mt-1.5 text-pretty font-body text-[13px] font-light leading-snug text-concrete md:text-[15px]">
+                {line}
+              </p>
+            </div>
+          </Reveal>
+        ))}
+      </ul>
+    </Sheet>
   );
 }

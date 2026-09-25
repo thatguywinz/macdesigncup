@@ -1,14 +1,24 @@
-@import url('https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@300;400;500;600&family=Space+Mono:wght@400;700&display=swap');
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 /* ─────────────────────────────────────────────
-   MAC DESIGN CUP 2026 — "THE GALLERY"
+   MAC DESIGN CUP 2026 · "THE GALLERY", NOW A DRAFTING HALL
    A dark concrete exhibition hall. Bone-cream condensed type,
    molten ember portal light, electric-blue neon floor lines.
-   Cinematic, pristine, 3D.
+   Its walls carry technical drawings: a faint drafting grid, crop marks,
+   sheet labels, dimension lines and wireframe solids in 1px bone ink at
+   6 to 16% opacity, with sparing ember accents. Decoration never competes
+   with content.
+
+   Fonts are self-hosted through @fontsource (imported in src/main.tsx):
+   Anton 400 (display), Space Mono 400/700 (labels), Archivo Variable (body).
+   No third-party font request.
+
+   OWNERSHIP: after the Foundation phase this file belongs to nobody. Put new
+   styles in component-local .css files or Tailwind classes; the global
+   utilities below (draft-*, crop-mark, sheet-label, dim-*, anchor-alias,
+   focus-ember) are the shared contract. See the spec, section 9.
 ───────────────────────────────────────────── */
 @layer base {
   :root {
@@ -52,6 +62,19 @@
     --line: 220 6% 14%;              /* faint seam in the concrete     */
 
     --noise-opacity: 0.05;
+
+    /* Drafting-hall ink. Every drawn line is bone at one of these alphas;
+       `hsl(var(--draft-ink) / var(--draft-soft))`. Ember is the only accent. */
+    --draft-ink: var(--bone);
+    --draft-grid-minor: 0.022;       /* 8px grid                        */
+    --draft-grid-major: 0.045;       /* 64px grid                       */
+    --draft-faint: 0.07;             /* construction lines, rulers      */
+    --draft-soft: 0.13;              /* wireframes, dimension lines     */
+    --draft-strong: 0.22;            /* crop marks, ticks you should see */
+    --draft-ember: 0.6;              /* the one accent edge per drawing */
+
+    /* Fixed nav height, for sticky offsets and html scroll-padding-top. */
+    --nav-h: 4.5rem;
   }
 }
 
@@ -61,12 +84,21 @@
   html {
     scroll-behavior: smooth;
     background: hsl(var(--background));
+    /* framer's useScroll({ target }) measures offsets against the scrolling
+       root and wants it positioned; this also silences its dev warning. */
+    position: relative;
+    /* Everything the browser scrolls into view (anchor jumps, scrollIntoView,
+       keyboard focus, Page Down) clears the fixed nav. Set once here, never as
+       scroll-margin on the targets: the two would add together. Code that
+       computes its own scroll position (window.scrollTo) reads this value. */
+    scroll-padding-top: calc(var(--nav-h) + 1rem);
   }
 
-  /* Anchor targets clear the fixed nav instead of sliding under it. */
-  section[id],
-  main[id] {
-    scroll-margin-top: 5.5rem;
+  /* Phones: keyboard focus never lands under the sticky Register bar either. */
+  @media (max-width: 767px) {
+    html {
+      scroll-padding-bottom: calc(4.5rem + env(safe-area-inset-bottom));
+    }
   }
 
   body {
@@ -75,7 +107,11 @@
     text-rendering: optimizeLegibility;
   }
 
-  h1, h2, h3, h4, h5, h6 { @apply font-display; }
+  h1, h2, h3, h4, h5, h6 { @apply font-display; text-wrap: balance; }
+
+  /* No one-word last lines in body copy ("…with you on the / day."). A class
+     that sets white-space (nowrap labels) still wins over this. */
+  p, li, dd { text-wrap: pretty; }
 
   ::selection {
     background: hsl(var(--ember));
@@ -104,13 +140,21 @@
     font-size: clamp(3.2rem, 1rem + 9.5vw, 10.5rem);
   }
 
+  /* Section headings. Sized so a copy-deck line ("Blank file in the
+     morning.") holds one line on desktop instead of stacking four. */
   .display-scene {
     @apply display-giant;
-    font-size: clamp(2.4rem, 1rem + 6vw, 6.5rem);
+    font-size: clamp(2.5rem, 0.9rem + 4.6vw, 5.5rem);
+  }
+
+  /* One line of a <DisplayHeading>: the band the line rises into. Clipped
+     just below the baseline band; generous above and to the sides so tall
+     caps, the comma's tail and the wire stroke are never shaved at rest. */
+  .display-line {
+    clip-path: inset(-0.4em -0.3em -0.14em -0.3em);
   }
 
   .text-ember  { color: hsl(var(--ember)); }
-  .text-neon   { color: hsl(var(--neon)); }
 
   /* Outlined "unrendered" word */
   .wire-text {
@@ -129,10 +173,6 @@
     background-clip: text;
     color: transparent;
   }
-
-  /* Legacy hooks kept so nothing dangles */
-  .text-gradient { color: hsl(var(--bone)); }
-  .text-glow { text-shadow: 0 0 24px hsl(var(--ember) / 0.45); }
 
   /* ── Buttons ────────────────────────────────── */
   /* The portal CTA — molten door in miniature */
@@ -168,21 +208,8 @@
     box-shadow: 0 0 20px hsl(var(--ember) / 0.25);
   }
 
-  /* Back-compat alias — a few older components use .btn-register */
-  .btn-register { @apply btn-portal; }
-
   /* ── Surfaces ───────────────────────────────── */
-  .concrete-panel {
-    background: linear-gradient(160deg, hsl(220 7% 8%) 0%, hsl(220 8% 5%) 100%);
-    border: 1px solid hsl(var(--line));
-  }
-
-  /* Thin electric floor line — section divider */
-  .neon-rule {
-    height: 1px;
-    background: linear-gradient(90deg, transparent, hsl(var(--neon) / 0.9) 20%, hsl(var(--neon) / 0.9) 80%, transparent);
-    box-shadow: 0 0 12px hsl(var(--neon) / 0.55);
-  }
+  /* Thin molten seam (the footer's top edge, the countdown plate). */
   .ember-rule {
     height: 1px;
     background: linear-gradient(90deg, transparent, hsl(var(--ember) / 0.9) 20%, hsl(var(--ember) / 0.9) 80%, transparent);
@@ -205,10 +232,202 @@
     transform: scale(1.045);
   }
 
-  /* Logos leave the rail by fading, not by being sliced at the border. */
-  .sponsor-rail {
-    -webkit-mask-image: linear-gradient(90deg, transparent, #000 5%, #000 95%, transparent);
-    mask-image: linear-gradient(90deg, transparent, #000 5%, #000 95%, transparent);
+  /* ── Drafting hall ──────────────────────────────
+     Shared drawing vocabulary. All of it is decorative: pair with
+     aria-hidden="true" and pointer-events: none (built in where it matters). */
+
+  /* Two-level drafting grid (minor 8px, major 64px). Override the pitch with
+     --grid-minor / --grid-major, the ink with the --draft-grid-* alphas. */
+  .draft-grid {
+    --grid-minor: 8px;
+    --grid-major: 64px;
+    background-image:
+      linear-gradient(to right, hsl(var(--draft-ink) / var(--draft-grid-major)) 1px, transparent 1px),
+      linear-gradient(to bottom, hsl(var(--draft-ink) / var(--draft-grid-major)) 1px, transparent 1px),
+      linear-gradient(to right, hsl(var(--draft-ink) / var(--draft-grid-minor)) 1px, transparent 1px),
+      linear-gradient(to bottom, hsl(var(--draft-ink) / var(--draft-grid-minor)) 1px, transparent 1px);
+    background-size:
+      var(--grid-major) var(--grid-major),
+      var(--grid-major) var(--grid-major),
+      var(--grid-minor) var(--grid-minor),
+      var(--grid-minor) var(--grid-minor);
+  }
+  /* Fade any grid out toward the edges (the backdrop uses this). */
+  .draft-grid-fade {
+    -webkit-mask-image: radial-gradient(ellipse 75% 65% at 50% 45%, #000 20%, transparent 100%);
+    mask-image: radial-gradient(ellipse 75% 65% at 50% 45%, #000 20%, transparent 100%);
+  }
+
+  /* A local drawing plate for an illustration (printer drawing, form sheet):
+     hairline border plus a slightly stronger, coarser grid. */
+  .draft-panel {
+    position: relative;
+    border: 1px solid hsl(var(--draft-ink) / var(--draft-faint));
+    background-color: hsl(var(--background) / 0.55);
+    background-image:
+      linear-gradient(to right, hsl(var(--draft-ink) / 0.05) 1px, transparent 1px),
+      linear-gradient(to bottom, hsl(var(--draft-ink) / 0.05) 1px, transparent 1px),
+      linear-gradient(to right, hsl(var(--draft-ink) / 0.025) 1px, transparent 1px),
+      linear-gradient(to bottom, hsl(var(--draft-ink) / 0.025) 1px, transparent 1px);
+    background-size: 80px 80px, 80px 80px, 16px 16px, 16px 16px;
+    background-position: -1px -1px;
+  }
+
+  /* Section-cut hatching (45deg), e.g. for an empty or reserved cell. */
+  .draft-hatch {
+    background-image: repeating-linear-gradient(
+      135deg,
+      hsl(var(--draft-ink) / var(--draft-faint)) 0 1px,
+      transparent 1px 7px
+    );
+  }
+
+  /* SVG ink. Stroke only, never filled. Width stays with the element's
+     stroke-width attribute (SVG default 1). Butt caps on purpose: a round cap
+     shows a dot at the start of a line that has not drawn yet. */
+  .draft-stroke,
+  .draft-stroke-faint,
+  .draft-stroke-strong,
+  .draft-stroke-ember {
+    fill: none;
+    stroke-linejoin: round;
+  }
+  .draft-stroke        { stroke: hsl(var(--draft-ink) / var(--draft-soft)); }
+  .draft-stroke-faint  { stroke: hsl(var(--draft-ink) / var(--draft-faint)); }
+  .draft-stroke-strong { stroke: hsl(var(--draft-ink) / var(--draft-strong)); }
+  .draft-stroke-ember  { stroke: hsl(var(--ember) / var(--draft-ember)); }
+
+  /* Printer's crop marks: two short hairlines just outside a trim corner,
+     never touching it. Place a zero-size .crop-mark on the corner point;
+     the modifier says which corner it is. Tune with --crop-len / --crop-gap. */
+  .crop-mark {
+    position: absolute;
+    width: 0;
+    height: 0;
+    pointer-events: none;
+    --crop-len: 14px;
+    --crop-gap: 6px;
+  }
+  .crop-mark::before,
+  .crop-mark::after {
+    content: "";
+    position: absolute;
+    background: hsl(var(--draft-ink) / var(--draft-strong));
+  }
+  .crop-mark::before { top: 0; height: 1px; width: var(--crop-len); }
+  .crop-mark::after  { left: 0; width: 1px; height: var(--crop-len); }
+  .crop-mark--tl::before, .crop-mark--bl::before { right: var(--crop-gap); }
+  .crop-mark--tr::before, .crop-mark--br::before { left: var(--crop-gap); }
+  .crop-mark--tl::after,  .crop-mark--tr::after  { bottom: var(--crop-gap); }
+  .crop-mark--bl::after,  .crop-mark--br::after  { top: var(--crop-gap); }
+
+  /* The mono sheet label in a drawing's corner: "SHEET 02 / 06 · PRIZES · 1:1". */
+  .sheet-label {
+    font-family: "Space Mono", ui-monospace, monospace;
+    font-size: 10px;
+    line-height: 1;
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    color: hsl(var(--concrete) / 0.62);
+  }
+  /* A purely decorative label (sheet numbers, model numbers) is written as
+     data-label and drawn here, so it never reaches the page text. Text that
+     carries meaning (a figure caption) stays in the markup at a legible
+     contrast instead. */
+  .sheet-label[data-label]::before { content: attr(data-label); }
+
+  /* Vertical ruler: ticks growing right from a hairline spine (8px minor,
+     32px mid, 64px major). Give it a height. */
+  .draft-ruler-y {
+    width: 12px;
+    border-left: 1px solid hsl(var(--draft-ink) / var(--draft-faint));
+    background-image:
+      linear-gradient(to bottom, hsl(var(--draft-ink) / var(--draft-strong)) 1px, transparent 1px),
+      linear-gradient(to bottom, hsl(var(--draft-ink) / var(--draft-soft)) 1px, transparent 1px),
+      linear-gradient(to bottom, hsl(var(--draft-ink) / var(--draft-faint)) 1px, transparent 1px);
+    background-size: 12px 64px, 8px 32px, 4px 8px;
+    background-repeat: repeat-y;
+  }
+
+  /* CAD dimension line (used by <Dimension>): extension ticks, 45deg
+     architectural slashes at both ends, the label sitting in a break. */
+  .dim {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    color: hsl(var(--concrete) / 0.8);
+    pointer-events: none;
+    --dim-ink: hsl(var(--draft-ink) / var(--draft-strong));
+  }
+  .dim--ember { --dim-ink: hsl(var(--ember) / var(--draft-ember)); color: hsl(var(--ember) / 0.85); }
+  .dim--v { flex-direction: column; }
+  .dim-line { flex: 1 1 0%; background: var(--dim-ink); }
+  .dim:not(.dim--v) .dim-line { height: 1px; }
+  .dim--v .dim-line { width: 1px; }
+  .dim-end { position: absolute; background: var(--dim-ink); }
+  .dim:not(.dim--v) .dim-end { top: 50%; width: 1px; height: 13px; margin-top: -6.5px; }
+  .dim:not(.dim--v) .dim-end--a { left: 0; }
+  .dim:not(.dim--v) .dim-end--b { right: 0; }
+  .dim--v .dim-end { left: 50%; height: 1px; width: 13px; margin-left: -6.5px; }
+  .dim--v .dim-end--a { top: 0; }
+  .dim--v .dim-end--b { bottom: 0; }
+  .dim-end::after {
+    /* the architectural slash through the end point */
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 1px;
+    height: 9px;
+    margin: -4.5px 0 0 -0.5px;
+    background: var(--dim-ink);
+    transform: rotate(45deg);
+  }
+  .dim-label {
+    flex: none;
+    font-family: "Space Mono", ui-monospace, monospace;
+    font-size: 10px;
+    line-height: 1;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+  .dim--v .dim-label {
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+  }
+
+  /* <WireSolid> ink. Tune per instance with --wire-a (edge alpha) or `color`. */
+  .wire-solid {
+    --wire-a: 0.16;
+    color: hsl(var(--bone));
+  }
+  .wire-solid-edge,
+  .wire-solid-hidden,
+  .wire-solid-accent {
+    fill: none;
+    stroke-width: 1;
+    stroke-linejoin: round;
+  }
+  .wire-solid-edge   { stroke: currentColor; stroke-opacity: var(--wire-a); }
+  .wire-solid-hidden { stroke: currentColor; stroke-opacity: calc(var(--wire-a) * 0.65); }
+  .wire-solid-dashed { stroke-dasharray: 2 4; }
+  .wire-solid-accent { stroke: hsl(var(--ember)); stroke-opacity: calc(var(--wire-a) * 4); }
+
+  /* An empty anchor that aliases an old link (#why, #timeline) to a sheet.
+     The nav clearance comes from html's scroll-padding-top. */
+  .anchor-alias {
+    display: block;
+    height: 0;
+    overflow: hidden;
+  }
+
+  /* The site's focus ring: 1px ember, offset. Use on custom controls. */
+  .focus-ember:focus-visible {
+    outline: 1px solid hsl(var(--ember));
+    outline-offset: 3px;
   }
 
   /* ── Textures ───────────────────────────────── */
@@ -228,94 +447,6 @@
   }
 }
 
-/* ── Hero gate CTA (lives inside the 3D canvas via drei <Html>) ──── */
-.hero-cta {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  transition: opacity 0.5s ease;
-}
-.hero-cta[data-entering] { opacity: 0; pointer-events: none; }
-
-.hero-cta button {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.1em;
-  padding: 1.1rem 1.6rem;
-  font-family: "Anton", system-ui, sans-serif;
-  font-size: clamp(0.9rem, 1.5vw, 1.35rem);
-  line-height: 1.04;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: hsl(42 60% 95%);
-  background: transparent;
-  border: 1px solid hsl(42 60% 92% / 0.55);
-  cursor: pointer;
-  text-shadow: 0 2px 14px hsl(14 90% 18% / 0.9);
-  transition: background 0.3s ease, border-color 0.3s ease;
-  animation: ember-flicker 3.4s infinite;
-}
-/* Oversized invisible hit area: the camera drifts with the cursor, so without
-   this, hover flickers on and off at the button's edges. */
-.hero-cta button::after {
-  content: "";
-  position: absolute;
-  inset: -18px -26px;
-}
-.hero-cta button:hover,
-.hero-cta button:focus-visible {
-  background: hsl(42 60% 95% / 0.12);
-  border-color: hsl(42 60% 95%);
-}
-.hero-cta button:focus-visible {
-  outline: 2px solid hsl(var(--ember));
-  outline-offset: 5px;
-}
-
-/* pulsing guidance rings around the door */
-.hero-cta-ring {
-  position: absolute;
-  inset: -14px -22px;
-  border: 1px solid hsl(32 100% 68% / 0.9);
-  border-radius: 2px;
-  pointer-events: none;
-  animation: pulse-ring 2.4s cubic-bezier(0.2, 0.6, 0.4, 1) infinite;
-}
-.hero-cta-ring--late { animation-delay: 1.2s; }
-
-.hero-cta-hint {
-  position: absolute;
-  top: calc(100% + 2.4rem);
-  white-space: nowrap;
-  font-family: "Space Mono", ui-monospace, monospace;
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.28em;
-  color: hsl(42 38% 86% / 0.85);
-  padding: 0.55rem 1rem;
-  background: hsl(220 8% 4% / 0.72);
-  border: 1px solid hsl(42 38% 86% / 0.16);
-  border-radius: 2px;
-  backdrop-filter: blur(5px);
-  -webkit-backdrop-filter: blur(5px);
-  opacity: 0;
-  animation: hint-in 0.8s ease 2.4s forwards;
-}
-.hero-cta-hint[data-nudged] {
-  color: hsl(30 100% 68%);
-  border-color: hsl(24 100% 54% / 0.6);
-  text-shadow: 0 0 16px hsl(24 100% 54% / 0.7);
-  animation: hint-in 0.2s ease forwards;
-}
-
-@layer utilities {
-  .rotate-tiny { transform: rotate(-1deg); }
-  .rotate-tiny-r { transform: rotate(1deg); }
-}
-
 /* ── Keyframes ─────────────────────────────────── */
 @keyframes blink { 0%, 60% { opacity: 1; } 61%, 100% { opacity: 0.15; } }
 
@@ -325,39 +456,9 @@
   100% { transform: scale(1.5); opacity: 0; }
 }
 
-@keyframes ember-flicker {
-  0%, 100% { opacity: 1; }
-  42% { opacity: 0.86; }
-  44% { opacity: 1; }
-  78% { opacity: 0.92; }
-}
-
-@keyframes float-y {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-8px); }
-}
-
-@keyframes scroll-cue {
-  0%, 100% { transform: translateY(0); opacity: 0.4; }
-  50% { transform: translateY(6px); opacity: 1; }
-}
-
-@keyframes hint-in {
-  from { opacity: 0; transform: translateY(6px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-
 @keyframes loader-sweep {
   0%   { transform: translateX(-120%); }
   100% { transform: translateX(420%); }
-}
-
-@keyframes gate-shake {
-  0%, 100% { transform: translateX(0); }
-  20% { transform: translateX(-4px); }
-  40% { transform: translateX(4px); }
-  60% { transform: translateX(-3px); }
-  80% { transform: translateX(3px); }
 }
 
 ::-webkit-scrollbar { width: 8px; }

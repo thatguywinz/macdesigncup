@@ -19,8 +19,11 @@ only the continuous front-facing arc is used (source frames 45–47 wrapping to 
    lion's own white highlights), un-mixes the white edge fringe, crops to the union
    square, and writes the animated ping-pong WebP plus the static PNG and favicons.
 
-The shipped `lion-mark.webp` (192px, ~234KB, quality 70 / alpha_quality 80) is a
-**single-play** nod: interpolated frames 4–20 ordered front → up → down → front,
+The script's `lion-mark.webp` (192px, ~234KB, quality 70 / alpha_quality 80) is no
+longer shipped: it is kept here as `lion-mark-source.webp`, and the site now ships
+`public/lion/lion-still.webp` (7.5 KB front pose) and `public/lion/lion-nod.webp`
+(128px, ~110 KB), both re-encoded from it with Pillow (see the comment at the top of
+`src/components/LionMark.tsx`). It is a **single-play** nod: interpolated frames 4–20 ordered front → up → down → front,
 eased at the reversals, with webp loop count = 1 so it plays one ~3.2s gesture on
 load and settles on the face-on pose. Single-play keeps the mark inside
 WCAG 2.2.2 (moving content must stop within 5s or offer a pause control), and the

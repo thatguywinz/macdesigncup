@@ -1,0 +1,17 @@
+{
+  "name": "Mackenzie Design Cup 2026",
+  "short_name": "MDC 2026",
+  "description": "A one-day 3D design competition for TDSB high school students and the teachers who bring them.",
+  "lang": "en-CA",
+  "dir": "ltr",
+  "start_url": "/",
+  "scope": "/",
+  "display": "browser",
+  "theme_color": "#090a0c",
+  "background_color": "#090a0c",
+  "icons": [
+    { "src": "/favicon.png", "sizes": "64x64", "type": "image/png" },
+    { "src": "/apple-touch-icon.png", "sizes": "180x180", "type": "image/png" },
+    { "src": "/lion/lion-mark.png", "sizes": "192x192", "type": "image/png", "purpose": "any" }
+  ]
+}

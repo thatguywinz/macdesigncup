@@ -1,0 +1,134 @@
+<!doctype html>
+<!--
+  The 1200x630 social card (public/og-image.png). A typed card composed from
+  the brand: the drafting-hall grid, the lion mark, the Anton wordmark, the
+  date and venue, the prize pool and who it is for. No stock, no AI.
+  Rendered by scripts/og/render.mjs, which fills every double-brace slot from
+  src/config/site.ts + src/content/copy.ts (via the SSR bundle) and inlines
+  the fonts and the lion as data URIs.
+-->
+<html lang="en-CA">
+<head>
+<meta charset="UTF-8" />
+<style>
+  @font-face { font-family: "Anton"; src: url({{fontAnton}}) format("woff2"); font-weight: 400; }
+  @font-face { font-family: "Space Mono"; src: url({{fontMono}}) format("woff2"); font-weight: 400; }
+  @font-face { font-family: "Space Mono"; src: url({{fontMonoBold}}) format("woff2"); font-weight: 700; }
+  @font-face { font-family: "Archivo"; src: url({{fontArchivo}}) format("woff2"); font-weight: 100 900; }
+
+  :root {
+    --bg: #090a0c;
+    --bone: 42 38% 86%;
+    --ember: 24 100% 54%;
+    --concrete: 220 5% 62%;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 1200px; height: 630px; background: var(--bg); overflow: hidden; }
+  body { position: relative; color: hsl(var(--bone)); font-family: "Archivo", sans-serif; }
+
+  /* Two-level drafting grid, faded toward the edges. */
+  .grid {
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(hsl(var(--bone) / 0.075) 1px, transparent 1px),
+      linear-gradient(90deg, hsl(var(--bone) / 0.075) 1px, transparent 1px),
+      linear-gradient(hsl(var(--bone) / 0.03) 1px, transparent 1px),
+      linear-gradient(90deg, hsl(var(--bone) / 0.03) 1px, transparent 1px);
+    background-size: 64px 64px, 64px 64px, 16px 16px, 16px 16px;
+    background-position: -1px -1px;
+    -webkit-mask-image: radial-gradient(120% 110% at 70% 45%, #000 35%, transparent 100%);
+            mask-image: radial-gradient(120% 110% at 70% 45%, #000 35%, transparent 100%);
+  }
+  /* Portal light from the right, the hall's one warm source. */
+  .glow {
+    position: absolute; inset: 0;
+    background: radial-gradient(38% 60% at 82% 46%, hsl(var(--ember) / 0.16), transparent 70%);
+  }
+
+  .crop { position: absolute; width: 22px; height: 22px; border-color: hsl(var(--bone) / 0.45); border-style: solid; border-width: 0; }
+  .crop.tl { left: 28px; top: 28px; border-left-width: 1px; border-top-width: 1px; }
+  .crop.tr { right: 28px; top: 28px; border-right-width: 1px; border-top-width: 1px; }
+  .crop.bl { left: 28px; bottom: 28px; border-left-width: 1px; border-bottom-width: 1px; }
+  .crop.br { right: 28px; bottom: 28px; border-right-width: 1px; border-bottom-width: 1px; }
+
+  .mono { font-family: "Space Mono", monospace; text-transform: uppercase; letter-spacing: 0.2em; }
+
+  .sheet { position: absolute; right: 64px; top: 40px; font-size: 13px; color: hsl(var(--concrete)); }
+
+  .copy { position: absolute; left: 72px; top: 64px; width: 700px; }
+  .eyebrow { display: flex; align-items: center; gap: 14px; font-size: 15px; color: hsl(var(--bone) / 0.9); }
+  .eyebrow .n { color: hsl(var(--ember)); font-weight: 700; }
+  .eyebrow .rule { width: 56px; height: 1px; background: hsl(var(--ember)); }
+
+  h1 {
+    margin-top: 26px;
+    font-family: "Anton", sans-serif; font-weight: 400; text-transform: uppercase;
+    font-size: 150px; line-height: 0.9; letter-spacing: 0.01em;
+    color: hsl(var(--bone));
+  }
+  h1 .wire { color: transparent; -webkit-text-stroke: 3px hsl(var(--bone) / 0.92); }
+
+  .when {
+    margin-top: 30px; font-size: 19px; line-height: 1.55; letter-spacing: 0.14em; color: hsl(var(--bone) / 0.86);
+  }
+  .when b { font-weight: 700; color: hsl(var(--bone)); }
+  .foot { position: absolute; left: 72px; bottom: 58px; display: flex; align-items: baseline; gap: 26px; }
+  .prize {
+    font-family: "Anton", sans-serif; text-transform: uppercase; font-size: 46px; line-height: 1;
+    color: hsl(var(--ember)); letter-spacing: 0.01em;
+  }
+  .who { font-size: 24px; font-weight: 400; color: hsl(var(--bone) / 0.86); }
+
+  /* The mark in a construction frame: circle, centre lines, dimension. */
+  .mark { position: absolute; left: 790px; top: 110px; width: 340px; height: 340px; }
+  .mark svg { position: absolute; inset: 0; overflow: visible; }
+  .mark img { position: absolute; left: 74px; top: 74px; width: 192px; height: 192px; }
+  .dim-label { position: absolute; left: 0; right: 0; top: 372px; text-align: center; font-size: 13px; color: hsl(var(--concrete)); }
+</style>
+</head>
+<body>
+  <div class="grid"></div>
+  <div class="glow"></div>
+  <i class="crop tl"></i><i class="crop tr"></i><i class="crop bl"></i><i class="crop br"></i>
+
+  <div class="sheet mono">{{model}} · Sheet 01 · 1:1</div>
+
+  <div class="copy">
+    <div class="eyebrow mono"><span class="n">{{model}}</span><span class="rule"></span><span>{{kicker}}</span></div>
+    <h1><span>{{h1a}}</span><br /><span class="wire">{{h1b}}</span></h1>
+    <p class="when mono"><b>{{date}}</b><br />{{venue}}</p>
+  </div>
+
+  <div class="foot">
+    <span class="prize">{{prize}}</span>
+    <span class="who">{{audience}}</span>
+  </div>
+
+  <div class="mark">
+    <svg viewBox="0 0 340 340" aria-hidden="true">
+      <!-- centre lines, running past the circle like a drafting construction -->
+      <line x1="-30" y1="170" x2="370" y2="170" stroke="hsl(42 38% 86% / 0.22)" stroke-width="1" stroke-dasharray="14 5 3 5" />
+      <line x1="170" y1="-30" x2="170" y2="370" stroke="hsl(42 38% 86% / 0.22)" stroke-width="1" stroke-dasharray="14 5 3 5" />
+      <circle cx="170" cy="170" r="150" fill="none" stroke="hsl(42 38% 86% / 0.5)" stroke-width="1" />
+      <circle cx="170" cy="170" r="118" fill="none" stroke="hsl(42 38% 86% / 0.16)" stroke-width="1" stroke-dasharray="3 4" />
+      <!-- ember quadrant ticks -->
+      <g stroke="hsl(24 100% 54%)" stroke-width="2">
+        <line x1="170" y1="12" x2="170" y2="30" />
+        <line x1="328" y1="170" x2="310" y2="170" />
+        <line x1="170" y1="328" x2="170" y2="310" />
+        <line x1="12" y1="170" x2="30" y2="170" />
+      </g>
+      <!-- dimension: the circle's diameter -->
+      <g stroke="hsl(42 38% 86% / 0.55)" stroke-width="1">
+        <line x1="20" y1="358" x2="320" y2="358" />
+        <line x1="20" y1="350" x2="20" y2="366" />
+        <line x1="320" y1="350" x2="320" y2="366" />
+        <line x1="15" y1="363" x2="25" y2="353" />
+        <line x1="315" y1="363" x2="325" y2="353" />
+      </g>
+    </svg>
+    <img src="{{lion}}" alt="" />
+    <div class="dim-label mono">{{dim}}</div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,126 @@
+import { Fragment, type ReactNode } from "react";
+import { motion, type Variants } from "framer-motion";
+import { cn } from "@/lib/utils";
+import { useReducedMotionSafe } from "@/hooks/useReducedMotionSafe";
+import { DURATION, EASE, VIEWPORT_ONCE } from "./tokens";
+
+const TAGS = { h1: motion.h1, h2: motion.h2, h3: motion.h3 } as const;
+
+export interface DisplayHeadingProps {
+  /** Heading level. Default `"h2"`. The home page's only `h1` is the hero's. */
+  as?: "h1" | "h2" | "h3";
+  /** One entry per display line. Strings can carry the `outline` word; any
+   *  other node (e.g. `<CountUp />`) renders as-is. */
+  lines: readonly ReactNode[];
+  /** Substring (in any string line) set in outlined wire type. */
+  outline?: string;
+  /** Class for the outlined substring. Default `"wire-text"`; `"wire-text-ember"` also exists. */
+  outlineClassName?: string;
+  /** `"scene"` (section headings, default) or `"hero"` (poster size). */
+  size?: "scene" | "hero";
+  /** Seconds before the first line moves. Default `0`. */
+  delay?: number;
+  /** Seconds between lines. Default `0.09`. */
+  stagger?: number;
+  /** `false` renders the heading static (no mask, no motion), e.g. for an
+   *  above-the-fold LCP heading. Default `true`. */
+  reveal?: boolean;
+  id?: string;
+  className?: string;
+  /** Extra classes on every line's `<span>`. */
+  lineClassName?: string;
+}
+
+function renderLine(line: ReactNode, outline: string | undefined, outlineClassName: string) {
+  if (typeof line !== "string" || !outline) return line;
+  const at = line.indexOf(outline);
+  if (at < 0) return line;
+  return (
+    <>
+      {line.slice(0, at)}
+      <span className={outlineClassName}>{outline}</span>
+      {line.slice(at + outline.length)}
+    </>
+  );
+}
+
+/**
+ * The Anton display heading. Each line sits in its own clipped band and
+ * slides up into it the first time the heading scrolls into view, lines
+ * staggered. Server HTML is complete (lines are plain text, separated by a
+ * space for crawlers and screen readers); `data-reveal` lets the noscript
+ * rule show it without JS. Reduced motion: static after mount.
+ *
+ * @example
+ * <DisplayHeading lines={SECTIONS.glance.lines} outline={SECTIONS.glance.outline} />
+ */
+export default function DisplayHeading({
+  as = "h2",
+  lines,
+  outline,
+  outlineClassName = "wire-text",
+  size = "scene",
+  delay = 0,
+  stagger = 0.09,
+  reveal = true,
+  id,
+  className,
+  lineClassName,
+}: DisplayHeadingProps) {
+  const reduced = useReducedMotionSafe();
+  const sizeClass = size === "hero" ? "display-hero" : "display-scene";
+
+  if (!reveal) {
+    const Static = as;
+    return (
+      <Static id={id} className={cn(sizeClass, className)}>
+        {lines.map((line, i) => (
+          <Fragment key={i}>
+            {i > 0 && " "}
+            <span className={cn("block", lineClassName)}>{renderLine(line, outline, outlineClassName)}</span>
+          </Fragment>
+        ))}
+      </Static>
+    );
+  }
+
+  const Tag = TAGS[as];
+  const lineVariants: Variants = {
+    hidden: { y: "135%" },
+    shown: (i: number) => ({
+      y: "0%",
+      transition: reduced
+        ? { duration: 0 }
+        : { duration: DURATION.reveal + 0.1, ease: EASE, delay: delay + i * stagger },
+    }),
+  };
+
+  return (
+    <Tag
+      id={id}
+      className={cn(sizeClass, className)}
+      initial="hidden"
+      whileInView="shown"
+      animate={reduced ? "shown" : undefined}
+      viewport={VIEWPORT_ONCE}
+    >
+      {lines.map((line, i) => (
+        <Fragment key={i}>
+          {i > 0 && " "}
+          {/* The band clips the line as it rises. clip-path, not overflow, so
+              Anton's tall caps and the wire stroke never get shaved at rest. */}
+          <span className="display-line block">
+            <motion.span
+              data-reveal=""
+              custom={i}
+              variants={lineVariants}
+              className={cn("block", lineClassName)}
+            >
+              {renderLine(line, outline, outlineClassName)}
+            </motion.span>
+          </span>
+        </Fragment>
+      ))}
+    </Tag>
+  );
+}
