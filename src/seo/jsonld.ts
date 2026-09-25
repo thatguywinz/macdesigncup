@@ -203,8 +203,23 @@ const event = (): Node => ({
       educationalRole: "teacher",
     },
   ],
-  // Free to enter (organizer, 2026-09-25).
+  // Free to enter (organizer, 2026-09-25): a zero-price offer through the
+  // registration page.
   isAccessibleForFree: true,
+  offers: {
+    "@type": "Offer",
+    price: 0,
+    priceCurrency: "CAD",
+    availability: "https://schema.org/InStock",
+    url: `${SITE_URL}/register`,
+  },
+  // The featured speaker (organizer, 2026-09-24; METAVRSE's CEO).
+  performer: {
+    "@type": "Person",
+    name: "Julie Smithson",
+    jobTitle: "CEO",
+    worksFor: { "@type": "Organization", name: "METAVRSE", url: "https://metavrse.com/" },
+  },
 });
 
 const faqPage = (): Node => ({

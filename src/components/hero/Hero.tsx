@@ -211,19 +211,32 @@ export default function Hero() {
       setWebgl((known) => known ?? canUseWebGL());
       setIdle(true);
     };
-    const schedule = () => {
+    const idleGo = () => {
       if (w.requestIdleCallback) handle = w.requestIdleCallback(go, { timeout: 2000 });
       else timer = window.setTimeout(go, 300);
+    };
+    // Phones: three.js costs seconds of main thread on a mid-range CPU, so the
+    // CSS hall stays until the visitor first touches or scrolls, then the 3D
+    // fades in. Desktop loads it once the page is idle.
+    const INTERACT = ["pointerdown", "touchstart", "scroll", "keydown", "wheel"] as const;
+    const onInteract = () => {
+      INTERACT.forEach((t) => window.removeEventListener(t, onInteract));
+      idleGo();
+    };
+    const schedule = () => {
+      if (lite) INTERACT.forEach((t) => window.addEventListener(t, onInteract, { passive: true, once: true }));
+      else idleGo();
     };
     if (document.readyState === "complete") schedule();
     else window.addEventListener("load", schedule, { once: true });
     return () => {
       cancelled = true;
       window.removeEventListener("load", schedule);
+      INTERACT.forEach((t) => window.removeEventListener(t, onInteract));
       if (handle) w.cancelIdleCallback?.(handle);
       window.clearTimeout(timer);
     };
-  }, [wants, idle]);
+  }, [wants, idle, lite]);
 
   const scene = wants && idle && webgl === true;
   useEffect(() => {
