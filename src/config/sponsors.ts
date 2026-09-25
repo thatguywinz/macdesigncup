@@ -24,9 +24,7 @@ import siemensLogo from "@/components/sponsor-images/siemens.svg";
 import trimechLogo from "@/components/sponsor-images/trimech.svg";
 import ansysLogo from "@/components/sponsor-images/ansys.svg";
 // George Brown Polytechnic's entrepreneurship hub. Official SVG from
-// georgebrown.ca/startgbc (subsite logo), viewBox cropped to the StartGBC
-// wordmark (the lockup's George Brown mark already has its own cell), width/height
-// added. Brand spelling in copy: "startGBC".
+// georgebrown.ca/startgbc (subsite logo), full official lockup (George Brown mark + startGBC), width/height added. Brand spelling in copy: "startGBC".
 import startgbcLogo from "@/components/sponsor-images/startgbc.svg";
 // Featured speaker (Julie Smithson, CEO). White brand PNG from the marketing
 // repo (sponsors/_source/brand/hi/metavrse-white.png), trimmed to 640px.
@@ -58,7 +56,7 @@ export interface Sponsor {
 export const SPONSORS: Sponsor[] = [
   { name: "Shop3D.ca", logo: shop3dcaLogo, href: "https://shop3d.ca/", maxH: 40, maxW: 228, hero: true },
   { name: "George Brown Polytechnic", logo: georgebrownLogo, href: "https://www.georgebrown.ca/", maxH: 84, maxW: 200, hero: true },
-  { name: "startGBC", logo: startgbcLogo, href: "https://www.georgebrown.ca/startgbc", maxH: 34, maxW: 200, hero: true },
+  { name: "startGBC", logo: startgbcLogo, href: "https://www.georgebrown.ca/startgbc", maxH: 60, maxW: 200, hero: true },
   { name: "Siemens", logo: siemensLogo, href: "https://www.siemens.com/", maxH: 34, maxW: 210, hero: true },
   { name: "Ansys", logo: ansysLogo, href: "https://www.ansys.com/", maxH: 52, maxW: 190, hero: true },
   { name: "TriMech Group", logo: trimechLogo, href: "https://trimech.com/", maxH: 44, maxW: 212, hero: true },
@@ -74,9 +72,9 @@ export const SPONSORS: Sponsor[] = [
     name: "Agile Manufacturing",
     logo: agileLogo,
     href: "https://agile-manufacturing.com/",
-    maxH: 64,
-    maxW: 190,
-    caption: "Agile Manufacturing",
+    // Full wordmark from agile-manufacturing.com (was the bare symbol).
+    maxH: 36,
+    maxW: 236,
     hero: true,
   },
   // "WLMAC": the school's own short name (wlmac.ca, and the club's name in site.ts).

@@ -131,7 +131,7 @@ export const SECTIONS = {
       when: { label: "When", value: `${EVENT_WEEKDAY.slice(0, 3)}, ${EVENT_MONTH_DAY.replace("November", "Nov")} · ${HOUR(TIMES.start)} start` },
       where: { label: "Where", value: VENUE_BUILDING },
       who: { label: "Who", value: `TDSB, grades ${GRADES}` },
-      cost: { label: "Cost", value: "TBA" },
+      cost: { label: "Cost", value: "Free" },
     },
     // Accessible name for the Where cell's map link (visible text is CTA.map).
     mapLabel: `${CTA.map}: ${VENUE_BUILDING}, ${VENUE_STREET} (opens in a new tab)`,
@@ -171,8 +171,8 @@ export const SECTIONS = {
   },
   day: {
     eyebrow: "04 · The day",
-    lines: ["Nine to four.", "Awards at 3:30."],
-    outline: "Awards",
+    lines: ["November 16.", "One day to build."],
+    outline: "One day to build.",
     bring: {
       title: "Bring",
       items: ["Laptop", "Charger", "3D software"],
@@ -247,7 +247,7 @@ export const FAQS: Faq[] = [
   {
     for: "everyone",
     q: "What does it cost?",
-    a: "We haven't set the Mackenzie Design Cup's entry cost yet: entry will be free or a small fee. Everyone who registers hears the final answer first.",
+    a: "The Mackenzie Design Cup is free to enter for TDSB students.",
   },
   {
     for: "students",

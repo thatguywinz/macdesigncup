@@ -204,7 +204,8 @@ const event = (): Node => ({
       educationalRole: "teacher",
     },
   ],
-  // No `offers` and no isAccessibleForFree: the cost is not announced.
+  // Free to enter (organizer, 2026-09-25).
+  isAccessibleForFree: true,
 });
 
 const faqPage = (): Node => ({

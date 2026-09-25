@@ -244,7 +244,7 @@ describe("JSON-LD", () => {
     expect(event.startDate).toBe(EVENT_DATE);
     expect(event.endDate).toBe(EVENT_END);
     expect(event).not.toHaveProperty("offers");
-    expect(event).not.toHaveProperty("isAccessibleForFree");
+    expect(event.isAccessibleForFree).toBe(true);
     const location = event.location as Json;
     expect(location.name).toBe(VENUE_NAME);
     expect((location.address as Json).streetAddress).toBe(VENUE_STREET);
