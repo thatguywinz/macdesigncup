@@ -33,7 +33,7 @@ function RailSegment({ progress, index, count }: { progress: MotionValue<number>
 }
 
 /**
- * 04 · The day. Desktop (lg+, motion OK): scrollytelling. A drafting sheet
+ * The day. Desktop (lg+, motion OK): scrollytelling. A drafting sheet
  * sticks on the left while the five steps scroll past on the right, and one
  * design object, the cup, evolves with them: blank file, sketch, wireframe,
  * render, big screen. The active step lights its waypoint and the rail fills.
@@ -88,21 +88,21 @@ export default function DaySection() {
   }, [progress, reduced, count]);
 
   return (
-    <Sheet id="day" eyebrow={s.eyebrow} aria-labelledby="day-title">
+    <Sheet id="day" aria-labelledby="day-title">
       {/* Old links (#why, #timeline) land exactly where #day does: the spans
           sit at the sheet's top edge, one section padding above the container. */}
-      <span id="why" className="anchor-alias absolute left-0 -top-12 md:-top-16 xl:-top-20" aria-hidden="true" />
-      <span id="timeline" className="anchor-alias absolute left-0 -top-12 md:-top-16 xl:-top-20" aria-hidden="true" />
+      <span id="why" className="anchor-alias absolute left-0 -top-14 md:-top-24 xl:-top-28" aria-hidden="true" />
+      <span id="timeline" className="anchor-alias absolute left-0 -top-14 md:-top-24 xl:-top-28" aria-hidden="true" />
       <div
         ref={rowRef}
         className="lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:gap-14 xl:gap-20"
       >
         {/* The drawing: sticky beside the steps on desktop. The column runs
             down through the sheet's bottom padding (-mb matches Sheet's
-            md:py-16 / xl:py-20), so the drawing holds still until the story
+            md:py-24 / xl:py-28), so the drawing holds still until the story
             ends yet can never reach the next section. A negative margin does
             not grow the grid row. */}
-        <div className="hidden lg:-mb-16 lg:block xl:-mb-20">
+        <div className="hidden lg:-mb-24 lg:block xl:-mb-28">
           <div className="sticky top-[calc(var(--nav-h)+1.25rem)]">
             <div style={{ width: "min(100%, calc((100svh - var(--nav-h) - 2.75rem) * 0.8667))" }}>
               <CupFigure progress={progress} enter={enter} />
@@ -114,12 +114,7 @@ export default function DaySection() {
         <div>
           {/* The heading sits beside the drawing, so the sheet is already stuck
               in place by the time the first step reaches the centre line. */}
-          <DisplayHeading id="day-title" lines={s.lines} outline={s.outline} className="mb-6 md:mb-10 lg:mb-8" />
-          {/* Every time below is a working time: registrants get the final schedule. */}
-          <p className="mb-4 flex items-center gap-2.5 font-mono text-[10px] uppercase tracking-[0.28em] text-concrete md:mb-6">
-            <span aria-hidden="true" className="h-1.5 w-1.5 shrink-0 rotate-45 border border-ember" />
-            {s.timesTag}
-          </p>
+          <DisplayHeading id="day-title" lines={s.lines} className="mb-8 md:mb-12 lg:mb-10" />
           {/* Desktop: five equal rows (the tallest step sets them), each about
               one and a half wheel notches of scroll, so every stage change
               still gets its beat. Phones: a compact storyboard, one small frame
@@ -139,7 +134,7 @@ export default function DaySection() {
                   <CupFrame stage={i as 0 | 1 | 2 | 3 | 4} width={84} className="w-[5.25rem] md:w-28 lg:hidden" />
                   <span
                     aria-hidden="true"
-                    className="relative z-10 mt-[0.3rem] hidden h-[11px] w-[11px] shrink-0 rotate-45 border border-ember bg-ember transition-[transform,background-color,border-color,box-shadow] duration-500 group-data-[phase=active]:scale-125 group-data-[phase=future]:border-bone/35 group-data-[phase=future]:bg-background group-data-[phase=active]:shadow-[0_0_0_5px_hsl(var(--ember)/0.16)] motion-reduce:transition-none lg:block"
+                    className="relative z-10 mt-[0.35rem] hidden h-[9px] w-[9px] shrink-0 rounded-full border border-ember bg-ember transition-[background-color,border-color] duration-500 group-data-[phase=future]:border-bone/35 group-data-[phase=future]:bg-background motion-reduce:transition-none lg:block"
                   />
                   {i < count - 1 && (
                     <>
@@ -150,10 +145,10 @@ export default function DaySection() {
                 </div>
 
                 <div className="pb-7 pt-1 md:pb-10 md:pt-1 lg:pb-5 lg:pt-0 motion-reduce:lg:pb-8">
-                  <p className="font-mono text-[11px] font-bold uppercase tracking-[0.22em] text-ember transition-colors duration-500 motion-reduce:transition-none lg:group-data-[phase=future]:text-concrete">
+                  <p className="font-mono text-xs uppercase tracking-[0.08em] text-ember transition-colors duration-500 motion-reduce:transition-none lg:group-data-[phase=future]:text-concrete">
                     {keepTimes(step.time)}
                   </p>
-                  <h3 className="mt-1 font-display text-[1.4rem] uppercase leading-[1.02] text-foreground transition-opacity duration-500 motion-reduce:transition-none md:mt-2 md:text-[1.7rem] lg:mt-1.5 lg:text-[1.8rem] lg:group-data-[phase=future]:opacity-45 lg:group-data-[phase=past]:opacity-70 xl:text-[1.95rem]">
+                  <h3 className="mt-1.5 font-body text-xl font-semibold leading-tight tracking-[-0.015em] text-foreground transition-opacity duration-500 motion-reduce:transition-none md:text-2xl lg:group-data-[phase=future]:opacity-45 lg:group-data-[phase=past]:opacity-70">
                     {step.title}
                   </h3>
                   {(step.note || step.map) && (
@@ -165,7 +160,7 @@ export default function DaySection() {
                           target="_blank"
                           rel="noopener noreferrer"
                           aria-label={SECTIONS.glance.mapLabel}
-                          className="focus-ember font-mono text-[11px] uppercase tracking-[0.22em] text-ember underline decoration-ember/40 underline-offset-4 hover:decoration-ember"
+                          className="focus-ember text-sm text-ember underline decoration-ember/40 underline-offset-4 hover:decoration-ember"
                         >
                           {CTA.map}
                         </a>
@@ -179,18 +174,16 @@ export default function DaySection() {
 
           {/* Bring */}
           <div className="mt-2 md:pl-36 lg:mt-0 lg:pl-[3rem]">
-            <h3 className="font-mono text-[11px] font-bold uppercase tracking-[0.26em] text-foreground/80">
-              {s.bring.title}
-            </h3>
+            <h3 className="font-body text-sm font-medium text-concrete">{s.bring.title}</h3>
             {/* Glyph over label; from xl, where each cell has the room, beside it. */}
-            <ul className="mt-2 grid max-w-xl grid-cols-3 gap-3 sm:mt-3 sm:gap-6 xl:gap-5">
+            <ul className="mt-3 grid max-w-xl grid-cols-3 gap-3 sm:gap-6 xl:gap-5">
               {s.bring.items.map((item, i) => (
                 <li
                   key={item}
-                  className="flex items-center gap-2 border-t border-bone/20 pt-2.5 sm:flex-col sm:items-start md:gap-2.5 md:pt-3.5 xl:flex-row xl:items-center xl:gap-3"
+                  className="flex items-center gap-2 sm:flex-col sm:items-start md:gap-2.5 xl:flex-row xl:items-center xl:gap-3"
                 >
                   <BringGlyph index={i} delay={0.12 * i} className="h-7 w-7 shrink-0 sm:h-9 sm:w-9 md:h-11 md:w-11 xl:h-10 xl:w-10" />
-                  <span className="font-body text-[13px] leading-snug text-foreground/90 sm:text-sm md:text-[15px]">{item}</span>
+                  <span className="font-body text-sm leading-snug text-foreground/90 md:text-base">{item}</span>
                 </li>
               ))}
             </ul>

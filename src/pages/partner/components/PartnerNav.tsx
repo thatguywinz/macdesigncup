@@ -40,7 +40,7 @@ export default function PartnerNav() {
   }, []);
 
   const linkClass =
-    "focus-ember flex min-h-[44px] items-center font-mono text-[11px] uppercase tracking-[0.2em] text-foreground/70 transition-colors hover:text-ember";
+    "focus-ember flex min-h-[44px] items-center font-body text-[15px] text-foreground/65 transition-colors hover:text-foreground";
 
   const menuLinks: MobileNavLink[] = [
     { label: MAIN_SITE, to: "/" },
@@ -60,7 +60,7 @@ export default function PartnerNav() {
       <header
         className={cn(
           "fixed inset-x-0 top-0 z-50 h-[var(--nav-h)] border-b transition-colors duration-500 motion-reduce:transition-none",
-          scrolled ? "border-line bg-background/85 backdrop-blur-md" : "border-transparent bg-transparent",
+          scrolled ? "border-bone/10 bg-background/90 backdrop-blur-md" : "border-transparent bg-transparent",
         )}
       >
         <nav
@@ -74,7 +74,7 @@ export default function PartnerNav() {
               <span className="font-display text-xl uppercase leading-none tracking-[0.02em] text-foreground transition-colors group-hover:text-ember">
                 {NAV.mark}
               </span>
-              <span className="sr-only lg:not-sr-only lg:mt-1.5 lg:font-mono lg:text-[9px] lg:uppercase lg:leading-none lg:tracking-[0.22em] lg:text-foreground/60">
+              <span className="sr-only lg:not-sr-only lg:mt-1 lg:font-body lg:text-[13px] lg:leading-none lg:text-foreground/65">
                 {EVENT_FULL}
               </span>
             </span>
@@ -106,7 +106,7 @@ export default function PartnerNav() {
                 and it's the bar at the bottom of the viewport. */}
             <a
               href={PARTNER_REGISTRATION_URL}
-              className="btn-portal focus-ember hidden min-h-[40px] px-5 py-2.5 text-[11px] md:inline-flex"
+              className="btn-portal focus-ember hidden min-h-[40px] px-5 py-2 md:inline-flex"
               target="_blank"
               rel="noopener noreferrer"
             >

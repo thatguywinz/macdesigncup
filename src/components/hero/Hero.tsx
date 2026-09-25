@@ -9,7 +9,7 @@ import { CTA, HERO } from "@/content/copy";
 import HeroPoster, { HallPlaques } from "./HeroPoster";
 import SceneBoundary from "./SceneBoundary";
 import { restShot, type PhoneFrame } from "./frame";
-import { COPY_OUT, CTA_OUT, GLOW_IN, GLOW_PEAK, SPILL_IN } from "./timeline";
+import { COPY_OUT, CTA_OUT, SPILL_IN } from "./timeline";
 import "./hero.css";
 
 // three.js + postprocessing are heavy: split them from the shell and load
@@ -169,8 +169,7 @@ function useMedia(query: string) {
  * (frame.ts). With motion allowed the section is 160svh behind a sticky
  * stage and scroll drives the entry (timeline.ts): the copy lifts away, the
  * camera walks up the runway past the sponsor plaques and stops square on
- * the lit door, whose warm light then rises around it (a glow with dark
- * edges, never a flat field) and carries on into the top of #glance.
+ * the lit door, and the stage's lower edge melts into the page.
  * Reduced motion gets a plain 100svh hero (a CSS-only switch, so SSR matches).
  */
 export default function Hero() {
@@ -248,10 +247,6 @@ export default function Hero() {
 
   const copyOpacity = useTransform(progress, COPY_OUT, [1, 0]);
   const copyY = useTransform(progress, COPY_OUT, ["0vh", "-6vh"]);
-  // The door's light, rising around it once the camera has nearly stopped.
-  // Held well under 1 and shaped in hero.css so the frame's edges stay dark.
-  const glowOpacity = useTransform(progress, GLOW_IN, [0, GLOW_PEAK]);
-  const glowScale = useTransform(progress, GLOW_IN, [0.82, 1]);
   const spillOpacity = useTransform(progress, SPILL_IN, [0, 1]);
   // The poster's Enter slab steps aside as the walk starts, like the scene's
   // own, so a desktop without WebGL never has the door's light wash over it.
@@ -406,26 +401,20 @@ export default function Hero() {
                 stage the type is held to the left 40% of the window, whatever
                 its width. */}
             <div ref={typeRef} className="hall-type w-fit will-change-transform">
-              <p className="mono-label flex items-center gap-3 !text-foreground/80 max-[379px]:gap-2.5 max-[379px]:!tracking-[0.17em]">
-                <span aria-hidden="true" className="inline-block h-1.5 w-1.5 shrink-0 bg-ember" />
-                <span>{HERO.eyebrow}</span>
+              <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-foreground/80 md:text-xs">
+                {HERO.eyebrow}
               </p>
               {/* Capped by height too, so a short laptop window (1366x657)
                   keeps room under the type for the hall. */}
               <h1
                 id="hero-title"
-                className="hall-type__title display-giant mt-4 text-[clamp(2.75rem,min(6.4vw,11.5svh),8.5rem)] leading-[0.88] max-md:[@media(max-height:760px)]:text-[2.5rem] [@media(max-height:760px)]:mt-3"
+                className="hall-type__title display-giant mt-4 text-[clamp(2.4rem,min(5.45vw,9.8svh),7.25rem)] leading-[0.9] max-md:[@media(max-height:760px)]:text-[2.2rem] [@media(max-height:760px)]:mt-3"
               >
                 <span className="block whitespace-nowrap">{HERO.h1[0]}</span>{" "}
                 <span className="block whitespace-nowrap">{HERO.h1[1]}</span>
               </h1>
-              <p className="hall-type__prize mt-5 max-w-[36rem] font-mono text-[11px] uppercase leading-relaxed tracking-[0.18em] text-foreground/80 md:mt-5 md:max-w-[min(36rem,37vw)] xl:text-xs [@media(max-height:760px)]:mt-3">
-                <span className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                  <span className="hall-type__pool font-display text-[clamp(1.5rem,2.05vw,2.2rem)] leading-none tracking-normal text-ember">
-                    {HERO.prize.pool}
-                  </span>{" "}
-                  <span>{HERO.prize.rest}</span>
-                </span>
+              <p className="hall-type__prize mt-5 max-w-[34rem] font-body text-base leading-snug text-foreground/85 md:max-w-[min(34rem,37vw)] md:text-lg [@media(max-height:760px)]:mt-3">
+                <span className="hall-type__pool font-semibold text-ember">{HERO.prize.pool}</span> {HERO.prize.rest}
               </p>
             </div>
           </motion.div>
@@ -484,8 +473,6 @@ export default function Hero() {
           className="pointer-events-none absolute inset-0 z-10 bg-[radial-gradient(70%_60%_at_8%_22%,hsl(220_8%_3%/0.6),transparent_70%)]"
         />
 
-        {/* the door's light, rising around it at the end of the walk (desktop dolly only) */}
-        <motion.div aria-hidden="true" style={{ opacity: glowOpacity, scale: glowScale }} className="hall-glow z-30" />
         {/* the stage's lower edge melts into the page as the light comes up */}
         <motion.div
           aria-hidden="true"
@@ -493,13 +480,6 @@ export default function Hero() {
           className="pointer-events-none absolute inset-x-0 bottom-0 z-30 h-[18%] bg-gradient-to-b from-transparent to-background"
         />
       </div>
-
-      {/* the same light spilling onto the top of the next section */}
-      <motion.div
-        aria-hidden="true"
-        style={{ opacity: spillOpacity }}
-        className="pointer-events-none absolute inset-x-0 top-full h-[70svh] bg-[radial-gradient(60%_55%_at_50%_0%,hsl(24_100%_50%/0.22),transparent_75%)]"
-      />
     </section>
   );
 }

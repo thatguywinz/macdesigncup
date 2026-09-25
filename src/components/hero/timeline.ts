@@ -20,10 +20,5 @@ export const PLAQUE_OUT: [number, number] = [0.4, 0.72];
 /** Progress at which the camera arrives at its stop in front of the door. */
 export const DOLLY_END = 0.8;
 
-/** The door's warm glow rises over this span, then holds to the end. */
-export const GLOW_IN: [number, number] = [0.5, 0.9];
-/** Peak opacity of the DOM glow: a lift, never a flood. */
-export const GLOW_PEAK = 0.5;
-
 /** The stage's lower edge melts into the page over this span. */
 export const SPILL_IN: [number, number] = [0.7, 1];

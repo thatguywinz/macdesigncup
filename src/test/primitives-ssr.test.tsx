@@ -4,7 +4,6 @@
 import { renderToString } from "react-dom/server";
 import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it } from "vitest";
-import BlueprintBackdrop from "@/components/blueprint/BlueprintBackdrop";
 import Dimension from "@/components/blueprint/Dimension";
 import Sheet from "@/components/blueprint/Sheet";
 import WireSolid from "@/components/blueprint/WireSolid";
@@ -19,34 +18,33 @@ import PathBand from "@/sections/glance/PathBand";
 import SponsorMarquee from "@/sections/sponsors/SponsorMarquee";
 
 describe("primitives render on the server", () => {
-  it("Sheet: section, eyebrow, crop marks, no corner label", () => {
+  it("Sheet: a plain section, no drafting decoration", () => {
     const html = renderToString(
-      <Sheet id="prizes" eyebrow={SECTIONS.prizes.eyebrow}>
+      <Sheet id="prizes">
         <p>body</p>
       </Sheet>,
     );
     expect(typeof window).toBe("undefined");
     expect(html).toContain('id="prizes"');
-    expect(html).not.toContain("Sheet 02 / 06");
     expect(html).not.toContain("sheet-label");
-    expect(html).toContain("crop-mark--br");
+    expect(html).not.toContain("crop-mark");
+    expect(html).not.toContain("draft-ruler");
     expect(html).toContain("<p>body</p>");
   });
 
-  it("DisplayHeading: every line in the HTML, outline word wired, lines spaced", () => {
-    const html = renderToString(<DisplayHeading lines={SECTIONS.glance.lines} outline={SECTIONS.glance.outline} />);
+  it("DisplayHeading: every line in the HTML, lines spaced, no outlined type", () => {
+    const html = renderToString(<DisplayHeading lines={["The day", "at a glance"]} />);
     expect(html).toMatch(/^<h2/);
-    // Read from copy.ts so the test follows the copy deck, not a snapshot of it.
-    expect(html).toContain(`<span class="wire-text">${SECTIONS.glance.outline}</span>`);
+    expect(html).not.toContain("wire-text");
     expect(html).toContain("data-reveal");
-    expect(html.replace(/<[^>]+>/g, "")).toContain(SECTIONS.glance.lines.join(" "));
+    expect(html.replace(/<[^>]+>/g, "")).toContain("The day at a glance");
   });
 
   it("CountUp: renders the final figure", () => {
     expect(renderToString(<CountUp to={10000} prefix="$" suffix="+" />)).toContain("$10,000+");
   });
 
-  it("Reveal, DrawPath, Dimension, WireSolid, BlueprintBackdrop render", () => {
+  it("Reveal, DrawPath, Dimension, WireSolid render", () => {
     expect(renderToString(<Reveal as="p">hi</Reveal>)).toContain("data-reveal");
     expect(
       renderToString(
@@ -58,7 +56,6 @@ describe("primitives render on the server", () => {
     expect(renderToString(<Dimension label="Ø 64" />)).toContain("Ø 64");
     const solid = renderToString(<WireSolid shape="cube" />);
     expect(solid).toMatch(/d="M[-\d.]+ [-\d.]+L/);
-    expect(renderToString(<BlueprintBackdrop />)).toContain("draft-grid");
   });
 
   it("RegisterBlock: links to /register with the verbatim CTA and the one note", () => {

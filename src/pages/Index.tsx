@@ -1,4 +1,3 @@
-import BlueprintBackdrop from "@/components/blueprint/BlueprintBackdrop";
 import Hero from "@/components/hero/Hero";
 import SiteNav from "@/components/SiteNav";
 import SiteFooter from "@/components/SiteFooter";
@@ -21,7 +20,6 @@ const Index = () => {
     // No bottom padding for the phone's sticky Register bar: it steps aside
     // while the final CTA or the footer is on screen, so it never covers them.
     <div className="relative min-h-screen bg-background">
-      <BlueprintBackdrop />
       <SiteNav />
       <main id="main" className="relative z-10">
         <Hero />

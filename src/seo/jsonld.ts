@@ -212,7 +212,7 @@ const faqPage = (): Node => ({
   "@type": "FAQPage",
   "@id": IDS.faq,
   url: absoluteUrl(HOME_ROUTE.path),
-  name: SECTIONS.faq.lines.join(" "),
+  name: `${EVENT_FULL} ${SECTIONS.faq.lines.join(" ")}`,
   isPartOf: ref(IDS.website),
   inLanguage: LANG,
   // acceptedAnswer.text is the exact string the FAQ section renders.

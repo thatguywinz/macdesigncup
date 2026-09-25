@@ -2,7 +2,7 @@ import { GRID_SPONSORS } from "@/config/sponsors";
 
 /**
  * The hall without WebGL: a dark gallery, the lit door at the end of it, the
- * floor catching its light and the faint drafting grid on the walls. It is
+ * floor catching its light. It is
  * what the prerendered page, no-JS visitors and devices without WebGL see,
  * and it stays under the 3D canvas as its fallback. Pure CSS, decorative.
  * On phones the door is drawn by the hall plan instead (Hero.tsx), in the
@@ -11,7 +11,6 @@ import { GRID_SPONSORS } from "@/config/sponsors";
 export default function HeroPoster() {
   return (
     <div aria-hidden="true" className="hall-poster">
-      <div className="hall-poster__grid draft-grid draft-grid-fade" />
       <div className="hall-poster__floor" />
       <div className="hall-door hall-poster__door" />
     </div>

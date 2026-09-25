@@ -12,7 +12,7 @@ export function WhoRegistersNote({ id, className }: { id?: string; className?: s
     <span
       id={id}
       className={cn(
-        "inline-flex items-center gap-2 font-mono text-[10px] uppercase leading-none tracking-[0.2em] text-foreground/75",
+        "inline-flex items-center gap-2 font-body text-[13px] leading-none text-foreground/70",
         className,
       )}
     >

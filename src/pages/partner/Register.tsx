@@ -1,22 +1,17 @@
 import PartnerForm from "@/pages/partner/components/PartnerForm";
 import PartnerNav from "@/pages/partner/components/PartnerNav";
 import Breadcrumbs from "@/pages/partner/components/Breadcrumbs";
-import BlueprintBackdrop from "@/components/blueprint/BlueprintBackdrop";
-import CropMarks from "@/components/blueprint/CropMarks";
-import { SheetEyebrow } from "@/components/blueprint/Sheet";
 import DisplayHeading from "@/components/motion/DisplayHeading";
 import SiteFooter from "@/components/SiteFooter";
 import { BREADCRUMBS } from "@/content/copy";
 
 /**
  * /partner/register: the long-form partner onboarding form (posts to
- * /api/partner-register). Same hall as /partner: grid backdrop, partner nav,
- * breadcrumb trail, then the form on one drafting plate.
+ * /api/partner-register). Partner nav, breadcrumb trail, then the form.
  */
 export default function PartnerRegister() {
   return (
     <div className="relative min-h-screen bg-background">
-      <BlueprintBackdrop />
       <PartnerNav />
       <main
         id="main"
@@ -31,12 +26,10 @@ export default function PartnerRegister() {
             ]}
             className="mb-8 md:mb-12"
           />
-          <SheetEyebrow>MDC 2026 · Industry partner portal</SheetEyebrow>
-          <DisplayHeading as="h1" reveal={false} lines={["Partner Registration", "Form"]} outline="Form" />
+          <DisplayHeading as="h1" reveal={false} lines={["Partner registration"]} />
 
           {/* Dark native controls (radios, checkboxes, the date picker) on the dark plate. */}
-          <div className="relative mt-10 border border-foreground/10 bg-background/70 px-4 py-2 [color-scheme:dark] md:mt-14 md:px-10 md:py-6">
-            <CropMarks inset={-9} className="hidden md:block" />
+          <div className="relative mt-10 border border-bone/10 px-4 py-2 [color-scheme:dark] md:mt-12 md:px-10 md:py-6">
             <PartnerForm />
           </div>
         </div>

@@ -97,7 +97,8 @@ export const SUMMARY = {
 // Two routes. Students and teachers share one: they fill in the same form,
 // so the band shows it once and says the rule in a line.
 export const PATHS = {
-  label: "Pick your path",
+  /** Accessible name of the two-route nav (not shown). */
+  label: "Register or partner",
   routes: {
     register: {
       label: "Students & teachers",
@@ -119,13 +120,11 @@ export interface DayStep {
 }
 
 // ── Headings, in page order ───────────────────
-// `outline` is the substring set in wire (outlined) type.
+// Short and factual: a heading names the section, the line under it says the fact.
 export const SECTIONS = {
   glance: {
-    eyebrow: "01 · At a glance",
-    lines: ["The theme stays secret", `until ${EVENT_MONTH_DAY}.`],
-    outline: `until ${EVENT_MONTH_DAY}.`,
-    body: "One theme, revealed on the day. Build it in any 3D software.",
+    lines: ["At a glance"],
+    body: `The theme stays secret until ${EVENT_MONTH_DAY}. Build it in any 3D software.`,
     // The four-cell spec strip: values only (Where keeps its map link).
     spec: {
       when: { label: "When", value: `${EVENT_WEEKDAY.slice(0, 3)}, ${EVENT_MONTH_DAY.replace("November", "Nov")} · ${HOUR(TIMES.start)} start` },
@@ -141,21 +140,17 @@ export const SECTIONS = {
       units: { days: "Days", hours: "Hrs", mins: "Min", secs: "Sec" },
       until: "Until we start",
       done: "We've started.",
-      tba: ["Date drops", "soon."],
+      tba: "Date drops soon.",
     },
   },
   prizes: {
-    eyebrow: "02 · Prizes",
-    lines: [PRIZE_POOL, "in prizes."],
-    outline: "in prizes.",
+    lines: [PRIZE_POOL, "in prizes"],
     firstPlace: {
       label: "1st place",
       value: GRAND_PRIZE_VALUE,
       item: GRAND_PRIZE_ITEM,
       detail: "Plus 6 spools of filament",
     },
-    // The one dimension on the printer drawing (from xl only).
-    callouts: ["1st place"],
     figureAlt: "Line drawing of a desktop 3D printer laying down its first layer",
     groups: {
       extras: "Also up for grabs",
@@ -164,21 +159,15 @@ export const SECTIONS = {
     },
   },
   sponsors: {
-    eyebrow: "03 · Sponsors",
-    lines: ["Our sponsors."],
-    outline: "sponsors.",
+    lines: ["Sponsors"],
     slot: { kicker: "Your logo here", cta: CTA.partner },
   },
   day: {
-    eyebrow: "04 · The day",
-    lines: ["November 16.", "One day to build."],
-    outline: "One day to build.",
+    lines: ["The day"],
     bring: {
       title: "Bring",
       items: ["Laptop", "Charger", "3D software"],
     },
-    /** Tag over the timeline: these are working times (registrants get the final schedule). */
-    timesTag: "Working times",
     // The one label on the scroll drawing of the cup (decorative, aria-hidden).
     figure: { theme: "Theme" },
     // Five stops, one per stage of the cup drawing. A kicker and a short
@@ -197,9 +186,7 @@ export const SECTIONS = {
     ] as readonly DayStep[],
   },
   faq: {
-    eyebrow: "05 · FAQ",
-    lines: ["Questions?", "Answered."],
-    outline: "Answered.",
+    lines: ["FAQ"],
     filters: { all: "All", students: "Students", teachers: "Teachers" },
     /** Accessible name of the filter chip group. */
     filterLabel: "Show questions for",
@@ -211,8 +198,9 @@ export const SECTIONS = {
     },
   },
   register: {
-    pill: "Registration open · Limited spots",
-    lines: ["Build the", "Impossible."],
+    lines: ["Register"],
+    /** The line under the heading. */
+    status: "Registration is open. Spots are limited.",
     /** The mono line under the button, joined with " · ". */
     meta: [EVENT_DATE_SHORT, `${HOUR(TIMES.start)} start`, `${VENUE_BUILDING}, ${VENUE_CITY}`],
   },
@@ -330,9 +318,7 @@ export const FAQS: Faq[] = [
 
 // ── /register ────────────────────────────────
 export const REGISTER_PAGE = {
-  eyebrow: "Registration",
-  h1: ["Claim", "your spot."],
-  outline: "spot.",
+  h1: ["Register"],
   /** What, when and where, for a forwarded link and for search. */
   intro: `Register for the ${EVENT_FULL} on ${EVENT_WEEKDAY}, ${EVENT_DATE_LABEL}, at ${VENUE_NAME}.`,
   faqLead: "Questions first?",
@@ -342,6 +328,7 @@ export const REGISTER_PAGE = {
   fallbackLead: "Form not loading?",
   fallbackLink: "Open it in a new tab",
   back: "Back to the hall",
+  /** The form's heading (screen readers; the page heading says it). */
   plate: "Registration form",
   loading: "Loading the form",
   /** The iframe's accessible name. */
@@ -374,13 +361,11 @@ export const FOOTER = {
 } as const;
 
 export const NOT_FOUND = {
-  eyebrow: "wrong sheet",
-  line: "This sheet isn't in the drawing set.",
-  /** Heading over the list of pages that do exist. */
-  index: "Sheets in the set",
+  title: "Page not found",
+  line: "This page doesn't exist. Try one of these instead.",
+  /** Accessible name of the list of pages that do exist. */
+  index: "Pages",
   links: { home: "Home", register: "Registration", faq: "FAQ", partner: "Partner with us" },
-  /** Dimension label under the 404 plate; the page adds " / 05" (the sheet count). */
-  sheet: "Sheet 404",
 } as const;
 
 // ── Breadcrumbs (/register, /partner, /partner/register) ──

@@ -3,22 +3,20 @@
 @tailwind utilities;
 
 /* ─────────────────────────────────────────────
-   MAC DESIGN CUP 2026 · "THE GALLERY", NOW A DRAFTING HALL
-   A dark concrete exhibition hall. Bone-cream condensed type,
-   molten ember portal light, electric-blue neon floor lines.
-   Its walls carry technical drawings: a faint drafting grid, crop marks,
-   sheet labels, dimension lines and wireframe solids in 1px bone ink at
-   6 to 16% opacity, with sparing ember accents. Decoration never competes
-   with content.
+   MAC DESIGN CUP 2026
+   A dark hall, bone type, one ember accent. The 3D hero carries the drama;
+   everything below it stays quiet: flat colour, no glows, whitespace
+   instead of rules and boxes. Anton is reserved for the hero statement and
+   the MDC wordmark; headings and body are Archivo; Space Mono only for a
+   few functional labels (times).
 
    Fonts are self-hosted through @fontsource (imported in src/main.tsx):
    Anton 400 (display), Space Mono 400/700 (labels), Archivo Variable (body).
    No third-party font request.
 
-   OWNERSHIP: after the Foundation phase this file belongs to nobody. Put new
-   styles in component-local .css files or Tailwind classes; the global
-   utilities below (draft-*, crop-mark, sheet-label, dim-*, anchor-alias,
-   focus-ember) are the shared contract. See the spec, section 9.
+   Put new styles in component-local .css files or Tailwind classes; the
+   global utilities below (draft-stroke*, dim-*, wire-solid*, anchor-alias,
+   focus-ember) are the shared contract.
 ───────────────────────────────────────────── */
 @layer base {
   :root {
@@ -121,12 +119,7 @@
 
 @layer components {
   /* ── Typography ─────────────────────────────── */
-  .mono-label {
-    @apply font-mono uppercase tracking-[0.24em] text-muted-foreground;
-    font-size: clamp(0.5625rem, 0.52rem + 0.2vw, 0.6875rem);
-  }
-
-  /* The poster headline — Anton, tall and packed like carved signage */
+  /* Anton, reserved for the hero's one statement (and the MDC wordmark). */
   .display-giant {
     @apply font-display uppercase;
     font-weight: 400;
@@ -137,83 +130,48 @@
 
   .display-hero {
     @apply display-giant;
-    font-size: clamp(2.6rem, 0.8rem + 7.2vw, 8rem);
+    font-size: clamp(2.4rem, 0.7rem + 6.1vw, 6.75rem);
   }
 
-  /* Section headings. Sized so a copy-deck line ("Blank file in the
-     morning.") holds one line on desktop instead of stacking four. */
+  /* Section headings: calm, sentence case, one line where it fits. */
   .display-scene {
-    @apply display-giant;
-    font-size: clamp(2.125rem, 0.8rem + 3.45vw, 4.25rem);
+    @apply font-body;
+    font-weight: 600;
+    font-size: clamp(2rem, 1.4rem + 1.9vw, 3.25rem);
+    line-height: 1.05;
+    letter-spacing: -0.025em;
+    text-transform: none;
+    color: hsl(var(--bone));
   }
 
   /* One line of a <DisplayHeading>: the band the line rises into. Clipped
-     just below the baseline band; generous above and to the sides so tall
-     caps, the comma's tail and the wire stroke are never shaved at rest. */
+     just below the baseline so descenders are never shaved at rest. */
   .display-line {
-    clip-path: inset(-0.4em -0.3em -0.14em -0.3em);
+    clip-path: inset(-0.3em -0.3em -0.22em -0.3em);
   }
 
   .text-ember  { color: hsl(var(--ember)); }
 
-  /* Outlined "unrendered" word */
-  .wire-text {
-    color: transparent;
-    -webkit-text-stroke: 1.5px hsl(var(--bone) / 0.85);
-  }
-  .wire-text-ember {
-    color: transparent;
-    -webkit-text-stroke: 1.5px hsl(var(--ember));
-  }
-
-  /* Molten gradient word — like type lit by the portal */
-  .ember-text {
-    background: linear-gradient(180deg, hsl(38 100% 62%) 0%, hsl(var(--ember)) 45%, hsl(var(--ember-deep)) 100%);
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
-  }
-
   /* ── Buttons ────────────────────────────────── */
-  /* The portal CTA — molten door in miniature */
+  /* The one solid button: flat ember, dark text, a crisp 1px edge. */
   .btn-portal {
-    @apply relative inline-flex items-center justify-center gap-2 font-mono text-xs font-bold uppercase tracking-[0.2em] transition-all duration-300;
-    color: hsl(42 60% 94%);
-    background:
-      radial-gradient(120% 180% at 50% 120%, hsl(var(--ember-deep)) 0%, hsl(var(--ember)) 55%, hsl(32 100% 58%) 100%);
-    border: 1px solid hsl(32 100% 62% / 0.9);
-    box-shadow:
-      0 0 18px hsl(var(--ember) / 0.45),
-      0 0 60px hsl(var(--ember) / 0.2),
-      inset 0 0 14px hsl(45 100% 70% / 0.35);
-    text-shadow: 0 1px 6px hsl(14 90% 20% / 0.8);
+    @apply relative inline-flex items-center justify-center gap-2 font-body text-sm font-semibold transition-colors duration-200;
+    color: hsl(220 8% 4%);
+    background: hsl(var(--ember));
+    border: 1px solid hsl(var(--ember));
+    letter-spacing: 0.005em;
   }
   .btn-portal:hover {
-    transform: translateY(-1px);
-    box-shadow:
-      0 0 26px hsl(var(--ember) / 0.65),
-      0 0 90px hsl(var(--ember) / 0.32),
-      inset 0 0 18px hsl(45 100% 72% / 0.5);
+    background: hsl(22 100% 47%);
+    border-color: hsl(22 100% 47%);
   }
-  .btn-portal:active { transform: translateY(1px); }
 
   .btn-ghost {
-    @apply relative inline-flex items-center justify-center gap-2 font-mono text-xs uppercase tracking-[0.2em] text-foreground transition-all duration-300;
-    border: 1px solid hsl(var(--bone) / 0.35);
-    background: hsl(var(--bone) / 0.03);
+    @apply relative inline-flex items-center justify-center gap-2 font-body text-sm font-medium text-foreground transition-colors duration-200;
+    border: 1px solid hsl(var(--bone) / 0.3);
   }
   .btn-ghost:hover {
-    border-color: hsl(var(--ember));
-    color: hsl(var(--ember));
-    box-shadow: 0 0 20px hsl(var(--ember) / 0.25);
-  }
-
-  /* ── Surfaces ───────────────────────────────── */
-  /* Thin molten seam (the footer's top edge, the countdown plate). */
-  .ember-rule {
-    height: 1px;
-    background: linear-gradient(90deg, transparent, hsl(var(--ember) / 0.9) 20%, hsl(var(--ember) / 0.9) 80%, transparent);
-    box-shadow: 0 0 12px hsl(var(--ember) / 0.5);
+    border-color: hsl(var(--bone) / 0.7);
   }
 
   /* ── Sponsor wall ───────────────────────────── */
@@ -233,54 +191,8 @@
   }
 
   /* ── Drafting hall ──────────────────────────────
-     Shared drawing vocabulary. All of it is decorative: pair with
-     aria-hidden="true" and pointer-events: none (built in where it matters). */
-
-  /* Two-level drafting grid (minor 8px, major 64px). Override the pitch with
-     --grid-minor / --grid-major, the ink with the --draft-grid-* alphas. */
-  .draft-grid {
-    --grid-minor: 8px;
-    --grid-major: 64px;
-    background-image:
-      linear-gradient(to right, hsl(var(--draft-ink) / var(--draft-grid-major)) 1px, transparent 1px),
-      linear-gradient(to bottom, hsl(var(--draft-ink) / var(--draft-grid-major)) 1px, transparent 1px),
-      linear-gradient(to right, hsl(var(--draft-ink) / var(--draft-grid-minor)) 1px, transparent 1px),
-      linear-gradient(to bottom, hsl(var(--draft-ink) / var(--draft-grid-minor)) 1px, transparent 1px);
-    background-size:
-      var(--grid-major) var(--grid-major),
-      var(--grid-major) var(--grid-major),
-      var(--grid-minor) var(--grid-minor),
-      var(--grid-minor) var(--grid-minor);
-  }
-  /* Fade any grid out toward the edges (the backdrop uses this). */
-  .draft-grid-fade {
-    -webkit-mask-image: radial-gradient(ellipse 75% 65% at 50% 45%, #000 20%, transparent 100%);
-    mask-image: radial-gradient(ellipse 75% 65% at 50% 45%, #000 20%, transparent 100%);
-  }
-
-  /* A local drawing plate for an illustration (printer drawing, form sheet):
-     hairline border plus a slightly stronger, coarser grid. */
-  .draft-panel {
-    position: relative;
-    border: 1px solid hsl(var(--draft-ink) / var(--draft-faint));
-    background-color: hsl(var(--background) / 0.55);
-    background-image:
-      linear-gradient(to right, hsl(var(--draft-ink) / 0.05) 1px, transparent 1px),
-      linear-gradient(to bottom, hsl(var(--draft-ink) / 0.05) 1px, transparent 1px),
-      linear-gradient(to right, hsl(var(--draft-ink) / 0.025) 1px, transparent 1px),
-      linear-gradient(to bottom, hsl(var(--draft-ink) / 0.025) 1px, transparent 1px);
-    background-size: 80px 80px, 80px 80px, 16px 16px, 16px 16px;
-    background-position: -1px -1px;
-  }
-
-  /* Section-cut hatching (45deg), e.g. for an empty or reserved cell. */
-  .draft-hatch {
-    background-image: repeating-linear-gradient(
-      135deg,
-      hsl(var(--draft-ink) / var(--draft-faint)) 0 1px,
-      transparent 1px 7px
-    );
-  }
+     Shared line-drawing vocabulary for the figures (printer, cup, solids).
+     All of it is decorative: pair with aria-hidden="true". */
 
   /* SVG ink. Stroke only, never filled. Width stays with the element's
      stroke-width attribute (SVG default 1). Butt caps on purpose: a round cap
@@ -296,59 +208,6 @@
   .draft-stroke-faint  { stroke: hsl(var(--draft-ink) / var(--draft-faint)); }
   .draft-stroke-strong { stroke: hsl(var(--draft-ink) / var(--draft-strong)); }
   .draft-stroke-ember  { stroke: hsl(var(--ember) / var(--draft-ember)); }
-
-  /* Printer's crop marks: two short hairlines just outside a trim corner,
-     never touching it. Place a zero-size .crop-mark on the corner point;
-     the modifier says which corner it is. Tune with --crop-len / --crop-gap. */
-  .crop-mark {
-    position: absolute;
-    width: 0;
-    height: 0;
-    pointer-events: none;
-    --crop-len: 14px;
-    --crop-gap: 6px;
-  }
-  .crop-mark::before,
-  .crop-mark::after {
-    content: "";
-    position: absolute;
-    background: hsl(var(--draft-ink) / var(--draft-strong));
-  }
-  .crop-mark::before { top: 0; height: 1px; width: var(--crop-len); }
-  .crop-mark::after  { left: 0; width: 1px; height: var(--crop-len); }
-  .crop-mark--tl::before, .crop-mark--bl::before { right: var(--crop-gap); }
-  .crop-mark--tr::before, .crop-mark--br::before { left: var(--crop-gap); }
-  .crop-mark--tl::after,  .crop-mark--tr::after  { bottom: var(--crop-gap); }
-  .crop-mark--bl::after,  .crop-mark--br::after  { top: var(--crop-gap); }
-
-  /* The mono sheet label in a drawing's corner: "SHEET 02 / 06 · PRIZES · 1:1". */
-  .sheet-label {
-    font-family: "Space Mono", ui-monospace, monospace;
-    font-size: 10px;
-    line-height: 1;
-    letter-spacing: 0.24em;
-    text-transform: uppercase;
-    white-space: nowrap;
-    color: hsl(var(--concrete) / 0.62);
-  }
-  /* A purely decorative label (sheet numbers, model numbers) is written as
-     data-label and drawn here, so it never reaches the page text. Text that
-     carries meaning (a figure caption) stays in the markup at a legible
-     contrast instead. */
-  .sheet-label[data-label]::before { content: attr(data-label); }
-
-  /* Vertical ruler: ticks growing right from a hairline spine (8px minor,
-     32px mid, 64px major). Give it a height. */
-  .draft-ruler-y {
-    width: 12px;
-    border-left: 1px solid hsl(var(--draft-ink) / var(--draft-faint));
-    background-image:
-      linear-gradient(to bottom, hsl(var(--draft-ink) / var(--draft-strong)) 1px, transparent 1px),
-      linear-gradient(to bottom, hsl(var(--draft-ink) / var(--draft-soft)) 1px, transparent 1px),
-      linear-gradient(to bottom, hsl(var(--draft-ink) / var(--draft-faint)) 1px, transparent 1px);
-    background-size: 12px 64px, 8px 32px, 4px 8px;
-    background-repeat: repeat-y;
-  }
 
   /* CAD dimension line (used by <Dimension>): extension ticks, 45deg
      architectural slashes at both ends, the label sitting in a break. */
@@ -430,15 +289,6 @@
     outline-offset: 3px;
   }
 
-  /* ── Textures ───────────────────────────────── */
-  .grain-overlay {
-    position: fixed; inset: 0;
-    pointer-events: none; z-index: 60;
-    opacity: 0.05; mix-blend-mode: overlay;
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-    background-size: 220px 220px;
-  }
-
   /* Cinematic letterbox vignette for full-bleed scenes */
   .scene-vignette {
     background:
@@ -448,14 +298,6 @@
 }
 
 /* ── Keyframes ─────────────────────────────────── */
-@keyframes blink { 0%, 60% { opacity: 1; } 61%, 100% { opacity: 0.15; } }
-
-@keyframes pulse-ring {
-  0%   { transform: scale(0.9); opacity: 0.8; }
-  70%  { transform: scale(1.5); opacity: 0; }
-  100% { transform: scale(1.5); opacity: 0; }
-}
-
 @keyframes loader-sweep {
   0%   { transform: translateX(-120%); }
   100% { transform: translateX(420%); }

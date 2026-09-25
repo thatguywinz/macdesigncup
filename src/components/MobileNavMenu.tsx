@@ -104,7 +104,7 @@ export default function MobileNavMenu({ links, note, hideFrom = "md", anchors = 
   // label is kept for the call to action, so the two never read alike.
   const rowClass = (link: MobileNavLink) =>
     cn(
-      "focus-ember relative flex min-h-[56px] items-center gap-4 py-2 font-display text-[1.65rem] uppercase leading-none tracking-[0.01em] transition-colors",
+      "focus-ember relative flex min-h-[56px] items-center gap-4 py-2 font-body text-xl font-medium leading-none tracking-[-0.01em] transition-colors",
       "accent" in link && link.accent ? "text-ember hover:text-foreground" : "text-foreground hover:text-ember",
       link.current &&
         "before:absolute before:-left-5 before:top-1/2 before:h-7 before:w-[3px] before:-translate-y-1/2 before:bg-ember md:before:-left-8",
@@ -140,7 +140,7 @@ export default function MobileNavMenu({ links, note, hideFrom = "md", anchors = 
         onClick={() => (open ? close(true) : setOpen(true))}
         aria-expanded={open}
         aria-controls={panelId}
-        className="focus-ember flex min-h-[44px] min-w-[44px] items-center gap-2.5 border border-bone/25 bg-background/60 px-3.5 font-mono text-[10px] uppercase tracking-[0.24em] text-foreground transition-colors hover:border-ember hover:text-ember aria-expanded:border-ember aria-expanded:text-ember"
+        className="focus-ember flex min-h-[44px] min-w-[44px] items-center gap-2.5 border border-bone/25 px-3.5 font-body text-sm text-foreground transition-colors hover:border-bone/60"
       >
         <span className="relative flex h-2.5 w-4 flex-col justify-between" aria-hidden="true">
           <span
@@ -198,7 +198,7 @@ export default function MobileNavMenu({ links, note, hideFrom = "md", anchors = 
             })}
         </ul>
         {note && (
-          <p className="px-5 pb-5 font-mono text-[10px] uppercase tracking-[0.24em] text-concrete md:px-8">{note}</p>
+          <p className="px-5 pb-5 font-body text-[13px] text-concrete md:px-8">{note}</p>
         )}
       </div>
     </div>

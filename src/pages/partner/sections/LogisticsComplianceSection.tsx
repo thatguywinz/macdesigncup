@@ -32,29 +32,27 @@ const FINE_PRINT = [
  */
 export default function LogisticsComplianceSection() {
   return (
-    <Sheet id="logistics" eyebrow="Practical details">
+    <Sheet id="logistics">
       <div className="grid gap-6 lg:grid-cols-[minmax(0,0.75fr)_minmax(0,1.25fr)] lg:items-start lg:gap-16">
-        <h2 className="font-display text-[clamp(2rem,1rem+2.4vw,3rem)] uppercase leading-[0.95] text-foreground">
-          Before you <span className="wire-text">arrive.</span>
-        </h2>
+        <h2 className="display-scene">Practical details</h2>
 
         <div>
-          <Reveal as="ul" className="grid border-t border-bone/15 sm:grid-cols-3">
-            {KEY_POINTS.map(({ Icon, text }, i) => (
+          <Reveal as="ul" className="grid gap-y-5 sm:grid-cols-3 sm:gap-x-8">
+            {KEY_POINTS.map(({ Icon, text }) => (
               <li
                 key={text}
-                className={`flex items-center gap-3 border-b border-bone/15 py-4 sm:flex-col sm:items-start sm:gap-3 sm:px-5 sm:py-5 ${i === 0 ? "sm:pl-0" : "sm:border-l"}`}
+                className="flex items-center gap-3 sm:flex-col sm:items-start"
               >
                 <Icon aria-hidden="true" strokeWidth={1.5} className="size-5 shrink-0 text-ember md:size-6" />
-                <span className="font-display text-[1.05rem] uppercase leading-[1.1] text-foreground md:text-[1.2rem]">
+                <span className="font-body text-base font-medium leading-snug text-foreground md:text-lg">
                   {text}
                 </span>
               </li>
             ))}
           </Reveal>
 
-          <details className="group mt-2 border-b border-bone/15">
-            <summary className="focus-ember flex min-h-[48px] cursor-pointer list-none items-center justify-between gap-3 font-mono text-[11px] uppercase tracking-[0.24em] text-foreground/85 transition-colors hover:text-ember [&::-webkit-details-marker]:hidden">
+          <details className="group mt-8 border-y border-bone/10">
+            <summary className="focus-ember flex min-h-[52px] cursor-pointer list-none items-center justify-between gap-3 font-body text-base font-medium text-foreground/85 transition-colors hover:text-foreground [&::-webkit-details-marker]:hidden">
               Fine print
               <ChevronDown
                 aria-hidden="true"
@@ -66,8 +64,8 @@ export default function LogisticsComplianceSection() {
             <dl className="pb-5">
               {FINE_PRINT.map((d) => (
                 <div key={d.title} className="grid gap-1 border-t border-bone/10 py-3 sm:grid-cols-[11rem_minmax(0,1fr)] sm:gap-6">
-                  <dt className="font-mono text-[10px] uppercase tracking-[0.2em] text-foreground/80">{d.title}</dt>
-                  <dd className="text-sm leading-relaxed text-concrete">{d.description}</dd>
+                  <dt className="font-body text-[15px] font-medium text-foreground/85">{d.title}</dt>
+                  <dd className="text-[15px] leading-relaxed text-concrete">{d.description}</dd>
                 </div>
               ))}
               <div className="border-t border-bone/10 pt-3">

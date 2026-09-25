@@ -53,7 +53,7 @@ function Answer({ text }: { text: string }): ReactNode {
 }
 
 /**
- * 06 · FAQ. Left: the heading, a question mark drafted as an extruded 3D
+ * FAQ. Left: the heading, a question mark drafted as an extruded 3D
  * letterform (it builds itself as the section scrolls in), and the "More
  * questions?" box. Right: All / Students / Teachers filter chips over a list
  * of native <details>, so every answer is in the prerendered HTML (the
@@ -152,7 +152,7 @@ export default function FAQSection() {
   let n = 0;
 
   return (
-    <Sheet id="faq" eyebrow={s.eyebrow}>
+    <Sheet id="faq">
       <div
         ref={gridRef}
         className="grid grid-cols-1 gap-6 md:gap-12 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:gap-16 xl:gap-24"
@@ -163,32 +163,25 @@ export default function FAQSection() {
             the heading and the "More questions?" box last. */}
         <div className="contents lg:block lg:self-start [@media(min-width:1024px)_and_(min-height:840px)]:sticky [@media(min-width:1024px)_and_(min-height:840px)]:top-[calc(var(--nav-h)+2.5rem)]">
           <div className="relative order-1 lg:order-none">
-            <DisplayHeading lines={s.lines} outline={s.outline} className="relative z-10" />
-            {/* Below lg it stands beside the heading (absolute: it adds no
-                height); from lg it sits under it in the left column. */}
-            <div className="pointer-events-none absolute -top-2 right-0 w-[84px] sm:w-[112px] md:-top-6 md:w-[150px] lg:static lg:mt-8 lg:w-[190px]">
+            <DisplayHeading lines={s.lines} className="relative z-10" />
+            {/* Desktop only: under the heading in the left column. */}
+            <div className="pointer-events-none hidden lg:mt-10 lg:block lg:w-[170px]">
               <QuestionMarkDrawing progress={progress} />
             </div>
           </div>
 
-          {/* Phones: a two-row card, the title with Ask us beside it, the
-              line under both. md+: title, line, button stacked. Reading order
-              is title, line, button everywhere (grid placement only moves
-              the button up on phones). */}
+          {/* The direct line: title and line, then the button. */}
           <Reveal
             delay={0.1}
-            className="order-3 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 border border-bone/20 bg-background/60 p-4 max-w-sm md:flex md:flex-col md:items-start md:p-7 lg:order-none lg:mt-8"
+            className="order-3 flex items-center justify-between gap-6 lg:order-none lg:mt-10 lg:block"
           >
-            <p className="col-start-1 row-start-1 flex items-center gap-2 font-mono text-[11px] font-bold uppercase leading-none tracking-[0.18em] text-ember min-[400px]:gap-2.5 min-[400px]:tracking-[0.26em]">
-              <span aria-hidden="true" className="h-px w-3 shrink-0 bg-ember min-[400px]:w-4" />
-              {s.more.title}
-            </p>
-            <p className="col-span-2 row-start-2 mt-2.5 font-body text-sm font-light leading-normal text-foreground/80 md:mt-4 md:leading-relaxed">
-              {s.more.body}
-            </p>
+            <div>
+              <p className="font-body text-base font-medium text-foreground">{s.more.title}</p>
+              <p className="mt-0.5 font-body text-[15px] text-concrete">{s.more.body}</p>
+            </div>
             <a
               href={MAILTO}
-              className="btn-ghost focus-ember col-start-2 row-start-1 min-h-[44px] px-4 py-2.5 min-[400px]:px-5 md:mt-6 md:px-6 md:py-3"
+              className="btn-ghost focus-ember min-h-[44px] shrink-0 px-5 py-2.5 lg:mt-5"
             >
               {s.more.cta}
               <ArrowUpRight aria-hidden="true" size={14} strokeWidth={1.5} />
@@ -200,7 +193,7 @@ export default function FAQSection() {
         <div className="order-2 lg:order-none">
           {/* Phones: a full-width segmented control of three equal chips
               (it fits a 320px column); sm+: sized to its labels. */}
-          <div role="group" aria-label={s.filterLabel} className="flex border border-bone/25 bg-background/60 sm:inline-flex">
+          <div role="group" aria-label={s.filterLabel} className="flex gap-1 sm:inline-flex">
             {FILTERS.map((key) => {
               const on = filter === key;
               return (
@@ -210,13 +203,14 @@ export default function FAQSection() {
                   aria-pressed={on}
                   onClick={() => setFilter(key)}
                   className={cn(
-                    "focus-ember relative flex min-h-[44px] flex-1 items-center justify-center gap-2 border-l border-bone/25 px-2 font-mono text-[11px] uppercase tracking-[0.12em] transition-colors first:border-l-0 sm:flex-none sm:px-4 sm:tracking-[0.2em] md:px-5",
-                    on ? "bg-ember/10 text-ember" : "text-foreground/70 hover:text-foreground",
+                    "focus-ember relative flex min-h-[44px] flex-1 items-center justify-center gap-2 border px-3 font-body text-sm transition-colors sm:flex-none sm:px-4",
+                    on
+                      ? "border-bone/40 text-foreground"
+                      : "border-transparent text-foreground/65 hover:text-foreground",
                   )}
                 >
-                  {on && <span aria-hidden="true" className="absolute inset-x-0 -bottom-px h-px bg-ember" />}
                   {s.filters[key]}
-                  <span className={cn("tabular-nums", on ? "text-ember/80" : "text-concrete")}>{COUNTS[key]}</span>
+                  <span className="tabular-nums text-concrete">{COUNTS[key]}</span>
                 </button>
               );
             })}
@@ -230,7 +224,7 @@ export default function FAQSection() {
           <div
             id={LIST_ID}
             data-collapsed={expanded ? undefined : ""}
-            className="group/faq mt-4 border-t border-bone/20 md:mt-8"
+            className="group/faq mt-5 border-t border-bone/15 md:mt-8"
           >
             {FAQS.map((faq) => {
               const inFilter = shows(faq, filter);
@@ -251,22 +245,19 @@ export default function FAQSection() {
                   {/* Phones: 52px rows (the whole row is the tap target) with
                       the question at 16px, so every question in the first
                       eight holds one line at 390px. md+: the roomier row. */}
-                  <summary className="focus-ember flex min-h-[52px] cursor-pointer list-none items-center gap-3 py-2.5 md:min-h-[64px] md:gap-6 md:py-4 [&::-webkit-details-marker]:hidden">
-                    <span className="w-8 shrink-0 font-mono text-[10px] tabular-nums tracking-[0.06em] text-ember/80 md:w-10 md:text-[11px] md:tracking-[0.12em]">
-                      Q.{String(pos).padStart(2, "0")}
-                    </span>
-                    <span className="flex-1 font-display text-base uppercase leading-tight tracking-[0.01em] text-foreground transition-colors group-hover:text-ember group-open:text-ember md:text-lg">
+                  <summary className="focus-ember flex min-h-[56px] cursor-pointer list-none items-center gap-4 py-3 md:min-h-[64px] md:gap-6 md:py-4 [&::-webkit-details-marker]:hidden">
+                    <span className="flex-1 font-body text-base font-medium leading-snug text-foreground transition-colors group-hover:text-ember md:text-lg">
                       {faq.q}
                     </span>
                     <span
                       aria-hidden="true"
-                      className="flex h-7 w-7 shrink-0 items-center justify-center border border-bone/25 text-foreground/80 transition-[transform,border-color,color] duration-300 group-open:rotate-45 group-open:border-ember group-open:text-ember motion-reduce:transition-none md:h-8 md:w-8"
+                      className="flex h-7 w-7 shrink-0 items-center justify-center text-foreground/70 transition-[transform,color] duration-300 group-open:rotate-45 group-open:text-ember motion-reduce:transition-none"
                     >
-                      <Plus size={16} strokeWidth={1.5} />
+                      <Plus size={18} strokeWidth={1.5} />
                     </span>
                   </summary>
-                  <div className="ml-11 border-l border-ember/40 pb-5 pl-4 pr-1 group-open:animate-in group-open:fade-in-0 group-open:slide-in-from-top-1 group-open:duration-500 motion-reduce:animate-none md:ml-[4rem] md:pb-7 md:pl-5 md:pr-12">
-                    <p className="max-w-[62ch] font-body text-[15px] font-light leading-relaxed text-foreground/80">
+                  <div className="pb-6 pr-1 group-open:animate-in group-open:fade-in-0 group-open:slide-in-from-top-1 group-open:duration-500 motion-reduce:animate-none md:pb-7 md:pr-12">
+                    <p className="max-w-[62ch] font-body text-[15px] leading-relaxed text-foreground/75 md:text-base">
                       <Answer text={faq.a} />
                     </p>
                     {faq.map && (
@@ -274,7 +265,7 @@ export default function FAQSection() {
                         href={VENUE_MAP_URL}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="focus-ember mt-2 inline-flex min-h-[44px] items-center gap-1.5 font-mono text-[11px] uppercase tracking-[0.2em] text-ember transition-colors hover:text-foreground"
+                        className="focus-ember mt-1 inline-flex min-h-[44px] items-center gap-1.5 text-sm text-ember underline decoration-ember/40 underline-offset-4 transition-colors hover:decoration-ember"
                       >
                         {CTA.map}
                         <ArrowUpRight aria-hidden="true" size={14} strokeWidth={1.5} />
@@ -295,21 +286,12 @@ export default function FAQSection() {
               aria-expanded={expanded}
               aria-controls={LIST_ID}
               onClick={toggle}
-              className="focus-ember group flex min-h-[52px] w-full items-center gap-3 border-b border-bone/15 py-2.5 text-left md:min-h-[60px] md:gap-6 md:py-3"
+              className="focus-ember group flex min-h-[56px] w-full items-center gap-4 py-3 text-left md:gap-6"
             >
-              <span
-                aria-hidden="true"
-                className="w-8 shrink-0 font-mono text-[10px] tabular-nums tracking-[0.06em] text-ember/80 md:w-10 md:text-[11px] md:tracking-[0.12em]"
-              >
-                {expanded ? "" : `+${total - FAQ_LIMIT}`}
-              </span>
-              <span className="flex-1 font-mono text-xs font-bold uppercase tracking-[0.22em] text-foreground/85 transition-colors group-hover:text-ember">
+              <span className="flex-1 font-body text-[15px] font-medium text-ember transition-colors group-hover:text-foreground">
                 {expanded ? FAQ_MORE.showFewer : FAQ_MORE.showAll.replace("{n}", String(total))}
               </span>
-              <span
-                aria-hidden="true"
-                className="flex h-7 w-7 shrink-0 items-center justify-center border border-ember/60 text-ember transition-colors group-hover:bg-ember/10 md:h-8 md:w-8"
-              >
+              <span aria-hidden="true" className="flex h-7 w-7 shrink-0 items-center justify-center text-ember">
                 <ChevronDown
                   size={16}
                   strokeWidth={1.5}

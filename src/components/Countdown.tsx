@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import CropMarks from "@/components/blueprint/CropMarks";
 import { useHydrated } from "@/hooks/useHydrated";
 import { useReducedMotionSafe } from "@/hooks/useReducedMotionSafe";
 import { EVENT_DATE, EVENT_DATE_LABEL } from "@/config/site";
@@ -31,8 +30,8 @@ const pad = (n: number) => String(n).padStart(2, "0");
 const TARGET = EVENT_DATE ? new Date(EVENT_DATE).getTime() : null;
 
 /**
- * The launch clock, drawn as a small drafting plate: crop marks, an ember
- * seam, one mono label ("Until we start") and Anton figures. Counts down to EVENT_DATE; while the
+ * The launch clock: one small label ("Until we start") over four plain
+ * figures. Counts down to EVENT_DATE; while the
  * date is unset it shows the "date drops soon" state instead of a deadline.
  *
  * SSR-safe: the server and the first client render show `--` in every cell;
@@ -42,9 +41,6 @@ const TARGET = EVENT_DATE ? new Date(EVENT_DATE).getTime() : null;
  *
  * Used on the home page (At a glance) and on /partner. At a glance passes
  * `showDate={false}`: its spec strip already carries the date and start time.
- *
- * Phones get one compact plate: each figure carries its unit on its own
- * baseline.
  */
 export default function Countdown({
   className = "",
@@ -80,77 +76,30 @@ export default function Countdown({
   ];
 
   return (
-    <aside
-      className={cn(
-        "relative border border-bone/15 bg-background/70 px-4 pb-3 pt-3.5 md:px-7 md:pb-6 md:pt-7",
-        className,
-      )}
-      aria-label={C.aria}
-    >
-      <CropMarks inset={-9} />
-      {/* ember seam along the top edge */}
-      <span
-        className="ember-rule absolute inset-x-0 top-0 opacity-70"
-        aria-hidden="true"
-      />
-
-      {TARGET && (
-        <p className="flex items-center gap-2.5">
-          <span
-            className="h-1.5 w-1.5 rounded-full bg-ember shadow-[0_0_10px_hsl(24_100%_54%/0.9)] animate-[blink_1.8s_ease-in-out_infinite] motion-reduce:animate-none"
-            aria-hidden="true"
-          />
-          <span className="font-mono text-[10px] uppercase tracking-[0.26em] text-ember">
-            {live && left.done ? C.done : C.until}
-          </span>
-        </p>
-      )}
-
+    <aside className={cn("relative", className)} aria-label={C.aria}>
       {TARGET ? (
         <>
+          <p className="font-body text-sm text-concrete">{live && left.done ? C.done : C.until}</p>
           {showDate && (
-            <p className="mt-3 block font-display text-[1.35rem] uppercase leading-none text-foreground md:mt-4 md:text-[1.5rem]">
-              {EVENT_DATE_LABEL}
-            </p>
+            <p className="mt-1 font-body text-lg font-medium text-foreground">{EVENT_DATE_LABEL}</p>
           )}
-
-          {/* The figures: hairline-ruled cells with a tick at each seam. */}
-          <div
-            role="timer"
-            className="relative mt-3 grid grid-cols-4 border-y border-bone/15 motion-reduce:grid-cols-3 md:mt-6"
-          >
-            {cells.map((c, i) => (
+          <div role="timer" className="mt-3 flex gap-7 md:gap-9">
+            {cells.map((c) => (
               <div
                 key={c.key}
-                className={cn(
-                  // Phones: figure and unit on one baseline. From md: stacked. (No
-                  // display class from md: motion-reduce:hidden must win.)
-                  "relative flex items-baseline justify-center gap-1.5 px-1 py-2.5 text-center md:flex-col md:items-center md:gap-0 md:px-2 md:py-4",
-                  i > 0 && "border-l border-bone/15",
-                  c.key === "secs" && "motion-reduce:hidden",
-                )}
+                // No display class here: motion-reduce:hidden must win.
+                className={cn("min-w-[2.75rem] md:min-w-[3.5rem]", c.key === "secs" && "motion-reduce:hidden")}
               >
-                {i > 0 && (
-                  <span
-                    aria-hidden="true"
-                    className="absolute -left-px -top-[5px] h-[9px] w-px bg-ember/70"
-                  />
-                )}
-                <span className="block font-display text-[1.75rem] leading-none tabular-nums text-foreground md:text-[2.4rem]">
+                <span className="block font-body text-[2.25rem] font-semibold leading-none tracking-[-0.03em] tabular-nums text-foreground md:text-[3rem]">
                   {c.value}
                 </span>
-                <span className="block font-mono text-[9px] uppercase tracking-[0.2em] text-concrete md:mt-2.5 md:tracking-[0.28em]">
-                  {c.label}
-                </span>
+                <span className="mt-2 block font-body text-xs text-concrete">{c.label}</span>
               </div>
             ))}
           </div>
         </>
       ) : (
-        <p className="mt-6 font-display text-[2rem] uppercase leading-[0.95] text-foreground">
-          {C.tba[0]}
-          <span className="wire-text-ember block">{C.tba[1]}</span>
-        </p>
+        <p className="font-body text-2xl font-semibold text-foreground">{C.tba}</p>
       )}
     </aside>
   );

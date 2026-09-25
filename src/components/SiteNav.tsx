@@ -10,7 +10,6 @@ import RegisterButton from "./RegisterButton";
 import SectionLink from "./SectionLink";
 import MobileNavMenu, { type MobileNavLink } from "./MobileNavMenu";
 import NavAnchor from "./nav/NavAnchor";
-import NavRuler from "./nav/NavRuler";
 import { SECTION_IDS, SECTION_LINKS } from "./nav/sectionLinks";
 import { useScrollSpy } from "./nav/useScrollSpy";
 import { WhoRegistersNote, WhoRegistersSr } from "./nav/WhoRegisters";
@@ -37,7 +36,7 @@ const useIsoLayoutEffect = typeof window === "undefined" ? useEffect : useLayout
  *   readers) as one form for students and teachers; the menu shows the tiny
  *   "Students and teachers" note under its Register row. Below `lg` the section links (plus Partner and
  *   Register) live in the menu; phones get Register from the sticky bar too.
- * - Bottom edge: a drafting ruler that fills ember with page scroll.
+ * - Bottom edge: a hairline once the bar turns solid.
  *
  * Route-aware: on `/` links scroll in place; on `/register` or the 404 they
  * are router links to `/#id`. Nothing here reads the window during render.
@@ -149,7 +148,7 @@ export default function SiteNav() {
         <div
           aria-hidden="true"
           className={cn(
-            "pointer-events-none absolute inset-0 bg-background/85 backdrop-blur-md transition-opacity duration-500 motion-reduce:transition-none",
+            "pointer-events-none absolute inset-0 border-b border-bone/10 bg-background/90 backdrop-blur-md transition-opacity duration-500 motion-reduce:transition-none",
             !scrolled && "opacity-0",
           )}
         />
@@ -170,7 +169,7 @@ export default function SiteNav() {
                 {NAV.mark}
               </span>
               {/* From xl, beside the mark. */}
-              <span className="sr-only xl:not-sr-only xl:mt-1.5 xl:font-mono xl:text-[10px] xl:uppercase xl:leading-none xl:tracking-[0.22em] xl:text-foreground/70">
+              <span className="sr-only xl:not-sr-only xl:mt-1 xl:font-body xl:text-[13px] xl:leading-none xl:text-foreground/65">
                 {EVENT_FULL}
               </span>
             </span>
@@ -187,8 +186,8 @@ export default function SiteNav() {
                     href={l.href}
                     aria-current={isActive ? "true" : undefined}
                     className={cn(
-                      "focus-ember flex min-h-[44px] items-center whitespace-nowrap px-3 font-mono text-[11px] uppercase tracking-[0.14em] transition-colors duration-300 xl:px-4 xl:text-xs xl:tracking-[0.16em]",
-                      isActive ? "text-ember" : "text-foreground/85 hover:text-foreground",
+                      "focus-ember flex min-h-[44px] items-center whitespace-nowrap px-3 font-body text-[15px] transition-colors duration-300 xl:px-4",
+                      isActive ? "text-foreground" : "text-foreground/65 hover:text-foreground",
                     )}
                   >
                     <span data-nav-ink={id}>{l.label}</span>
@@ -198,7 +197,7 @@ export default function SiteNav() {
             })}
             <motion.span
               aria-hidden="true"
-              className="pointer-events-none absolute bottom-[8px] left-0 h-[2px] origin-left bg-ember shadow-[0_0_10px_hsl(var(--ember)/0.8)]"
+              className="pointer-events-none absolute bottom-[8px] left-0 h-px origin-left bg-ember"
               style={{ width: BAR_W, x: barX, scaleX: barScale, opacity: barOpacity }}
             />
           </ul>
@@ -207,7 +206,7 @@ export default function SiteNav() {
           <div className="flex shrink-0 items-center gap-3 md:gap-5">
             <Link
               to={PARTNER_PATH}
-              className="focus-ember hidden min-h-[44px] items-center font-mono text-[11px] uppercase tracking-[0.2em] text-foreground/85 transition-colors hover:text-ember md:inline-flex xl:text-xs xl:tracking-[0.16em]"
+              className="focus-ember hidden min-h-[44px] items-center font-body text-[15px] text-foreground/65 transition-colors hover:text-foreground md:inline-flex"
             >
               {NAV.partner}
             </Link>
@@ -216,7 +215,7 @@ export default function SiteNav() {
               <>
                 <RegisterButton
                   aria-describedby={noteId}
-                  className="hidden min-h-[40px] px-4 py-2.5 text-[11px] md:inline-flex xl:px-5"
+                  className="hidden min-h-[40px] px-4 py-2 md:inline-flex xl:px-5"
                 />
                 <WhoRegistersSr id={noteId} />
               </>
@@ -225,12 +224,6 @@ export default function SiteNav() {
           </div>
         </nav>
 
-        <NavRuler
-          className={cn(
-            "absolute inset-x-0 bottom-0 transition-opacity duration-500 motion-reduce:transition-none",
-            !scrolled && "opacity-0",
-          )}
-        />
       </header>
     </>
   );

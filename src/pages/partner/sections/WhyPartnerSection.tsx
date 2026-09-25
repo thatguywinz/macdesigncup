@@ -44,7 +44,7 @@ function Statement({ figure, label, sub, art, big, className, delay = 0 }: State
       delay={delay}
       className={cn(
         // Phones: drawing | words. From lg: a column, the drawing on top.
-        "relative flex items-center gap-5 border-bone/15 py-5 max-lg:border-b max-lg:last:border-b-0 md:gap-8 lg:flex-col lg:items-start lg:justify-end lg:gap-6 lg:px-10 lg:py-10 lg:first:pl-0 lg:[&:not(:first-child)]:border-l",
+        "relative flex items-center gap-5 py-5 md:gap-8 lg:flex-col lg:items-start lg:justify-end lg:gap-6 lg:py-0",
         className,
       )}
     >
@@ -59,21 +59,20 @@ function Statement({ figure, label, sub, art, big, className, delay = 0 }: State
       <div className="min-w-0">
         <p
           className={cn(
-            "font-display uppercase leading-[0.85] text-ember",
-            big ? "text-[clamp(3.4rem,2rem+4vw,6.5rem)]" : "text-[clamp(2.2rem,1.3rem+2vw,3.5rem)]",
+            "font-body font-semibold leading-none tracking-[-0.03em] text-ember",
+            big ? "text-[clamp(2.5rem,1.8rem+2vw,3.75rem)]" : "text-[clamp(2rem,1.5rem+1.4vw,2.75rem)]",
           )}
         >
           {figure}
         </p>
         <h3
           className={cn(
-            "mt-2 font-display uppercase leading-none text-foreground md:mt-3",
-            big ? "text-[1.3rem] md:text-[1.7rem]" : "text-[1.15rem] md:text-[1.45rem]",
+            "mt-2 font-body text-lg font-semibold leading-tight text-foreground md:mt-3 md:text-xl",
           )}
         >
           {label}
         </h3>
-        <p className="mt-2 font-mono text-[10px] uppercase leading-relaxed tracking-[0.18em] text-concrete md:text-[11px]">
+        <p className="mt-1 font-body text-[15px] leading-snug text-concrete">
           {sub}
         </p>
       </div>
@@ -90,10 +89,10 @@ function Statement({ figure, label, sub, art, big, className, delay = 0 }: State
  */
 export default function WhyPartnerSection() {
   return (
-    <Sheet id="why" eyebrow="Why it matters">
-      <DisplayHeading lines={["Make it real."]} outline="real." />
+    <Sheet id="why">
+      <DisplayHeading lines={["Why partner"]} />
 
-      <ul className="mt-6 grid border-y border-bone/15 md:mt-10 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)_minmax(0,1fr)]">
+      <ul className="mt-8 grid md:mt-12 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1fr)] lg:gap-12">
         <Statement
           big
           // TODO(owner): EXPECTED_STUDENTS (site.ts) is the planned head count; confirm before launch.

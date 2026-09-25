@@ -4,9 +4,6 @@ import { ArrowLeft, ArrowRight, ArrowUpRight, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { REGISTRATION_EMBED_URL, REGISTRATION_URL } from "@/config/site";
 import { BREADCRUMBS, REGISTER_PAGE } from "@/content/copy";
-import BlueprintBackdrop from "@/components/blueprint/BlueprintBackdrop";
-import CropMarks from "@/components/blueprint/CropMarks";
-import { SheetEyebrow } from "@/components/blueprint/Sheet";
 import DisplayHeading from "@/components/motion/DisplayHeading";
 import SiteNav from "@/components/SiteNav";
 import SiteFooter from "@/components/SiteFooter";
@@ -39,7 +36,7 @@ function PathRows({ className }: { className?: string }) {
   return (
     <p
       className={cn(
-        "flex items-center gap-3 border-y border-foreground/15 py-3 font-body text-[15px] leading-snug text-foreground/90",
+        "flex items-center gap-3 font-body text-[15px] leading-snug text-foreground/85",
         className,
       )}
     >
@@ -52,7 +49,7 @@ function PathRows({ className }: { className?: string }) {
 /** "Questions first? Read the FAQ": under the paths on desktop, under the form below `lg`. */
 function FaqLine({ className }: { className?: string }) {
   return (
-    <p className={cn("font-body text-sm font-light text-concrete", className)}>
+    <p className={cn("font-body text-[15px] text-concrete", className)}>
       {REGISTER_PAGE.faqLead}{" "}
       <Link
         to="/#faq"
@@ -66,7 +63,7 @@ function FaqLine({ className }: { className?: string }) {
 }
 
 /**
- * The live Tally form in a drawing plate. Server HTML carries the iframe with
+ * The live Tally form in a plain frame. Server HTML carries the iframe with
  * `data-tally-src` (no `src`), so the prerendered page never loads Tally
  * itself; after mount the widget script sets the src and takes over the
  * height. If the script is blocked or never arrives, the iframe gets its src
@@ -159,23 +156,15 @@ function TallyPlate() {
   };
 
   return (
-    <section aria-labelledby={plateId} className="draft-panel relative">
-      {/* Outside the corners from md up; a phone's 20px gutter has no room for them. */}
-      <CropMarks inset={-9} className="hidden md:block" />
-      <header className="flex items-center justify-between gap-4 border-b border-foreground/10 px-4 py-3.5 md:px-6">
-        <h2
-          id={plateId}
-          className="flex items-center gap-2.5 font-mono text-[11px] font-bold uppercase tracking-[0.24em] text-foreground/90"
-        >
-          <span aria-hidden="true" className="block size-1.5 bg-ember" />
-          {REGISTER_PAGE.plate}
-        </h2>
-      </header>
+    <section aria-labelledby={plateId} className="relative border border-bone/10">
+      <h2 id={plateId} className="sr-only">
+        {REGISTER_PAGE.plate}
+      </h2>
 
-      <div className="relative bg-background/70 px-2 pb-3 pt-2 md:px-4 md:pb-5">
+      <div className="relative px-2 pb-3 pt-2 md:px-4 md:pb-5">
         {!loaded && (
           <div className="pointer-events-none absolute inset-x-4 top-6 md:inset-x-6" role="status">
-            <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-concrete">{REGISTER_PAGE.loading}</p>
+            <p className="font-body text-sm text-concrete">{REGISTER_PAGE.loading}</p>
             <span aria-hidden="true" className="mt-3 block h-px w-full overflow-hidden bg-foreground/10">
               <span className="block h-px w-1/4 bg-ember/80 animate-[loader-sweep_1.6s_ease-in-out_infinite] motion-reduce:animate-none" />
             </span>
@@ -214,43 +203,27 @@ function TallyPlate() {
 export default function Register() {
   return (
     <div className="relative min-h-screen bg-background">
-      <BlueprintBackdrop />
       <SiteNav />
       <main id="main" className="relative z-10">
         <section
           aria-labelledby="register-h1"
           className="relative px-5 pb-20 pt-[calc(var(--nav-h)+1.25rem)] md:px-10 md:pb-28 md:pt-[calc(var(--nav-h)+2rem)] lg:px-16"
         >
-          <span
-            aria-hidden="true"
-            className="draft-ruler-y pointer-events-none absolute bottom-24 left-7 top-40 hidden lg:block"
-            style={{
-              WebkitMaskImage: "linear-gradient(180deg, transparent, #000 12%, #000 88%, transparent)",
-              maskImage: "linear-gradient(180deg, transparent, #000 12%, #000 88%, transparent)",
-            }}
-          />
           <div className="relative mx-auto w-full max-w-[1300px]">
             <Breadcrumbs
               items={[{ label: BREADCRUMBS.home, to: "/" }, { label: BREADCRUMBS.register }]}
-              className="mb-6 md:mb-10"
+              className="mb-8 md:mb-12"
             />
 
             <div className="grid gap-6 md:gap-10 lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] lg:gap-16 xl:gap-20">
               {/* who registers */}
               <div>
-                <SheetEyebrow>{REGISTER_PAGE.eyebrow}</SheetEyebrow>
-                <DisplayHeading
-                  as="h1"
-                  id="register-h1"
-                  reveal={false}
-                  lines={REGISTER_PAGE.h1}
-                  outline={REGISTER_PAGE.outline}
-                />
-                <p className="mt-4 max-w-[34rem] font-body text-base font-light leading-relaxed text-concrete md:mt-8 md:text-lg">
+                <DisplayHeading as="h1" id="register-h1" reveal={false} lines={REGISTER_PAGE.h1} />
+                <p className="mt-4 max-w-[34rem] font-body text-lg leading-relaxed text-foreground/75 md:mt-5 md:text-xl">
                   {REGISTER_PAGE.intro}
                 </p>
 
-                <PathRows className="mt-5 max-w-[34rem] md:mt-8 lg:mt-12" />
+                <PathRows className="mt-5 max-w-[34rem] md:mt-6" />
 
                 <FaqLine className="mt-6 hidden lg:block" />
               </div>
@@ -261,7 +234,7 @@ export default function Register() {
                 {/* Below lg the FAQ line waits under the form, so the form starts on the first screen. */}
                 <FaqLine className="mt-5 lg:hidden" />
                 <div className="mt-5 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                  <p className="font-body text-sm font-light text-concrete">
+                  <p className="font-body text-[15px] text-concrete">
                     {REGISTER_PAGE.fallbackLead}{" "}
                     <a
                       href={REGISTRATION_URL}
@@ -275,7 +248,7 @@ export default function Register() {
                   </p>
                   <Link
                     to="/"
-                    className="focus-ember inline-flex min-h-11 items-center gap-2 font-mono text-[11px] uppercase tracking-[0.22em] text-foreground/75 transition-colors hover:text-ember sm:min-h-0"
+                    className="focus-ember inline-flex min-h-11 items-center gap-2 font-body text-[15px] text-foreground/70 transition-colors hover:text-foreground sm:min-h-0"
                   >
                     <ArrowLeft aria-hidden="true" size={14} strokeWidth={1.5} />
                     {REGISTER_PAGE.back}
