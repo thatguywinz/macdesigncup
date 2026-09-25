@@ -325,6 +325,24 @@ function phoneFraming(aspect: number, floor: number, heightPx: number, bottomPx:
   return { ...base, fov: lo, lookY: lookAt(lo) };
 }
 
+/** Where the phone scene's rest shot (no idle drift) puts the door rim's
+ *  top, the nearest plinths' feet and the Enter slab, each as a share of the
+ *  frame height from the top. scripts/hero-still.mjs records them with the
+ *  phone stills (public/hero), so the page can lay a still where the live
+ *  scene will draw the same hall. */
+export function phoneShot(fit: number, floor: number, heightPx: number, bottomPx: number) {
+  const f = phoneFraming(fit, floor, heightPx, bottomPx);
+  const tanV = Math.tan(rad(f.fov / 2));
+  const at = (y: number, z: number) => (1 - ndcY(f.y, f.z, f.lookY, tanV, y, z)) / 2;
+  const near = slotsFor(f).reduce((a, b) => (b.z > a.z ? b : a));
+  return {
+    kind: f.kind,
+    rimTop: at(RIM_TOP, DOOR.z),
+    feet: at(slabBottom(near), near.z),
+    cta: at(CTA_AT.y, CTA_AT.z),
+  };
+}
+
 /** The shot for a frame. `phone` picks the lite scene's phone shot: `fit` is
  *  the aspect the plinth files must fit (the frame's, or sideways the hall
  *  column's). Otherwise the aspect decides between landscape and the

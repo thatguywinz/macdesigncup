@@ -89,6 +89,10 @@ function CameraRig({ progress, reduced, frame: f, floor, still, shift }: RigProp
   const lean = useMemo(() => new THREE.Vector2(), []);
   const look = useMemo(() => new THREE.Vector3(), []);
   const eased = useRef(0);
+  // The first drawn frame's clock time: the idle drift starts from rest there
+  // and eases in, so the scene's first frame matches the still it replaces
+  // (on phones, public/hero/hall-*.webp) and only then begins to breathe.
+  const born = useRef(-1);
   const invalidate = useThree((s) => s.invalidate);
   // A new framing needs a frame even when the canvas only draws on demand.
   useEffect(() => invalidate(), [f, floor, invalidate]);
@@ -123,8 +127,11 @@ function CameraRig({ progress, reduced, frame: f, floor, still, shift }: RigProp
 
     lean.x = THREE.MathUtils.damp(lean.x, reduced || still ? 0 : PTR.x * free, 2.4, dt);
     lean.y = THREE.MathUtils.damp(lean.y, reduced || still ? 0 : PTR.y * free, 2.4, dt);
-    const driftX = reduced ? 0 : Math.sin(t * 0.22) * 0.14 * free;
-    const driftY = reduced ? 0 : Math.sin(t * 0.16) * 0.08 * free;
+    if (born.current < 0) born.current = t;
+    const idle = t - born.current;
+    const calm = reduced ? 0 : smoothstep(0.6, 4.5, idle) * free;
+    const driftX = Math.sin(idle * 0.22) * 0.14 * calm;
+    const driftY = Math.sin(idle * 0.16) * 0.08 * calm;
 
     const camY = THREE.MathUtils.lerp(f.y, DOOR.y, e) + lean.y * 0.55 + driftY;
     const camZ = THREE.MathUtils.lerp(f.z, f.endZ, e);

@@ -163,117 +163,80 @@
   filter: blur(10px);
 }
 
-/* ── Phones: the hall laid out under the type ──────────────────────────
-   Off the stage there is no 3D scene. The copy is in the flow, and the hall
-   plan fills what is left of the first screen: the door (as tall as fits,
-   within limits) with the Enter slab on it, the floor line, then the sponsor
-   plaques, clear of the sticky Register bar. The door can never reach up
-   into the copy, whatever the copy's height; on a very short phone the
-   hero simply grows. */
+/* ── Phones: the hall under the type ──────────────────────────────────
+   Off the stage the copy is in the flow and the hall plan fills what is
+   left of the first screen, clear of the sticky Register bar (its bottom
+   padding, which the phone scene also keeps clear: Hero.tsx measures it).
+   It shows a still of the phone scene (HeroPoster's HallStill, from
+   scripts/hero-still.mjs) laid the way the scene frames the hall: the door
+   rim's top on the type's clearance line (--still-top under the plan's top)
+   and the picture as large as the phone's width allows (the scene's plinth
+   files are fitted to it), or, where the room between that line and the
+   Register bar is shorter, as large as fits it (the nearest plinths' feet
+   on its bottom). The Enter slab sits on the still's door. When the live
+   scene crossfades in over it on the first touch, the hall barely moves.
+   --still-{phone,side}-{a,b,c,x,r} come from still.ts (see there). */
 .hall-plan {
+  --still-top: 22px;
+  --still-bottom: calc(5.25rem + env(safe-area-inset-bottom));
+  --a: var(--still-phone-a);
+  --b: var(--still-phone-b);
+  --c: var(--still-phone-c);
+  --x: var(--still-phone-x);
+  --r: var(--still-phone-r);
   position: relative;
-  z-index: 15;
-  display: flex;
   flex: 1 0 auto;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 2.25rem 1rem calc(5.25rem + env(safe-area-inset-bottom));
+  min-height: 19rem;
+  padding-bottom: var(--still-bottom);
+}
+/* The still and the slab's layer each span the plan (as query containers,
+   so their sizes can use its width and height). The still sits under the
+   scene (z 5), the vignette and the type's scrim (z 10), like the scene it
+   stands in for; the slab over them. */
+.hall-still,
+.hall-plan__doorway {
+  position: absolute;
+  inset: 0;
+  container-type: size;
+  pointer-events: none;
+}
+.hall-still {
+  z-index: 4;
 }
 .hall-plan__doorway {
-  position: relative;
-  width: 100%;
-  flex: 1 1 0;
-  min-height: 8.5rem;
-  max-height: min(27svh, 15rem);
+  z-index: 15;
 }
-.hall-plan__door {
+.hall-still img {
   position: absolute;
-  top: 0;
   left: 50%;
-  height: 100%;
-  transform: translateX(-50%);
-}
-/* the floor: a hairline horizon under the jambs, and the door's reflection */
-.hall-plan__doorway::after {
-  content: "";
-  position: absolute;
-  left: -1rem;
-  right: -1rem;
-  top: calc(100% + 11px);
-  height: 1px;
-  background: linear-gradient(90deg, transparent, hsl(var(--bone) / 0.16) 20%, hsl(var(--bone) / 0.16) 80%, transparent);
-}
-.hall-plan__door::after {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: calc(100% + 16px);
-  height: 3.5rem;
-  background: linear-gradient(180deg, hsl(24 100% 54% / 0.28), transparent 85%);
-  filter: blur(8px);
-}
-
-/* Every hall sponsor: five across, the last row centred. */
-.hall-plan__plaques {
-  --plaque-gap: 0.4375rem;
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 0.375rem var(--plaque-gap);
-  width: min(100%, 22rem);
-  margin-top: 1.625rem;
-  /* standing on the floor in front of the door: the back rows recede */
-  transform: perspective(42rem) rotateX(10deg);
-  transform-origin: 50% 100%;
-}
-.hall-plan__plaque {
-  display: flex;
-  flex: 0 0 calc((100% - 4 * var(--plaque-gap)) / 5);
-  flex-direction: column;
-  align-items: center;
-  min-width: 0;
-}
-.hall-plan__slab {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  height: 2.125rem;
-  background: linear-gradient(180deg, #131418 0%, #0c0d10 100%);
-  border: 1px solid hsl(var(--bone) / 0.24);
-  box-shadow: 0 14px 20px -14px hsl(22 100% 50% / 0.45);
-}
-.hall-plan__slab img {
-  display: block;
   width: auto;
-  height: auto;
-  object-fit: contain;
-  /* the flat sponsor wall's bone knockout (.sponsor-logo) */
-  filter: brightness(0) invert(1) sepia(0.5) saturate(1.35) brightness(0.98);
-  opacity: 0.9;
+  max-width: none;
+  /* before container units: as wide as the window */
+  height: calc(100vw * var(--r));
+  top: calc(var(--still-top) - var(--a) * 100vw * var(--r));
+  transform: translateX(calc(var(--x) * -100%));
+  user-select: none;
+  /* the hall's lights come up under the type */
+  animation: hall-still-in 0.7s ease-out both;
 }
-/* the plinth under each slab, its cap catching the door's light */
-.hall-plan__plinth {
-  width: 62%;
-  height: 0.3125rem;
-  margin-top: 3px;
-  background: #141518;
-  border-top: 1px solid hsl(var(--ember) / 0.85);
+@keyframes hall-still-in {
+  from {
+    opacity: 0;
+  }
 }
-
-/* Short phones: tighter air and slimmer plaques before the hero grows. */
-@media (max-width: 767px) and (max-height: 760px) {
-  .hall-plan {
-    padding-top: 1.75rem;
+@media (prefers-reduced-motion: reduce) {
+  .hall-still img {
+    animation: none;
   }
-  .hall-plan__plaques {
-    row-gap: 0.25rem;
-    margin-top: 1.25rem;
+}
+@supports (width: 1cqw) {
+  .hall-still img,
+  .hall-plan .hall-cta--poster {
+    --still-h: min(100cqw * var(--r), (100cqh - var(--still-top) - var(--still-bottom)) / (var(--b) - var(--a)));
   }
-  .hall-plan__slab {
-    height: 1.875rem;
+  .hall-still img {
+    height: var(--still-h);
+    top: calc(var(--still-top) - var(--a) * var(--still-h));
   }
 }
 
@@ -281,10 +244,9 @@
    A short landscape window (844x390, 932x430, 740x360) has no room for the
    stage: the type fills its height and the door's Enter slab lands on the
    prize line. It keeps the CSS hall, side by side: the type on the left,
-   sized to the height, and the hall on the right, the door as tall as fits
-   with the Enter slab on it and every plaque, seven across, on the floor in
-   front of it. When the two columns need more than the window (a 568x320
-   phone), the hero grows; nothing overlaps. */
+   sized to the height, and the hall's column on the right, where the side
+   still (and later the scene) centres the hall. When the type needs more
+   than the window (a 568x320 phone), the hero grows; nothing overlaps. */
 @media (max-height: 500px) and (min-aspect-ratio: 4/3) {
   .hall-stage {
     flex-direction: row;
@@ -310,25 +272,19 @@
     font-size: 14px;
   }
 
+  /* The scene's clearance line sits 10px over the plan's top padding (the
+     nav's room), the rim's guard 22px under that. */
   .hall-plan {
+    --still-top: calc(var(--nav-h) + 0.75rem + 12px);
+    --still-bottom: 1.25rem;
+    --a: var(--still-side-a);
+    --b: var(--still-side-b);
+    --c: var(--still-side-c);
+    --x: var(--still-side-x);
+    --r: var(--still-side-r);
     flex: 1 0 clamp(17.5rem, 40vw, 26rem);
-    padding: calc(var(--nav-h) + 0.75rem) 1rem 1.25rem 0.5rem;
-  }
-  .hall-plan__doorway {
-    min-height: 7rem;
-    max-height: 14rem;
-  }
-  .hall-plan__plaques {
-    --plaque-gap: 0.375rem;
-    row-gap: 0.25rem;
-    width: min(100%, 26rem);
-    margin-top: 1rem;
-  }
-  .hall-plan__plaque {
-    flex-basis: calc((100% - 6 * var(--plaque-gap)) / 7);
-  }
-  .hall-plan__slab {
-    height: 1.625rem;
+    min-height: 0;
+    padding: calc(var(--nav-h) + 0.75rem) 1rem var(--still-bottom) 0.5rem;
   }
 }
 @media (min-width: 768px) and (max-height: 500px) {
@@ -340,12 +296,12 @@
    both columns stop above it and the type steps down a size to fit what is
    left (740x360: 219px between the nav and the bar). */
 @media (max-width: 767px) and (max-height: 500px) and (min-aspect-ratio: 4/3) {
-  .hall-type-pad,
-  .hall-plan {
-    padding-bottom: calc(4.625rem + env(safe-area-inset-bottom));
-  }
   .hall-type-pad {
     padding-top: calc(var(--nav-h) + 0.25rem);
+    padding-bottom: calc(4.625rem + env(safe-area-inset-bottom));
+  }
+  .hall-plan {
+    --still-bottom: calc(4.625rem + env(safe-area-inset-bottom));
   }
   .hall-type .hall-type__title {
     margin-top: 0.5rem;
@@ -361,20 +317,20 @@
   .hall-plan {
     position: absolute;
     inset: 0;
-    display: block;
+    z-index: 15;
+    min-height: 0;
     padding: 0;
     pointer-events: none;
   }
   .hall-plan__doorway {
     position: static;
+    container-type: normal;
   }
-  .hall-plan__doorway::after,
-  .hall-plan__door,
-  .hall-plan__plaques {
+  .hall-still {
     display: none;
   }
 }
-/* The CSS hall draws its own door, in the flow. */
+/* The CSS hall is the still: no poster door. */
 @media (max-width: 767px), (max-height: 500px) {
   .hall-poster__door,
   .hall-poster__floor {
@@ -396,32 +352,37 @@
   align-items: center;
 }
 
-/* The poster's copy of the slab. CSS hall: on the door, a little above its
-   middle so the "or scroll" chip still sits inside it. Stage: where the
-   scene will put its own (Hero.tsx sets --hall-cta-mid from the camera
-   maths); once the scene is on screen it hands over (see [data-ready]). */
+/* The poster's copy of the slab, where the scene will put its own. CSS
+   hall: on the still's door (still.ts's c, laid like the still). Stage:
+   Hero.tsx sets --hall-cta-mid from the camera maths. Once the scene is on
+   screen it hands over (see [data-ready]). */
 .hall-cta--poster {
   position: absolute;
   left: 50%;
-  top: calc(50% - 1.1rem);
+  top: calc(var(--still-top) + (var(--c) - var(--a)) * 100vw * var(--r));
   transform: translate(-50%, -50%);
+  pointer-events: auto;
   transition:
     opacity 0.6s ease,
     visibility 0s linear 0s;
 }
-@media (min-width: 768px) and (min-height: 501px) {
+@supports (width: 1cqw) {
   .hall-cta--poster {
+    top: calc(var(--still-top) + (var(--c) - var(--a)) * var(--still-h));
+  }
+}
+@media (min-width: 768px) and (min-height: 501px) {
+  .hall-plan .hall-cta--poster {
     top: var(--hall-cta-mid, 47.5%);
-    pointer-events: auto;
   }
 }
 @media (min-width: 768px) and (min-height: 501px) and (max-aspect-ratio: 31/20) and (min-aspect-ratio: 1/1) {
-  .hall-cta--poster {
+  .hall-plan .hall-cta--poster {
     top: var(--hall-cta-mid, 53%);
   }
 }
 @media (min-width: 768px) and (min-height: 501px) and (max-aspect-ratio: 1/1) {
-  .hall-cta--poster {
+  .hall-plan .hall-cta--poster {
     top: var(--hall-cta-mid, 58%);
   }
 }
@@ -487,22 +448,11 @@
   }
 }
 
-/* ── The phone scene over the CSS hall ─────────────────────────────────
+/* ── The phone scene over the still ────────────────────────────────────
    Once the lite scene is on screen (Hero.tsx sets data-ready) it draws the
-   door, the plinths and the Enter slab itself: the CSS hall's door and
-   plaque grid fade out under it (their boxes stay, so nothing moves), and
-   the hall plan stops taking taps so they reach the scene's own slab. The
-   scene takes no touches but that slab's: a swipe on the hall scrolls. */
-.hall-plan__door,
-.hall-plan__plaques,
-.hall-plan__doorway::after {
-  transition: opacity 0.9s ease-out;
-}
-[data-ready] .hall-plan__door,
-[data-ready] .hall-plan__plaques,
-[data-ready] .hall-plan__doorway::after {
-  opacity: 0;
-}
+   hall and the Enter slab itself, over the still; the hall plan stops taking
+   taps so they reach the scene's own slab. The scene takes no touches but
+   that slab's: a swipe on the hall scrolls. */
 [data-ready] .hall-plan {
   pointer-events: none;
 }

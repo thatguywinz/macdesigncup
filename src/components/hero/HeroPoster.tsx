@@ -1,12 +1,11 @@
-import { GRID_SPONSORS } from "@/config/sponsors";
+import { HALL_STILLS } from "./still";
 
 /**
  * The hall without WebGL: a dark gallery, the lit door at the end of it, the
  * floor catching its light. It is
  * what the prerendered page, no-JS visitors and devices without WebGL see,
  * and it stays under the 3D canvas as its fallback. Pure CSS, decorative.
- * On phones the door is drawn by the hall plan instead (Hero.tsx), in the
- * flow under the type.
+ * On phones the hall is a still of the 3D scene instead (HallStill).
  */
 export default function HeroPoster() {
   return (
@@ -17,35 +16,43 @@ export default function HeroPoster() {
   );
 }
 
-/** The share of the flat wall's optical caps (sponsors.ts maxW/maxH, px)
- *  a logo gets on a phone plaque. */
-const CAP = 0.36;
+/** The stage layout (Hero.tsx STAGE_QUERY) and the phone held sideways
+ *  (SIDE_QUERY): the stage draws its own poster, so it fetches no still. */
+const STAGE_MEDIA = "(min-width: 768px) and (min-height: 501px)";
+const SIDE_MEDIA = "(max-height: 500px) and (min-aspect-ratio: 4/3)";
+/** A 1x1 transparent GIF: what the stage "loads" instead of a still. */
+const BLANK = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
 
 /**
- * Phones without the 3D hall: every hall sponsor (GRID_SPONSORS) as a small plaque on the hall
- * floor in front of the door, a tidy grid of plinths like the 3D hall's
- * (five across, the last row centred), each a dark slab with the logo in
- * bone (the flat sponsor wall's knockout filter). The sponsor section
- * further down names and links every sponsor, so this is decorative.
+ * Phones (the CSS hall): a still of the live 3D hall, rendered from the phone
+ * scene itself by scripts/hero-still.mjs, so the hero looks 3D from the first
+ * paint. hero.css scales and places it the way the scene frames the hall
+ * (the door's rim under the type, the plinths above the Register bar), so
+ * when the live scene loads on the first touch it crossfades in over the
+ * same picture. It stays the hall with reduced motion or without WebGL.
+ * Low priority: the h1 is the page's first paint that matters.
  */
-export function HallPlaques() {
+export function HallStill() {
+  const { phone, side } = HALL_STILLS;
   return (
-    <ul aria-hidden="true" className="hall-plan__plaques">
-      {GRID_SPONSORS.map((s) => (
-        <li key={s.name} className="hall-plan__plaque">
-          <span className="hall-plan__slab">
-            <img
-              src={s.logo}
-              alt={s.name}
-              loading="lazy"
-              decoding="async"
-              draggable={false}
-              style={{ maxWidth: `min(${s.maxW * CAP}px, 84%)`, maxHeight: `min(${s.maxH * CAP}px, 66%)` }}
-            />
-          </span>
-          <span className="hall-plan__plinth" />
-        </li>
-      ))}
-    </ul>
+    <div aria-hidden="true" className="hall-still">
+      <picture>
+        <source media={STAGE_MEDIA} srcSet={BLANK} width={1} height={1} />
+        {side.avif && (
+          <source media={SIDE_MEDIA} type="image/avif" srcSet={side.avif} width={side.width} height={side.height} />
+        )}
+        <source media={SIDE_MEDIA} type="image/webp" srcSet={side.src} width={side.width} height={side.height} />
+        {phone.avif && <source type="image/avif" srcSet={phone.avif} width={phone.width} height={phone.height} />}
+        <img
+          src={phone.src}
+          width={phone.width}
+          height={phone.height}
+          alt=""
+          decoding="async"
+          draggable={false}
+          {...{ fetchpriority: "low" }}
+        />
+      </picture>
+    </div>
   );
 }

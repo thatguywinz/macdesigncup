@@ -1,4 +1,4 @@
-import { Suspense, lazy, useCallback, useEffect, useRef, useState, type MouseEvent } from "react";
+import { Suspense, lazy, useCallback, useEffect, useRef, useState, type CSSProperties, type MouseEvent } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { motion, useInView, useMotionValue, useMotionValueEvent, useScroll, useTransform } from "framer-motion";
 import { ArrowDown } from "lucide-react";
@@ -6,16 +6,18 @@ import { useHydrated } from "@/hooks/useHydrated";
 import { useReducedMotionSafe } from "@/hooks/useReducedMotionSafe";
 import { focusTarget } from "@/lib/focusTarget";
 import { CTA, HERO } from "@/content/copy";
-import HeroPoster, { HallPlaques } from "./HeroPoster";
+import HeroPoster, { HallStill } from "./HeroPoster";
+import { HALL_STILLS } from "./still";
 import SceneBoundary from "./SceneBoundary";
 import { restShot, type PhoneFrame } from "./frame";
 import { COPY_OUT, CTA_OUT, SPILL_IN } from "./timeline";
 import "./hero.css";
 
 // three.js + postprocessing are heavy: split them from the shell and load
-// them only once the page has loaded and gone idle. The poster (on phones,
-// the CSS hall) is the hero until the scene is up, and stays it without
-// WebGL (and on phones, with reduced motion).
+// them only once the page has loaded and gone idle (phones: on the first
+// touch or scroll). The poster (on phones, a still of the 3D hall) is the
+// hero until the scene is up, and stays it without WebGL (and on phones,
+// with reduced motion).
 const GalleryScene = lazy(() => import("./GalleryScene"));
 
 /** The 3D stage layout: 768px wide and more than 500px tall. hero.css keys the
@@ -34,6 +36,15 @@ const GLIDE_MS = 2400;
 
 const clamp01 = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v);
 const easeInOutSine = (t: number) => -(Math.cos(Math.PI * t) - 1) / 2;
+
+/** Where the hall sits in each phone still (still.ts), as custom properties
+ *  for hero.css, which lays the still and the Enter slab on its door with
+ *  them. On the hall plan, so both share them. */
+const HALL_STILL_VARS = Object.fromEntries(
+  (["phone", "side"] as const).flatMap((kind) =>
+    (["a", "b", "c", "x", "r"] as const).map((k) => [`--still-${kind}-${k}`, String(HALL_STILLS[kind][k])]),
+  ),
+) as CSSProperties;
 
 /** The poster door's placement, set on the stage from the rest shot. */
 const DOOR_VARS = ["--hall-door-mid", "--hall-door-h", "--hall-cta-mid"] as const;
@@ -152,16 +163,17 @@ function useMedia(query: string) {
  * prerendered HTML and visitors without WebGL get a complete hero.
  *
  * Phones (below 768px) and short landscape windows (500px tall or less, a
- * phone held sideways) lay that poster out as a CSS hall: the copy, then the
- * lit door with the Enter slab, then every hall sponsor as a small plaque
- * grid on the floor, in the flow so the door can never sit on the copy
- * (upright: stacked; sideways: the copy on the left, the hall beside it).
- * Once the page is idle the lite scene (GalleryScene `lite`: low pixel
- * ratio, no reflection pass, one half-resolution bloom) fades in over it:
- * upright, the whole stage with the phone shot (frame.ts), the door under
- * the type and eight plinths down the floor above the Register bar;
- * sideways, the hall's column. No scroll dolly on phones, just the idle
- * drift; the CSS hall stays without WebGL or with reduced motion.
+ * phone held sideways) lay the hero out as a CSS hall: the copy, then the
+ * hall plan (upright: stacked; sideways: the copy on the left, the hall
+ * beside it), which shows a still of the phone scene (HallStill, rendered
+ * by scripts/hero-still.mjs) placed the way the scene frames it, with the
+ * Enter slab on its door. On the first touch or scroll the lite scene
+ * (GalleryScene `lite`: low pixel ratio, no reflection pass, one
+ * half-resolution bloom) crossfades in over the same picture: upright, the
+ * whole stage with the phone shot (frame.ts), the door under the type and
+ * eight plinths down the floor above the Register bar; sideways, the hall's
+ * column. No scroll dolly on phones, just an idle drift that eases in once
+ * the scene is up; the still stays without WebGL or with reduced motion.
  *
  * From 768px wide and 501px tall (STAGE_QUERY) the scene loads once the page
  * is idle and crossfades in over
@@ -194,7 +206,7 @@ export default function Hero() {
   const [ready, setReady] = useState(false);
   const planRef = useRef<HTMLDivElement>(null);
   // Phones get the lite scene, and only with motion allowed: reduced motion
-  // keeps the still CSS hall.
+  // keeps the still of the hall.
   const lite = !wide;
   const wants = hydrated && (wide || !reduced);
 
@@ -216,8 +228,8 @@ export default function Hero() {
       else timer = window.setTimeout(go, 300);
     };
     // Phones: three.js costs seconds of main thread on a mid-range CPU, so the
-    // CSS hall stays until the visitor first touches or scrolls, then the 3D
-    // fades in. Desktop loads it once the page is idle.
+    // still of the hall stays until the visitor first touches or scrolls, then
+    // the live 3D crossfades in over it. Desktop loads it once the page is idle.
     const INTERACT = ["pointerdown", "touchstart", "scroll", "keydown", "wheel"] as const;
     const onInteract = () => {
       INTERACT.forEach((t) => window.removeEventListener(t, onInteract));
@@ -433,14 +445,14 @@ export default function Hero() {
           </motion.div>
         </div>
 
-        {/* The hall's floor plan. Phones: the lit door with the Enter slab on
-            it, then the sponsor plaques, under the type (sideways: beside it).
-            On the stage: the poster's Enter slab over the poster door, until
-            the scene brings its own (glued to the 3D door) and this one steps
-            aside. */}
-        <div ref={planRef} className="hall-plan">
+        {/* The hall's floor plan. Phones: the still of the 3D hall under the
+            type (sideways: beside it), with the Enter slab on its door. On
+            the stage: the poster's Enter slab over the poster door. Either
+            way the slab steps aside once the scene brings its own (glued to
+            the 3D door). */}
+        <div ref={planRef} className="hall-plan" style={HALL_STILL_VARS}>
+          <HallStill />
           <div className="hall-plan__doorway">
-            <div aria-hidden="true" className="hall-door hall-plan__door" />
             <div className="hall-cta hall-cta--poster">
               <motion.div
                 style={{ opacity: ctaOpacity, visibility: ctaVisibility, pointerEvents: ctaPointer }}
@@ -453,7 +465,6 @@ export default function Hero() {
               </motion.div>
             </div>
           </div>
-          <HallPlaques />
         </div>
 
         {scene && (
