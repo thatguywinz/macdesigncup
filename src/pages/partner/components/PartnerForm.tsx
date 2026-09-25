@@ -1053,8 +1053,7 @@ export default function PartnerForm() {
                   <div className="space-y-2">
                     <fieldset aria-labelledby="pf-setupTiming-label" {...describeGroup("setupTiming")} className="space-y-0 md:space-y-0.5">
                       {[
-                        "Standard Arrival (8:00 AM – 8:30 AM)",
-                        "Early Access Required (Before 8:00 AM)",
+                        "Arrival from 8:00 AM",
                         "Mid-Day Arrival (Speaking / Judging Block Only)",
                       ].map((option) => (
                         <label key={option} className={OPTION}>

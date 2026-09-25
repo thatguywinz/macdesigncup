@@ -4,7 +4,7 @@ import Reveal from "@/components/motion/Reveal";
 import { CONTACT_EMAIL } from "@/config/site";
 
 const KEY_POINTS = [
-  { Icon: Clock, text: "Access from 7:00 AM" },
+  { Icon: Clock, text: "Access from 8:00 AM" },
   { Icon: PlugZap, text: "Table, power and AV on request" },
   { Icon: ShieldCheck, text: "Students are minors: no recruiting" },
 ] as const;
@@ -18,7 +18,7 @@ const FINE_PRINT = [
   },
   {
     title: "Arrival and hospitality",
-    description: "Access starts at 7:00 AM. Speakers, mentors, and judges receive lunch and refreshments.",
+    description: "Access starts at 8:00 AM, no earlier, and ends at 5:00 PM. Speakers, mentors, and judges receive lunch and refreshments.",
   },
   {
     title: "Before the day",

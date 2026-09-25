@@ -180,9 +180,9 @@ export const SECTIONS = {
         map: true,
       },
       { time: TIMES.start, title: "Start and theme" },
-      { time: `${TIMES.sprint} to ${TIMES.sprintEnd}`, title: "Design sprint" },
-      { time: TIMES.judging, title: "Judging" },
-      { time: TIMES.awards, title: "Awards", note: `Done by ${TIMES.end}` },
+      { time: "After the start", title: "Design sprint" },
+      { time: TIMES.tba, title: "Judging" },
+      { time: TIMES.tba, title: "Awards", note: `Done before ${TIMES.end}` },
     ] as readonly DayStep[],
   },
   faq: {
@@ -266,7 +266,7 @@ export const FAQS: Faq[] = [
   {
     for: "teachers",
     q: "What time does the day end?",
-    a: `The Mackenzie Design Cup ends at ${TIMES.end} on our working schedule, after the closing ceremony and awards from ${TIMES.awards}. Everyone who registers gets the final schedule before ${EVENT_WEEKDAY}, ${EVENT_DATE_LABEL}.`,
+    a: `The Mackenzie Design Cup finishes before ${TIMES.end} on ${EVENT_WEEKDAY}, ${EVENT_DATE_LABEL}. We haven't set the times for judging and the closing ceremony yet; everyone who registers gets the full schedule before the day.`,
   },
   {
     for: "students",

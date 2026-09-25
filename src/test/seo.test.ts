@@ -234,7 +234,7 @@ describe("JSON-LD", () => {
     // The clock time is TIMES.end, the finish the page publishes ("4:00 PM").
     const h = Number(end[2]);
     expect(`${h % 12 || 12}:${end[3]} ${h >= 12 ? "PM" : "AM"}`).toBe(TIMES.end);
-    expect(EVENT_END).toBe("2026-11-16T16:00:00-05:00");
+    expect(EVENT_END).toBe("2026-11-16T17:00:00-05:00");
   });
 
   it("describes the event with the site facts, the published finish, and nothing unannounced", () => {

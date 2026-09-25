@@ -144,8 +144,7 @@ const clock24 = (clock: string): string | null => {
 };
 
 /**
- * The published finish, TIMES.end ("4:00 PM"; the page says "Nine to four"
- * and "Done by 4:00 PM"), on the event's date in the same ISO 8601 shape
+ * The latest finish, TIMES.end ("5:00 PM": the page says "Done before 5:00 PM"), on the event's date in the same ISO 8601 shape
  * and UTC offset as EVENT_DATE, as Google asks: "2026-11-16T16:00:00-05:00".
  * Derived rather than retyped, so the markup can never disagree with the
  * page. Like every time after the start it is a working time (registered
@@ -169,7 +168,7 @@ const event = (): Node => ({
   url: `${SITE_URL}/`,
   image: [OG_IMAGE.url],
   inLanguage: LANG,
-  // The 9:00 AM start to the published 4:00 PM finish, both date-times with the Eastern
+  // The 9:00 AM start to the 5:00 PM latest finish, both date-times with the Eastern
   // offset (a date-only end beside a date-time start would break Google's
   // "same format as startDate" rule).
   startDate: EVENT_DATE,

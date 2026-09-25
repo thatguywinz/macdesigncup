@@ -4,21 +4,23 @@ import Sheet from "@/components/blueprint/Sheet";
 import DisplayHeading from "@/components/motion/DisplayHeading";
 import { DURATION, EASE, VIEWPORT_ONCE } from "@/components/motion/tokens";
 import { useReducedMotionSafe } from "@/hooks/useReducedMotionSafe";
+import { TIMES } from "@/config/site";
 
-// Working times; `min` is each block's length, which sizes it on the day bar.
+// Only the set times are printed (organizer, 2026-09-25): access from 8:00 AM,
+// the start at 9:00 AM, done before 5:00 PM. The rest is TBA. `min` only sizes
+// each block on the bar (equal-ish, since the real lengths aren't set).
 const SCHEDULE = [
-  { time: "8:00 AM", title: "Partner check-in and setup", min: 60 },
-  { time: "9:00 AM", title: "Opening ceremony", min: 30 },
-  { time: "9:30 AM", title: "Design session I", min: 150, design: true },
-  { time: "12:00 PM", title: "Lunch for speakers, mentors, judges", min: 60 },
-  { time: "1:00 PM", title: "Design session II", min: 90, design: true },
-  { time: "2:30 PM", title: "Judging and presentations", min: 60 },
-  { time: "3:30 PM", title: "Closing and awards", min: 30 },
+  { time: TIMES.access, title: "Partner access and setup", min: 60 },
+  { time: TIMES.start, title: "Opening and theme", min: 60 },
+  { time: "Morning", title: "Design sprint", min: 150, design: true },
+  { time: TIMES.tba, title: "Lunch for speakers, mentors, judges", min: 60 },
+  { time: TIMES.tba, title: "Judging and presentations", min: 70 },
+  { time: TIMES.tba, title: "Closing and awards", min: 50 },
 ] as const;
-const END = "4:00 PM";
+const END = `Done before ${TIMES.end}`;
 
 /**
- * The day as one drafted strip, 8:00 AM to 4:00 PM. From md each block is
+ * The day as one drafted strip, 8:00 AM access to a finish before 5:00 PM. From md each block is
  * sized by its length (design sessions in ember, the rest in bone) with its
  * start time and title under it; phones read the same list down a rail.
  * The list itself is the schedule (no table repeating it).
@@ -43,7 +45,7 @@ export default function EventScheduleSection() {
           const design = "design" in row;
           return (
             <li
-              key={row.time}
+              key={row.title}
               style={{ flexGrow: row.min, flexBasis: 0 }}
               className="relative grid min-w-0 grid-cols-[4.75rem_12px_minmax(0,1fr)] gap-x-4 md:block"
             >
@@ -80,7 +82,6 @@ export default function EventScheduleSection() {
       {/* The day's end: over the bar's right end from md, under the rail on phones. */}
       <p className="mt-2 grid grid-cols-[4.75rem_minmax(0,1fr)] gap-x-4 font-mono text-xs uppercase tracking-[0.06em] text-concrete md:absolute md:right-0 md:top-0 md:mt-0 md:block md:-translate-y-[calc(100%+0.5rem)]">
         {END}
-        <span className="md:hidden">End of day</span>
       </p>
       </div>
     </Sheet>

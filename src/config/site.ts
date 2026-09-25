@@ -61,19 +61,18 @@ export const EVENT_DATE_SHORT = "Nov 16, 2026";
 export const EVENT_MONTH_DAY = "November 16";
 export const START_TIME = "9:00 AM";
 
-// Working times for the day. Source: the organizers' schedule already
-// published on /partner (src/pages/partner/sections/EventScheduleSection.tsx):
-// opening (the start) 9:00 to 9:30, design sessions 9:30 to 12:00 and 1:00 to 2:30,
-// judging + student presentations 2:30 to 3:30, closing + awards 3:30 to 4:00.
-// Everyone who registers gets the final schedule; label these as working times.
+// The day's times (organizer, 2026-09-25): building access starts at 8:00 AM
+// (no earlier, for anyone), we start at 9:00 AM, and everything ends before
+// 5:00 PM, when access ends. Judging and the closing ceremony are not set yet:
+// show them as TBA, never a guessed time.
 export const TIMES = {
+  /** Building access (partners, setup): never earlier. */
+  access: "8:00 AM",
   /** The start: opening and theme reveal, 9:00 AM. */
   start: START_TIME,
-  sprint: "9:30 AM",
-  sprintEnd: "2:30 PM",
-  judging: "2:30 PM",
-  awards: "3:30 PM",
-  end: "4:00 PM",
+  /** Everything wraps up before this (access ends). */
+  end: "5:00 PM",
+  tba: "Time TBA",
 } as const;
 
 // ─────────────────────────────────────────────
