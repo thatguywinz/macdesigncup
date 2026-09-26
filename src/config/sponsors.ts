@@ -33,9 +33,30 @@ import startgbcLogo from "@/components/sponsor-images/startgbc.svg";
 // repo (sponsors/_source/brand/hi/metavrse-white.png), trimmed to 640px.
 import metavrseLogo from "@/components/sponsor-images/metavrse.png";
 
+// The flat walls (SponsorMarquee, the partner LogoWall) show each raster
+// logo as a WebP cut to twice its largest size on the wall (the cap at
+// --logo-k 0.8), with every pixel white and only the alpha kept (the knockout
+// filter repaints it anyway): a few KB each instead of up to 28 KB. The 3D
+// hall keeps the full-size PNGs above for its plaque textures. Made with
+// sharp: resize (lanczos3), RGB to white, webp quality 75 / alphaQuality 80
+// (shop3dca: lossless). SVGs serve both.
+import agileWall from "@/components/sponsor-images/wall/agile.webp";
+import asepriteWall from "@/components/sponsor-images/wall/aseprite.webp";
+import georgebrownWall from "@/components/sponsor-images/wall/georgebrown.webp";
+import metavrseWall from "@/components/sponsor-images/wall/metavrse.webp";
+import shop3dcaWall from "@/components/sponsor-images/wall/shop3dca.webp";
+import stratasysWall from "@/components/sponsor-images/wall/stratasys.webp";
+import wlmacWall from "@/components/sponsor-images/wall/wlmac.webp";
+
 export interface Sponsor {
   name: string;
+  /** Full-size file: the 3D hall's plaque texture. */
   logo: string;
+  /**
+   * The flat walls' file, and its pixel size (the <img> width/height
+   * attributes: CSS still sizes it, by maxH/maxW).
+   */
+  wall: { src: string; width: number; height: number };
   href: string;
   /** Optical caps for the flat wall, in px. */
   maxH: number;
@@ -55,23 +76,24 @@ export interface Sponsor {
 }
 
 export const SPONSORS: Sponsor[] = [
-  { name: "Shop3D.ca", logo: shop3dcaLogo, href: "https://shop3d.ca/", maxH: 40, maxW: 228, hero: true },
-  { name: "George Brown Polytechnic", logo: georgebrownLogo, href: "https://www.georgebrown.ca/", maxH: 84, maxW: 200, hero: true },
-  { name: "startGBC", logo: startgbcLogo, href: "https://www.georgebrown.ca/startgbc", maxH: 34, maxW: 196, hero: true },
-  { name: "Siemens", logo: siemensLogo, href: "https://www.siemens.com/", maxH: 34, maxW: 210, hero: true },
-  { name: "Ansys", logo: ansysLogo, href: "https://www.ansys.com/", maxH: 52, maxW: 190, hero: true },
-  { name: "TriMech Group", logo: trimechLogo, href: "https://trimech.com/", maxH: 44, maxW: 212, hero: true },
-  { name: "Stratasys", logo: stratasysLogo, href: "https://www.stratasys.com/", maxH: 72, maxW: 236, hero: true },
-  { name: "Scrimba", logo: scrimbaLogo, href: "https://scrimba.com/", maxH: 22, maxW: 236, hero: true },
-  { name: "Aseprite", logo: asepriteLogo, href: "https://www.aseprite.org/", maxH: 64, maxW: 176, hero: true },
-  { name: "Applied Precision 3D", logo: appliedPrecisionLogo, href: "https://www.appliedprecision.ca/", maxH: 32, maxW: 236, hero: true },
-  { name: "Chatforce", logo: chatforceLogo, href: "https://chatforce.com/", maxH: 44, maxW: 228, hero: true },
+  { name: "Shop3D.ca", logo: shop3dcaLogo, wall: { src: shop3dcaWall, width: 245, height: 34 }, href: "https://shop3d.ca/", maxH: 40, maxW: 228, hero: true },
+  { name: "George Brown Polytechnic", logo: georgebrownLogo, wall: { src: georgebrownWall, width: 226, height: 134 }, href: "https://www.georgebrown.ca/", maxH: 84, maxW: 200, hero: true },
+  { name: "startGBC", logo: startgbcLogo, wall: { src: startgbcLogo, width: 739, height: 120 }, href: "https://www.georgebrown.ca/startgbc", maxH: 34, maxW: 196, hero: true },
+  { name: "Siemens", logo: siemensLogo, wall: { src: siemensLogo, width: 595, height: 142 }, href: "https://www.siemens.com/", maxH: 34, maxW: 210, hero: true },
+  { name: "Ansys", logo: ansysLogo, wall: { src: ansysLogo, width: 609, height: 192 }, href: "https://www.ansys.com/", maxH: 52, maxW: 190, hero: true },
+  { name: "TriMech Group", logo: trimechLogo, wall: { src: trimechLogo, width: 157, height: 39 }, href: "https://trimech.com/", maxH: 44, maxW: 212, hero: true },
+  { name: "Stratasys", logo: stratasysLogo, wall: { src: stratasysWall, width: 378, height: 114 }, href: "https://www.stratasys.com/", maxH: 72, maxW: 236, hero: true },
+  { name: "Scrimba", logo: scrimbaLogo, wall: { src: scrimbaLogo, width: 1350, height: 120 }, href: "https://scrimba.com/", maxH: 22, maxW: 236, hero: true },
+  { name: "Aseprite", logo: asepriteLogo, wall: { src: asepriteWall, width: 252, height: 103 }, href: "https://www.aseprite.org/", maxH: 64, maxW: 176, hero: true },
+  { name: "Applied Precision 3D", logo: appliedPrecisionLogo, wall: { src: appliedPrecisionLogo, width: 664, height: 82 }, href: "https://www.appliedprecision.ca/", maxH: 32, maxW: 236, hero: true },
+  { name: "Chatforce", logo: chatforceLogo, wall: { src: chatforceLogo, width: 2920, height: 560 }, href: "https://chatforce.com/", maxH: 44, maxW: 228, hero: true },
   // Speaker-only (a featured talk): on the sponsor wall, not in the hero hall.
-  { name: "METAVRSE", logo: metavrseLogo, href: "https://metavrse.com/", maxH: 30, maxW: 210 },
+  { name: "METAVRSE", logo: metavrseLogo, wall: { src: metavrseWall, width: 311, height: 48 }, href: "https://metavrse.com/", maxH: 30, maxW: 210 },
   // Symbol-only marks: captioned, so the wall names them.
   {
     name: "Agile Manufacturing",
     logo: agileLogo,
+    wall: { src: agileWall, width: 378, height: 55 },
     href: "https://agile-manufacturing.com/",
     // Full wordmark from agile-manufacturing.com (was the bare symbol).
     maxH: 36,
@@ -79,7 +101,7 @@ export const SPONSORS: Sponsor[] = [
     hero: true,
   },
   // "WLMAC": the school's own short name (wlmac.ca, and the club's name in site.ts).
-  { name: "William Lyon Mackenzie CI", logo: wlmacLogo, href: "https://wlmac.ca/", maxH: 100, maxW: 200, caption: "WLMAC", hero: true },
+  { name: "William Lyon Mackenzie CI", logo: wlmacLogo, wall: { src: wlmacWall, width: 180, height: 160 }, href: "https://wlmac.ca/", maxH: 100, maxW: 200, caption: "WLMAC", hero: true },
 ];
 
 /**

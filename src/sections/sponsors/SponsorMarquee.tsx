@@ -1,4 +1,4 @@
-import { useRef, type CSSProperties, type FocusEvent } from "react";
+import { useEffect, useRef, type CSSProperties, type FocusEvent } from "react";
 import { Link } from "react-router-dom";
 import { ArrowRight } from "lucide-react";
 import { SPONSORS, type Sponsor } from "@/config/sponsors";
@@ -31,7 +31,9 @@ function SponsorCell({ s, dup }: { s: Sponsor; dup?: boolean }) {
       >
         <span className="flex min-h-0 w-full flex-1 items-center justify-center">
           <img
-            src={s.logo}
+            src={s.wall.src}
+            width={s.wall.width}
+            height={s.wall.height}
             alt=""
             loading="lazy"
             decoding="async"
@@ -84,6 +86,27 @@ function Slot() {
 function Row({ items }: { items: Sponsor[] }) {
   const rowRef = useRef<HTMLDivElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
+
+  // The logos are loading="lazy", but the row clips its track (overflow-x),
+  // so the browser only fetches the cells inside the window's width: a logo
+  // sliding in from the right would arrive blank. Once the row comes within
+  // a screen or so of the viewport, fetch every cell of the row.
+  useEffect(() => {
+    const row = rowRef.current;
+    if (!row || typeof IntersectionObserver === "undefined") return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (!entries.some((e) => e.isIntersecting)) return;
+        io.disconnect();
+        row.querySelectorAll("img").forEach((img) => {
+          img.loading = "eager";
+        });
+      },
+      { rootMargin: "100% 0px" },
+    );
+    io.observe(row);
+    return () => io.disconnect();
+  }, []);
 
   // A keyboard user tabbing along the wall: the row holds still (CSS
   // :focus-within) and is set so the focused logo sits inside the fade.

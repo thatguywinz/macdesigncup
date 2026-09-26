@@ -1,6 +1,6 @@
 import { Suspense, lazy, useCallback, useEffect, useRef, useState, type CSSProperties, type MouseEvent } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { motion, useInView, useMotionValue, useMotionValueEvent, useScroll, useTransform } from "framer-motion";
+import { m, useInView, useMotionValue, useMotionValueEvent, useScroll, useTransform } from "framer-motion";
 import { useHydrated } from "@/hooks/useHydrated";
 import { useReducedMotionSafe } from "@/hooks/useReducedMotionSafe";
 import { focusTarget } from "@/lib/focusTarget";
@@ -500,7 +500,7 @@ export default function Hero() {
             on phones (the hall follows it, or stands beside it sideways),
             over the hall on the stage. */}
         <div className="hall-type-layer pointer-events-none z-20 [perspective:1200px]">
-          <motion.div style={{ opacity: copyOpacity, y: copyY }} className="hall-type-pad">
+          <m.div style={{ opacity: copyOpacity, y: copyY }} className="hall-type-pad">
             {/* The door is dead centre at every landscape aspect, so on the
                 stage the type is held to the left 40% of the window, whatever
                 its width. */}
@@ -521,7 +521,7 @@ export default function Hero() {
                 <span className="hall-type__pool font-semibold text-ember">{HERO.prize.pool}</span> {HERO.prize.rest}
               </p>
             </div>
-          </motion.div>
+          </m.div>
         </div>
 
         {/* The hall's floor plan. Phones: the still of the 3D hall under the
@@ -532,12 +532,12 @@ export default function Hero() {
           <HallStill />
           <div className="hall-plan__doorway">
             <div className="hall-enter hall-enter--poster">
-              <motion.div
+              <m.div
                 style={{ opacity: ctaOpacity, visibility: ctaVisibility, pointerEvents: ctaPointer }}
                 className="hall-enter__fade"
               >
                 <EnterDoor onEnter={enter} />
-              </motion.div>
+              </m.div>
             </div>
           </div>
         </div>
@@ -578,7 +578,7 @@ export default function Hero() {
         />
 
         {/* the stage's lower edge melts into the page as the light comes up */}
-        <motion.div
+        <m.div
           aria-hidden="true"
           style={{ opacity: spillOpacity }}
           className="pointer-events-none absolute inset-x-0 bottom-0 z-30 h-[18%] bg-gradient-to-b from-transparent to-background"

@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { motion, useTransform, type MotionValue } from "framer-motion";
+import { m, useTransform, type MotionValue } from "framer-motion";
 import Sheet from "@/components/blueprint/Sheet";
 import DisplayHeading from "@/components/motion/DisplayHeading";
 import { useSectionProgress, type ScrollOffset } from "@/components/motion/useSectionProgress";
@@ -27,7 +27,7 @@ function RailSegment({ progress, index, count }: { progress: MotionValue<number>
   const fill = useTransform(progress, [index / count, (index + 1) / count], [0, 1]);
   return (
     <span aria-hidden="true" className="relative mt-2 hidden w-px flex-1 bg-bone/15 lg:block">
-      <motion.span data-reveal="" className="absolute inset-0 origin-top bg-ember/80" style={{ scaleY: fill }} />
+      <m.span data-reveal="" className="absolute inset-0 origin-top bg-ember/80" style={{ scaleY: fill }} />
     </span>
   );
 }

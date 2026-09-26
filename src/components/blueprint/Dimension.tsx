@@ -1,4 +1,4 @@
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { useReducedMotionSafe } from "@/hooks/useReducedMotionSafe";
 import { DURATION, EASE, VIEWPORT_ONCE } from "@/components/motion/tokens";
@@ -47,7 +47,7 @@ export default function Dimension({
       : { originX: side === "a" ? 1 : 0 };
     if (!draw) return <span className="dim-line" />;
     return (
-      <motion.span
+      <m.span
         className="dim-line"
         data-reveal=""
         style={origin}

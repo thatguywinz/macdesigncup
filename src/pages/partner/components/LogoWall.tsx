@@ -36,7 +36,9 @@ export default function LogoWall({ label, className }: { label: string; classNam
             >
               <span className="flex min-h-0 w-full flex-1 items-center justify-center">
                 <img
-                  src={s.logo}
+                  src={s.wall.src}
+                  width={s.wall.width}
+                  height={s.wall.height}
                   alt=""
                   decoding="async"
                   className="h-auto w-auto object-contain"

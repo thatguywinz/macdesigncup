@@ -1,22 +1,22 @@
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import type { CSSProperties, ReactNode } from "react";
 import { useReducedMotionSafe } from "@/hooks/useReducedMotionSafe";
 import { DURATION, EASE, VIEWPORT_ONCE } from "./tokens";
 
 const TAGS = {
-  div: motion.div,
-  section: motion.section,
-  article: motion.article,
-  aside: motion.aside,
-  header: motion.header,
-  footer: motion.footer,
-  figure: motion.figure,
-  p: motion.p,
-  span: motion.span,
-  ul: motion.ul,
-  ol: motion.ol,
-  li: motion.li,
-  dl: motion.dl,
+  div: m.div,
+  section: m.section,
+  article: m.article,
+  aside: m.aside,
+  header: m.header,
+  footer: m.footer,
+  figure: m.figure,
+  p: m.p,
+  span: m.span,
+  ul: m.ul,
+  ol: m.ol,
+  li: m.li,
+  dl: m.dl,
 } as const;
 
 export type RevealTag = keyof typeof TAGS;
@@ -55,7 +55,7 @@ export default function Reveal({
   const reduced = useReducedMotionSafe();
   // One motion component type for every tag keeps the props typing simple;
   // the runtime element is still the requested tag.
-  const Tag = TAGS[as] as typeof motion.div;
+  const Tag = TAGS[as] as typeof m.div;
 
   return (
     <Tag

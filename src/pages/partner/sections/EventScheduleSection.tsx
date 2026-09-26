@@ -1,4 +1,4 @@
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { cn } from "@/lib/utils";
 import Sheet from "@/components/blueprint/Sheet";
 import DisplayHeading from "@/components/motion/DisplayHeading";
@@ -32,7 +32,7 @@ export default function EventScheduleSection() {
       <DisplayHeading lines={["Schedule"]} />
 
       <div className="relative mt-8 md:mt-16">
-      <motion.ol
+      <m.ol
         data-reveal=""
         className="md:flex"
         initial={{ opacity: 0 }}
@@ -51,7 +51,7 @@ export default function EventScheduleSection() {
             >
               <p className="py-2.5 font-mono text-xs uppercase tracking-[0.06em] text-ember md:hidden">{row.time}</p>
               {/* The block: a rail segment on phones, the bar from md. */}
-              <motion.span
+              <m.span
                 aria-hidden="true"
                 data-reveal=""
                 className={cn(
@@ -78,7 +78,7 @@ export default function EventScheduleSection() {
             </li>
           );
         })}
-      </motion.ol>
+      </m.ol>
       {/* The day's end: over the bar's right end from md, under the rail on phones. */}
       <p className="mt-2 grid grid-cols-[4.75rem_minmax(0,1fr)] gap-x-4 font-mono text-xs uppercase tracking-[0.06em] text-concrete md:absolute md:right-0 md:top-0 md:mt-0 md:block md:-translate-y-[calc(100%+0.5rem)]">
         {END}

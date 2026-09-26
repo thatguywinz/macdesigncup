@@ -1,5 +1,5 @@
 import { useRef } from "react";
-import { motion, useTransform } from "framer-motion";
+import { m, useTransform } from "framer-motion";
 import DrawPath from "@/components/motion/DrawPath";
 import useSectionProgress, { type ScrollOffset } from "@/components/motion/useSectionProgress";
 import { SECTIONS } from "@/content/copy";
@@ -65,7 +65,7 @@ export default function PrinterDrawing({ className }: { className?: string }) {
           focusable="false"
           className="absolute inset-0 h-full w-full overflow-visible [--sw:2.6] sm:[--sw:1.9] md:[--sw:1.9] lg:[--sw:1.5] xl:[--sw:1.1]"
         >
-          <motion.path
+          <m.path
             data-reveal=""
             d={HIDDEN}
             fill="none"

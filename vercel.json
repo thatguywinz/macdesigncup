@@ -13,7 +13,13 @@
       ]
     },
     {
-      "source": "/(lion/.*|favicon\\.png|apple-touch-icon\\.png|og-image\\.png)",
+      "source": "/(hero|lion)/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=2592000, stale-while-revalidate=604800" }
+      ]
+    },
+    {
+      "source": "/(favicon\\.png|apple-touch-icon\\.png|og-image\\.png)",
       "headers": [
         { "key": "Cache-Control", "value": "public, max-age=86400, stale-while-revalidate=604800" }
       ]

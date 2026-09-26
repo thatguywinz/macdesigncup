@@ -3,16 +3,22 @@ import { cn } from "@/lib/utils";
 import { useReducedMotionSafe } from "@/hooks/useReducedMotionSafe";
 
 // Porcelain lion head from the club's 3D render: the site-wide brand mark.
-// First paint is a 7.5 KB still (192px, the front pose). The one ~3.2s "nod"
-// (33 frames, 128px, ~110 KB, plays once and settles on the same front pose,
-// which keeps it inside WCAG 2.2.2 without a pause control) is fetched only
-// after the page has loaded and gone idle. The 192px PNG
+// First paint is a still of the front pose; the one ~3.2s "nod" (33 frames,
+// plays once and settles on the same front pose, which keeps it inside WCAG
+// 2.2.2 without a pause control) is fetched only after the page has loaded
+// and gone idle. The mark shows at 36 to 40 css px, so each comes in two
+// sizes and the browser picks by pixel density: 80px (2x, still ~2 KB, nod
+// ~60 KB) and 128px (3x phones, still ~4 KB, nod ~110 KB). The 192px PNG
 // (/lion/lion-mark.png) stays for the JSON-LD logo, the web manifest and the
-// OG card; nothing here uses it. Encoded from the old 192px nod (kept out of
-// the deploy as lion3d/lion-mark-source.webp) with Pillow: still q80, nod
-// q60 / alpha q40, loop 1.
-const STILL_SRC = "/lion/lion-still.webp";
-const NOD_SRC = "/lion/lion-nod.webp";
+// OG card; nothing here uses it. The 128px nod was encoded from the old 192px
+// nod (kept out of the deploy as lion3d/lion-mark-source.webp) with Pillow
+// (q60 / alpha q40, loop 1); the 80px nod and both stills are lanczos
+// resizes of it and of the 192px still (sharp: nod q60 / alpha q40, loop 1;
+// stills q80 / alpha q90).
+const STILL = { src: "/lion/lion-still-80.webp", srcSet: "/lion/lion-still-80.webp 80w, /lion/lion-still-128.webp 128w" };
+const NOD = { src: "/lion/lion-nod-80.webp", srcSet: "/lion/lion-nod-80.webp 80w, /lion/lion-nod-128.webp 128w" };
+/** Every placement is h-9 w-9 md:h-10 md:w-10 (nav, footer, partner nav). */
+const SIZES = "(min-width: 768px) 40px, 36px";
 
 interface LionMarkProps {
   className?: string;
@@ -37,7 +43,7 @@ type IdleWindow = Window & {
  * shows, so the swap does not jump.
  */
 export default function LionMark({ className, alt = "", animated = true }: LionMarkProps) {
-  const [src, setSrc] = useState(STILL_SRC);
+  const [img, setImg] = useState(STILL);
   const reduced = useReducedMotionSafe();
 
   useEffect(() => {
@@ -48,11 +54,15 @@ export default function LionMark({ className, alt = "", animated = true }: LionM
     const start = () => {
       // Re-check: the reduced-motion answer arrives one render after mount.
       if (done || w.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+      // Same candidates and sizes as the <img>, so the file fetched here is
+      // the one it then shows.
       preload = new Image();
       preload.onload = () => {
-        if (!done) setSrc(NOD_SRC);
+        if (!done) setImg(NOD);
       };
-      preload.src = NOD_SRC;
+      preload.sizes = SIZES;
+      preload.srcset = NOD.srcSet;
+      preload.src = NOD.src;
     };
     let cancel: () => void;
     if (typeof w.requestIdleCallback === "function") {
@@ -71,7 +81,9 @@ export default function LionMark({ className, alt = "", animated = true }: LionM
 
   return (
     <img
-      src={src}
+      src={img.src}
+      srcSet={img.srcSet}
+      sizes={SIZES}
       alt={alt}
       width={192}
       height={192}

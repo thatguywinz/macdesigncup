@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import {
-  motion,
+  m,
   useMotionValue,
   useMotionValueEvent,
   useTransform,
@@ -94,7 +94,7 @@ export default function DrawPath({
 
   if (progress) {
     return (
-      <motion.path
+      <m.path
         {...rest}
         d={d}
         data-draw=""
@@ -108,12 +108,12 @@ export default function DrawPath({
 
   if (!inView) {
     return (
-      <motion.path {...rest} d={d} className={className} strokeWidth={strokeWidth} fill="none" />
+      <m.path {...rest} d={d} className={className} strokeWidth={strokeWidth} fill="none" />
     );
   }
 
   return (
-    <motion.path
+    <m.path
       {...rest}
       d={d}
       data-draw=""

@@ -1,4 +1,4 @@
-import { motion, useTransform, type MotionValue } from "framer-motion";
+import { m, useTransform, type MotionValue } from "framer-motion";
 import DrawPath from "@/components/motion/DrawPath";
 import { cn } from "@/lib/utils";
 
@@ -44,10 +44,10 @@ const footR = { x: STEM_R, y: STEM_BOTTOM };
 const footL = { x: STEM_L, y: STEM_BOTTOM };
 
 function glyph(o: Pt = { x: 0, y: 0 }) {
-  const m = (p: Pt) => xy({ x: p.x + o.x, y: p.y + o.y });
+  const at = (p: Pt) => xy({ x: p.x + o.x, y: p.y + o.y });
   return (
-    `M ${m(outerStart)} A ${R_OUT} ${R_OUT} 0 1 1 ${m(outerEnd)} L ${m(kneeR)} L ${m(footR)} ` +
-    `L ${m(footL)} L ${m(kneeL)} L ${m(innerEnd)} A ${R_IN} ${R_IN} 0 1 0 ${m(innerStart)} Z`
+    `M ${at(outerStart)} A ${R_OUT} ${R_OUT} 0 1 1 ${at(outerEnd)} L ${at(kneeR)} L ${at(footR)} ` +
+    `L ${at(footL)} L ${at(kneeL)} L ${at(innerEnd)} A ${R_IN} ${R_IN} 0 1 0 ${at(innerStart)} Z`
   );
 }
 const disc = (c: Pt, r: number) =>
@@ -120,16 +120,16 @@ export default function QuestionMarkDrawing({ progress, className }: QuestionMar
       <DrawPath d={CONNECT} progress={progress} range={[0.42, 0.66]} className={INK_LINK} />
 
       {/* front faces, filled with the page so they occlude what's behind */}
-      <motion.path data-reveal="" d={FRONT} style={{ opacity: faceOpacity }} className="fill-background stroke-none" />
-      <motion.path data-reveal="" d={DOT_FRONT} style={{ opacity: faceOpacity }} className="fill-background stroke-none" />
+      <m.path data-reveal="" d={FRONT} style={{ opacity: faceOpacity }} className="fill-background stroke-none" />
+      <m.path data-reveal="" d={DOT_FRONT} style={{ opacity: faceOpacity }} className="fill-background stroke-none" />
       <DrawPath d={FRONT} progress={progress} range={[0.08, 0.55]} strokeWidth={1.5} className={INK_FRONT} />
       <DrawPath d={DOT_FRONT} progress={progress} range={[0.7, 0.95]} strokeWidth={1.5} className={INK_EMBER} />
 
       {/* construction, on top: the sweep's centreline, centre mark, radius */}
-      <motion.g data-reveal="" style={{ opacity: buildOpacity }}>
+      <m.g data-reveal="" style={{ opacity: buildOpacity }}>
         <path d={CENTRELINE} className={cn("fill-none", INK_BUILD)} strokeDasharray="10 4 2 4" />
         <path d={CROSS} className={cn("fill-none", INK_BUILD)} />
-      </motion.g>
+      </m.g>
       <DrawPath d={LEADER} progress={progress} range={[0.2, 0.45]} className={INK_LINK} />
       <DrawPath d={GROUND} progress={progress} range={[0, 0.3]} className={INK_BUILD} />
     </svg>

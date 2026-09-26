@@ -1,4 +1,4 @@
-import { MotionConfig } from "framer-motion";
+import { LazyMotion, MotionConfig, domAnimation } from "framer-motion";
 import { Suspense, lazy, useEffect, useRef, type ComponentType } from "react";
 import { Route, Routes, useLocation } from "react-router-dom";
 import Index from "./pages/Index.tsx";
@@ -150,25 +150,31 @@ const App = ({ pages = LAZY_PAGES }: AppProps) => {
       <RouteHead />
       {/* Every framer animation on every route honours the OS "reduce motion"
           setting: transforms and layout animations are skipped, opacity
-          still fades. Scroll-scrubbed pieces add their own static fallback. */}
-      <MotionConfig reducedMotion="user">
-        {/* Around the whole route table, not just the split pages: a client
-            navigation to /partner then keeps the current page on screen
-            (router updates are transitions) until the chunk is in, instead
-            of flashing the empty fallback. Nothing above it updates during
-            hydration, and the prerender renders it with no fallback. */}
-        <Suspense fallback={null}>
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/register" element={<Register />} />
-            {/* Partner routes */}
-            <Route path="/partner" element={<PartnerPage />} />
-            <Route path="/partner/register" element={<PartnerRegister />} />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </Suspense>
-      </MotionConfig>
+          still fades. Scroll-scrubbed pieces add their own static fallback.
+          LazyMotion: components are the slim `m.*`, given only the animation
+          and gesture (whileInView) features, so the bundle leaves out drag
+          and layout projection, which nothing uses. `strict` throws on a
+          full `motion.*` rendered inside, which would pull them back in. */}
+      <LazyMotion features={domAnimation} strict>
+        <MotionConfig reducedMotion="user">
+          {/* Around the whole route table, not just the split pages: a client
+              navigation to /partner then keeps the current page on screen
+              (router updates are transitions) until the chunk is in, instead
+              of flashing the empty fallback. Nothing above it updates during
+              hydration, and the prerender renders it with no fallback. */}
+          <Suspense fallback={null}>
+            <Routes>
+              <Route path="/" element={<Index />} />
+              <Route path="/register" element={<Register />} />
+              {/* Partner routes */}
+              <Route path="/partner" element={<PartnerPage />} />
+              <Route path="/partner/register" element={<PartnerRegister />} />
+              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </Suspense>
+        </MotionConfig>
+      </LazyMotion>
     </>
   );
 };

@@ -6,9 +6,9 @@
 //
 // For each route in src/seo/routes.ts it renders the React tree to a string,
 // injects the route's <head> (title, description, robots, canonical, Open
-// Graph, Twitter, JSON-LD), the Anton preload and, on the partner pages, their
-// split chunks' modulepreloads into the client build's
-// index.html, and writes dist/<route>/index.html (dist/404.html for the
+// Graph, Twitter, JSON-LD), the Anton and Archivo preloads and, on the partner
+// pages, their split chunks' modulepreloads into the client build's
+// index.html (whose stylesheet link it swaps for the sheet inlined), and writes dist/<route>/index.html (dist/404.html for the
 // not-found page). It also writes dist/sitemap.xml and dist/llms.txt.
 //
 // It exits non-zero on anything a crawler would be hurt by, so a broken
@@ -72,7 +72,7 @@ for (const mark of [HEAD_MARK, ROOT_MARK]) {
 if (!/<html lang="en-CA">/.test(template)) fail('template: <html lang="en-CA"> missing');
 
 // ── Client build manifest ─────────────────────
-// Hashed file names for the Anton preload and the split pages' chunks. The
+// Hashed file names for the font preloads and the split pages' chunks. The
 // manifest is deleted at the end (it must not deploy), so keep a copy next to
 // the saved template: a re-run of the prerender alone still has it.
 function loadManifest() {
@@ -88,11 +88,11 @@ function loadManifest() {
 }
 const manifest = loadManifest();
 
-// ── Anton preload (the hero h1's face) ────────
-// Read the hashed file name from the client manifest; fall back to a scan of
-// dist/assets when there is no manifest.
-function findAntonFont() {
-  const pattern = /anton-latin-400-normal-[\w-]+\.woff2$/;
+// ── Font preloads ─────────────────────────────
+// The first screen's two faces: Anton 400 (the hero h1) and Archivo's latin
+// variable file (the body copy). Read the hashed file names from the client
+// manifest; fall back to a scan of dist/assets when there is no manifest.
+function findFont(pattern) {
   if (manifest) {
     for (const entry of Object.values(manifest)) {
       for (const file of [entry.file, ...(entry.assets ?? [])]) {
@@ -104,11 +104,35 @@ function findAntonFont() {
   const hit = fs.existsSync(assets) ? fs.readdirSync(assets).find((f) => pattern.test(f)) : undefined;
   return hit ? `/assets/${hit}` : null;
 }
-const antonHref = findAntonFont();
-if (!antonHref) fail("could not find the Anton latin woff2 in the client build (preload skipped)");
-const fontPreload = antonHref
-  ? `\n    <link rel="preload" href="${antonHref}" as="font" type="font/woff2" crossorigin />`
-  : "";
+const PRELOAD_FONTS = [
+  ["Anton latin", /anton-latin-400-normal-[\w-]+\.woff2$/],
+  ["Archivo latin", /archivo-latin-wght-normal-[\w-]+\.woff2$/],
+];
+let fontPreload = "";
+for (const [name, pattern] of PRELOAD_FONTS) {
+  const href = findFont(pattern);
+  if (!href) fail(`could not find the ${name} woff2 in the client build (preload skipped)`);
+  else fontPreload += `\n    <link rel="preload" href="${href}" as="font" type="font/woff2" crossorigin />`;
+}
+
+// ── Inline stylesheet ─────────────────────────
+// The client build's one stylesheet (Tailwind, ~62 KB, ~11 KB brotli) goes
+// into every page as a <style> in place of its <link>, so the first paint
+// waits on no request after the HTML. The whole sheet, not a "critical"
+// cut: one sheet serves every route, client-side navigation never fetches
+// another page's HTML, and a sheet loaded later would need an inline onload
+// handler (blocked by the CSP's script-src) or flash its late rules. Its
+// url()s are root-absolute (/assets/...), so they resolve from any page.
+{
+  const links = [...template.matchAll(/<link rel="stylesheet" crossorigin href="(\/assets\/[^"]+\.css)">/g)];
+  if (links.length !== 1) fail(`template: expected one stylesheet link, found ${links.length}`);
+  for (const [tag, href] of links) {
+    const css = fs.readFileSync(path.join(dist, href), "utf8").trim();
+    if (/<\/style/i.test(css)) fail(`${href}: contains </style, cannot be inlined`);
+    else if (/url\((?!["']?(?:\/|data:|#))/.test(css)) fail(`${href}: has a relative url(), cannot be inlined`);
+    else template = template.replace(tag, () => `<style>${css}</style>`);
+  }
+}
 
 // No image preloads: the lion mark (a 36 to 64 px brand icon, never the LCP
 // element) sits in the prerendered nav at the top of <body>, where the

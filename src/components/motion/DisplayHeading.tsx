@@ -1,10 +1,10 @@
 import { Fragment, type ReactNode } from "react";
-import { motion, type Variants } from "framer-motion";
+import { m, type Variants } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { useReducedMotionSafe } from "@/hooks/useReducedMotionSafe";
 import { DURATION, EASE, VIEWPORT_ONCE } from "./tokens";
 
-const TAGS = { h1: motion.h1, h2: motion.h2, h3: motion.h3 } as const;
+const TAGS = { h1: m.h1, h2: m.h2, h3: m.h3 } as const;
 
 export interface DisplayHeadingProps {
   /** Heading level. Default `"h2"`. The home page's only `h1` is the hero's. */
@@ -90,14 +90,14 @@ export default function DisplayHeading({
           {/* The band clips the line as it rises. clip-path, not overflow, so
               descenders never get shaved at rest. */}
           <span className="display-line block">
-            <motion.span
+            <m.span
               data-reveal=""
               custom={i}
               variants={lineVariants}
               className={cn("block", lineClassName)}
             >
               {line}
-            </motion.span>
+            </m.span>
           </span>
         </Fragment>
       ))}

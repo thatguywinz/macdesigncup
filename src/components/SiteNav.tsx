@@ -1,6 +1,6 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState, type MouseEvent } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { motion, useMotionValue, useMotionValueEvent, useScroll, useSpring } from "framer-motion";
+import { m, useMotionValue, useMotionValueEvent, useScroll, useSpring } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { EVENT_FULL, REGISTER_PATH } from "@/config/site";
 import { CTA, NAV } from "@/content/copy";
@@ -195,7 +195,7 @@ export default function SiteNav() {
                 </li>
               );
             })}
-            <motion.span
+            <m.span
               aria-hidden="true"
               className="pointer-events-none absolute bottom-[8px] left-0 h-px origin-left bg-ember"
               style={{ width: BAR_W, x: barX, scaleX: barScale, opacity: barOpacity }}
