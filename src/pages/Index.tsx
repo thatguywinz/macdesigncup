@@ -6,6 +6,7 @@ import GlanceSection from "@/sections/GlanceSection";
 import PrizesSection from "@/sections/PrizesSection";
 import SponsorsSection from "@/sections/SponsorsSection";
 import DaySection from "@/sections/DaySection";
+import RulesSection from "@/sections/RulesSection";
 import FAQSection from "@/sections/FAQSection";
 import CTASection from "@/sections/CTASection";
 
@@ -27,6 +28,7 @@ const Index = () => {
         <PrizesSection />
         <SponsorsSection />
         <DaySection />
+        <RulesSection />
         <FAQSection />
         <CTASection />
       </main>

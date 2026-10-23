@@ -79,7 +79,9 @@ export const TIMES = {
 // Who. TDSB high school students only (organizer, July 2026: not "GTA").
 // Grades 9 to 12 per the registration form's grade options.
 // Every student needs a supporting teacher from their own school who comes
-// with them on the day (organizer, 2026-09-23).
+// with them on the day (organizer, 2026-09-23). WLMAC students put Mr. Archer
+// down as theirs; anyone else names a teacher they think would come, and we
+// can reach out to that teacher after they sign up (organizer, 2026-10-22).
 // ─────────────────────────────────────────────
 export const AUDIENCE = "TDSB high school students";
 export const GRADES = "9 to 12";
@@ -88,6 +90,10 @@ export const GRADES = "9 to 12";
 // students, Grades 9–12"). It is a plan, not a cap or a registration count.
 // TODO(owner): confirm 80 is still the expected head count before launch.
 export const EXPECTED_STUDENTS = 80;
+/** The WLMAC teacher who comes with every WLMAC student. */
+export const WLMAC_TEACHER = "Mr. Archer";
+/** Teams of 1 to 4 (organizer, 2026-10-22). Solo is recommended. */
+export const TEAM_MAX = 4;
 
 // ─────────────────────────────────────────────
 // Registration. One live Tally form with a Student / Teacher branch:
@@ -97,6 +103,11 @@ export const EXPECTED_STUDENTS = 80;
 // which explains who registers and embeds the form.
 // ─────────────────────────────────────────────
 export const REGISTER_PATH = "/register";
+// Registration closes one week before the event (organizer, 2026-10-22):
+// Monday, November 9, 2026 at 11:59 PM Eastern (still -05:00, DST is over).
+export const REGISTRATION_CLOSES = "2026-11-09T23:59:00-05:00";
+export const REGISTRATION_CLOSES_LABEL = "Monday, November 9, 2026, at 11:59 PM";
+export const REGISTRATION_CLOSES_SHORT = "Nov 9, 11:59 PM";
 export const REGISTRATION_URL = "https://tally.so/r/VLAX8y";
 export const REGISTRATION_EMBED_URL =
   "https://tally.so/embed/VLAX8y?alignLeft=1&hideTitle=1&transparentBackground=1&dynamicHeight=1";
@@ -119,8 +130,11 @@ export const GRAND_PRIZE_EXTRA = "six spools of filament";
 export const GRAND_PRIZE_SHORT = `a ${GRAND_PRIZE_ITEM}`;
 export const GRAND_PRIZE = `A ${GRAND_PRIZE_ITEM} valued at ${GRAND_PRIZE_VALUE}, plus ${GRAND_PRIZE_EXTRA}.`;
 
-// The rest of the table, straight from the sponsor commitments sheet. How the
-// extras are split between builders isn't set yet, so nothing here names a rank.
+// 2nd and 3rd place (organizer, 2026-10-22): 3D printing supplies.
+export const RUNNER_UP_PRIZE = "3D printing supplies";
+
+// The rest of the table, straight from the sponsor commitments sheet. Who gets
+// which extra isn't set yet (organizer, 2026-10-22), so nothing here names a rank.
 // `count` + `unit` are the prize tile's big figure and its words; a line
 // with no count shows its words as the figure (no number is ever made up).
 export const PRIZE_EXTRAS = [
@@ -128,7 +142,6 @@ export const PRIZE_EXTRAS = [
   { item: "10 Aseprite software licences", from: "Aseprite", count: 10, unit: "Licences" },
   // Organizer's sponsor sheet, 2026-09-24: 50 seats on the machines, not one per builder.
   { item: "50 Ansys Discovery / Mechanical seats on the machines", from: "Ansys", count: 50, unit: "Seats" },
-  { item: "3D printing materials", from: "Stratasys", count: null, unit: "3D printing materials" },
 ] as const;
 
 // `short` is the ledger spelling of the same line; both must never drift apart.
@@ -161,6 +174,7 @@ export const NAV_LINKS = [
   { label: "Prizes", href: "#prizes" },
   { label: "Sponsors", href: "#sponsors" },
   { label: "The day", href: "#day" },
+  { label: "Rules", href: "#rules" },
   { label: "FAQ", href: "#faq" },
 ] as const;
 

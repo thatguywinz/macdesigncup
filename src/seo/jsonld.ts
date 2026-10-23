@@ -29,6 +29,7 @@ import {
   EVENT_NAME,
   EVENT_WEEKDAY,
   GRADES,
+  REGISTRATION_CLOSES,
   SITE_URL,
   TIMES,
   VENUE_CITY,
@@ -214,6 +215,8 @@ const event = (): Node => ({
     url: `${SITE_URL}/register`,
     // Registration is open as of this date (true now; the first open date isn't recorded).
     validFrom: "2026-09-25T00:00:00-04:00",
+    // Registration closes one week before the day.
+    validThrough: REGISTRATION_CLOSES,
   },
   // The featured speaker (organizer, 2026-09-24; METAVRSE's CEO).
   performer: {

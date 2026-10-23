@@ -14,32 +14,23 @@ function GroupTitle({ id, children }: { id: string; children: string }) {
   );
 }
 
-/** Four figures: a big number (a real count, or the prize's own words) and its sponsor. */
+/** Three figures: a real count and its sponsor. */
 function Extras() {
   const id = useId();
   return (
     <Reveal as="section" y={12} className="min-w-0">
       <GroupTitle id={id}>{g.extras}</GroupTitle>
-      <ul aria-labelledby={id} className="mt-4 grid grid-cols-2 gap-x-6 gap-y-6 sm:grid-cols-4">
+      <ul aria-labelledby={id} className="mt-4 grid grid-cols-2 gap-x-6 gap-y-6 sm:grid-cols-3">
         {PRIZE_EXTRAS.map((p) => (
           <li key={p.item} className="flex min-w-0 flex-col gap-1">
-            {p.count !== null ? (
-              <span aria-hidden="true" className="font-body text-[2rem] font-semibold leading-none tracking-[-0.03em] text-foreground">
-                {p.count}
-              </span>
-            ) : (
-              <span aria-hidden="true" className="font-body text-base font-semibold leading-tight text-foreground">
-                {p.unit}
-              </span>
-            )}
+            <span aria-hidden="true" className="font-body text-[2rem] font-semibold leading-none tracking-[-0.03em] text-foreground">
+              {p.count}
+            </span>
             <span aria-hidden="true" className="font-body text-[14px] leading-snug text-foreground/70 sm:text-[15px]">
-              {p.count !== null ? `${p.from} ${p.unit.toLowerCase()}` : p.from}
+              {`${p.from} ${p.unit.toLowerCase()}`}
             </span>
             {/* The full line, for readers and crawlers (the figure shows it in parts). */}
-            <span className="sr-only">
-              {p.item}
-              {p.count === null ? ` from ${p.from}` : ""}
-            </span>
+            <span className="sr-only">{p.item}</span>
           </li>
         ))}
       </ul>
@@ -65,7 +56,7 @@ function Items({ title, items, delay }: { title: string; items: readonly string[
 }
 
 /**
- * The rest of the prize table, calm: the extras as four figures, then what
+ * The rest of the prize table, calm: the extras as three figures, then what
  * every builder gets and what's on the floor as short lines. Only real
  * counts are printed; nothing carries a value the sponsor didn't give.
  */

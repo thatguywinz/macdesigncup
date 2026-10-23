@@ -40,7 +40,11 @@ import {
   PRIZE_EXTRAS,
   PRIZE_POOL,
   REGISTER_PATH,
+  REGISTRATION_CLOSES_LABEL,
+  REGISTRATION_CLOSES_SHORT,
+  RUNNER_UP_PRIZE,
   SITE_HOST,
+  TEAM_MAX,
   TIMES,
   VENUE_ADDRESS,
   VENUE_BUILDING,
@@ -51,6 +55,7 @@ import {
   VENUE_POSTAL,
   VENUE_REGION,
   VENUE_STREET,
+  WLMAC_TEACHER,
 } from "@/config/site";
 
 /** "9:00 AM" -> "9 AM" (on-the-hour times in tight spots). */
@@ -74,7 +79,9 @@ export const CTA = {
  */
 export const WHO_REGISTERS = {
   note: "Students and teachers",
-  sr: "One form for students and teachers.",
+  sr: `One form for students and teachers. Closes ${REGISTRATION_CLOSES_SHORT}.`,
+  /** The deadline, under the note where there is room (the phone's sticky bar). */
+  closes: `Closes ${REGISTRATION_CLOSES_SHORT}`,
 } as const;
 
 // ── Hero (the 3D hall) ────────────────────────
@@ -104,7 +111,7 @@ export const PATHS = {
   routes: {
     register: {
       label: "Students & teachers",
-      line: "One form for everyone.",
+      line: `One form for everyone. Closes ${REGISTRATION_CLOSES_SHORT}.`,
       cta: CTA.register,
     },
     partners: { label: "Partners", line: "Back TDSB students in design", cta: CTA.partner },
@@ -153,6 +160,7 @@ export const SECTIONS = {
       item: GRAND_PRIZE_ITEM,
       detail: "Plus 6 spools of filament",
     },
+    runnersUp: { label: "2nd and 3rd place", item: RUNNER_UP_PRIZE },
     figureAlt: "Line drawing of a desktop 3D printer laying down its first layer",
     groups: {
       extras: "Also up for grabs",
@@ -187,6 +195,39 @@ export const SECTIONS = {
       { time: TIMES.tba, title: "Awards", note: `Done before ${TIMES.end}` },
     ] as readonly DayStep[],
   },
+  // Drafted 2026-10-22 from the organizers' notes (teams of 1 to 4, solo
+  // recommended, AI allowed but kept to a minimum, worded vaguely on purpose); the rest is a first pass.
+  // TODO(owner): read these through and strike any rule the club doesn't want.
+  rules: {
+    lines: ["Rules"],
+    body: "Short list. Ask us if anything's unclear.",
+    items: [
+      {
+        title: `Teams of 1 to ${TEAM_MAX}`,
+        body: "Teams are optional, and we recommend going solo: one 3D model is hard to split between people. Every team member registers on their own.",
+      },
+      {
+        title: "Bring a teacher",
+        body: `Every student comes with a teacher from their own school. WLMAC students: that's ${WLMAC_TEACHER}.`,
+      },
+      {
+        title: "Build it on the day",
+        body: `Everything you submit is modelled at the event, after the theme reveal at ${TIMES.start}. No models made before the day.`,
+      },
+      {
+        title: "Any 3D software",
+        body: "Blender, Fusion 360, Onshape, Tinkercad, Maya: whatever you build fastest in.",
+      },
+      {
+        title: "Assistive tooling",
+        body: "Permitted at your discretion. Minimal reliance is encouraged; original authorship is expected.",
+      },
+      {
+        title: "Submit before judging",
+        body: "We give you the exact time on the day. Late entries aren't judged.",
+      },
+    ],
+  },
   faq: {
     lines: ["FAQ"],
     filters: { all: "All", students: "Students", teachers: "Teachers" },
@@ -202,7 +243,7 @@ export const SECTIONS = {
   register: {
     lines: ["Register"],
     /** The line under the heading. */
-    status: "Registration is open. Spots are limited.",
+    status: `Registration is open until ${REGISTRATION_CLOSES_LABEL}. Spots are limited.`,
     /** The mono line under the button, joined with " · ". */
     meta: [EVENT_DATE_SHORT, `${HOUR(TIMES.start)} start`, `${VENUE_BUILDING}, ${VENUE_CITY}`],
   },
@@ -242,7 +283,12 @@ export const FAQS: Faq[] = [
   {
     for: "students",
     q: "Can I register myself?",
-    a: "Yes. Pick Student on the registration form and fill in your details. It asks for the name and email of the teacher from your school who will come with you, so talk to them before you sign up.",
+    a: "Yes. Pick Student on the registration form and fill in your details. It asks for the name and email of the teacher from your school who will come with you.",
+  },
+  {
+    for: "students",
+    q: "Which teacher do I put on the form?",
+    a: `If you're at ${CLUB_SCHOOL} (WLMAC), put ${WLMAC_TEACHER}. If you're at another school, put any teacher you think would be willing to come with you on the day. Ask them first if you can; if you're not sure, put them down anyway and we can contact them after you sign up.`,
   },
   {
     for: "teachers",
@@ -252,7 +298,12 @@ export const FAQS: Faq[] = [
   {
     for: "everyone",
     q: "Do students need a teacher with them?",
-    a: "Yes. Every student at the Mackenzie Design Cup needs a teacher from their own school with them on the day.",
+    a: `Yes. Every student at the Mackenzie Design Cup needs a teacher from their own school with them on the day. For WLMAC students, that's ${WLMAC_TEACHER}.`,
+  },
+  {
+    for: "everyone",
+    q: "When does registration close?",
+    a: `Registration for the Mackenzie Design Cup closes on ${REGISTRATION_CLOSES_LABEL}, one week before the event.`,
   },
   {
     for: "everyone",
@@ -273,10 +324,8 @@ export const FAQS: Faq[] = [
   {
     for: "students",
     q: "What can I win?",
-    a: `First place at the Mackenzie Design Cup takes home a ${GRAND_PRIZE_ITEM} valued at ${GRAND_PRIZE_VALUE}, plus ${GRAND_PRIZE_EXTRA} to keep it running, from ${GRAND_PRIZE_FROM}. That tops a ${PRIZE_POOL} prize table that also has ${list(
-      PRIZE_EXTRAS.filter((p) => p.from !== "Ansys").map((p) =>
-        p.from === "Stratasys" ? `${p.item} from Stratasys` : p.item,
-      ),
+    a: `First place at the Mackenzie Design Cup takes home a ${GRAND_PRIZE_ITEM} valued at ${GRAND_PRIZE_VALUE}, plus ${GRAND_PRIZE_EXTRA} to keep it running, from ${GRAND_PRIZE_FROM}. Second and third place win ${RUNNER_UP_PRIZE}. That tops a ${PRIZE_POOL} prize table that also has ${list(
+      PRIZE_EXTRAS.filter((p) => p.from !== "Ansys").map((p) => p.item),
     )} up for grabs. Builders also get ${list([
       "50 seats of Ansys Discovery / Mechanical",
       ...EVERY_BUILDER.map((p) =>
@@ -294,7 +343,12 @@ export const FAQS: Faq[] = [
   {
     for: "everyone",
     q: "Can students compete in teams?",
-    a: "Solo entry is set for the Mackenzie Design Cup. We haven't decided yet whether teams also run this year, and we email the team rules to everyone who registers once we decide.",
+    a: `Yes, in teams of 1 to ${TEAM_MAX}, but teams are optional and we recommend going solo: one 3D model is hard to split between people. Every team member registers on their own.`,
+  },
+  {
+    for: "students",
+    q: "Can I use AI?",
+    a: "Assistive and generative tooling is permitted at the Mackenzie Design Cup, at your discretion. Minimal reliance is encouraged; original authorship is expected.",
   },
   {
     for: "students",
@@ -323,6 +377,10 @@ export const REGISTER_PAGE = {
   h1: ["Register"],
   /** What, when and where, for a forwarded link and for search. */
   intro: `Register for the ${EVENT_FULL} on ${EVENT_WEEKDAY}, ${EVENT_DATE_LABEL}, at ${VENUE_NAME}.`,
+  /** The deadline line, under the intro. */
+  closes: `Registration closes ${REGISTRATION_CLOSES_LABEL}.`,
+  /** What the student form's teacher field means. */
+  teacher: `Students: the teacher on the form comes with you on the day. WLMAC students, put ${WLMAC_TEACHER}. Other schools, put a teacher you think would come; if you're not sure, we can contact them after you sign up.`,
   faqLead: "Questions first?",
   faqLink: "Read the FAQ",
   /** The one line over the form. */

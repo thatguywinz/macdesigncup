@@ -67,9 +67,11 @@ export default function PrizesSection() {
   );
 }
 
-/** The 1st-place legend: the value, the prize under it, next to its drawing. */
+/** The 1st-place legend: the value, the prize under it, next to its drawing;
+ *  then 2nd and 3rd place under a hairline. */
 function FirstPlace() {
   const f = SECTIONS.prizes.firstPlace;
+  const r = SECTIONS.prizes.runnersUp;
   return (
     <div>
       <p className="font-body text-sm text-concrete">{f.label}</p>
@@ -80,6 +82,12 @@ function FirstPlace() {
         {f.item}
       </p>
       <p className="mt-1 font-body text-[15px] leading-snug text-foreground/70 sm:text-base">{f.detail}</p>
+      <div className="mt-5 border-t border-bone/10 pt-4 md:mt-6 md:pt-5">
+        <p className="font-body text-sm text-concrete">{r.label}</p>
+        <p className="mt-1 text-balance font-body text-base font-medium leading-snug text-foreground sm:text-lg md:text-xl">
+          {r.item}
+        </p>
+      </div>
     </div>
   );
 }

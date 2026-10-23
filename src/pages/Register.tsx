@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState, type SyntheticEvent } from "react";
 import { Link } from "react-router-dom";
-import { ArrowLeft, ArrowRight, ArrowUpRight, Users } from "lucide-react";
+import { ArrowLeft, ArrowRight, ArrowUpRight, CalendarClock, GraduationCap, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { REGISTRATION_EMBED_URL, REGISTRATION_URL } from "@/config/site";
 import { BREADCRUMBS, REGISTER_PAGE } from "@/content/copy";
@@ -28,21 +28,30 @@ declare global {
   }
 }
 
+const ROW = "flex items-start gap-3 font-body text-[15px] leading-snug text-foreground/85";
+const ROW_ICON = "mt-[0.1rem] shrink-0 text-ember";
+
 /**
- * One form for everyone, said in one line. Plain elements: this sits above
- * the fold, so nothing waits on JavaScript.
+ * The notes over the form, one row each: one form for everyone, the
+ * deadline, and who the student form's teacher is. Plain elements: this sits
+ * above the fold, so nothing waits on JavaScript.
  */
 function PathRows({ className }: { className?: string }) {
   return (
-    <p
-      className={cn(
-        "flex items-center gap-3 font-body text-[15px] leading-snug text-foreground/85",
-        className,
-      )}
-    >
-      <Users aria-hidden="true" size={16} strokeWidth={1.5} className="shrink-0 text-ember" />
-      {REGISTER_PAGE.oneForm}
-    </p>
+    <ul className={cn("grid gap-3", className)}>
+      <li className={ROW}>
+        <Users aria-hidden="true" size={16} strokeWidth={1.5} className={ROW_ICON} />
+        {REGISTER_PAGE.oneForm}
+      </li>
+      <li className={cn(ROW, "font-medium text-foreground")}>
+        <CalendarClock aria-hidden="true" size={16} strokeWidth={1.5} className={ROW_ICON} />
+        {REGISTER_PAGE.closes}
+      </li>
+      <li className={ROW}>
+        <GraduationCap aria-hidden="true" size={16} strokeWidth={1.5} className={ROW_ICON} />
+        {REGISTER_PAGE.teacher}
+      </li>
+    </ul>
   );
 }
 

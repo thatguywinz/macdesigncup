@@ -8,7 +8,7 @@ const AWAY_FROM = ["#register", "[data-site-footer]"];
 
 /**
  * Phones only: the one sticky Register, pinned to the bottom of the screen,
- * with the tiny "Students and teachers" note beside it (which also
+ * with the tiny "Students and teachers" note and the deadline beside it (which also
  * describes the button): one form for everyone.
  *
  * It slides away while the final CTA (#register) or the footer is on screen,
@@ -50,7 +50,7 @@ export default function MobileRegisterBar() {
       style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
     >
       <div className="flex items-center gap-3 px-4 py-2.5 min-[380px]:gap-4">
-        <WhoRegistersNote id={captionId} className="min-w-0 flex-1" />
+        <WhoRegistersNote id={captionId} closes className="min-w-0 flex-1" />
         <RegisterButton aria-describedby={captionId} className="min-h-[48px] shrink-0 px-5 py-3.5 text-[11px]" />
       </div>
     </aside>
