@@ -63,7 +63,7 @@ export const START_TIME = "9:00 AM";
 
 // The day's times (organizer, 2026-09-25): building access starts at 8:00 AM
 // (no earlier, for anyone), we start at 9:00 AM, and everything ends before
-// 5:00 PM, when access ends. Judging and the closing ceremony are not set yet:
+// 4:00 PM, when access ends. Judging and the closing ceremony are not set yet:
 // show them as TBA, never a guessed time.
 export const TIMES = {
   /** Building access (partners, setup): never earlier. */
@@ -71,7 +71,7 @@ export const TIMES = {
   /** The start: opening and theme reveal, 9:00 AM. */
   start: START_TIME,
   /** Everything wraps up before this (access ends). */
-  end: "5:00 PM",
+  end: "4:00 PM",
   tba: "Time TBA",
 } as const;
 
@@ -166,6 +166,65 @@ export const ON_THE_FLOOR = [
 ] as const;
 
 export const CONTACT_EMAIL = "wlmac.3ddesignclub@gmail.com";
+
+// ─────────────────────────────────────────────
+// Competition resources (organizer, 2026-10-24): the club's study guides, one
+// per program, from the "Website Resources" Drive folder. Topics are each
+// guide's own table of contents. Drive sharing is "TDSB: anyone with the link
+// can view", so a visitor must be signed in to a TDSB Google account to open
+// them; the page says so.
+// ─────────────────────────────────────────────
+export const RESOURCES_PATH = "/resources";
+export const RESOURCES_FOLDER_URL = "https://drive.google.com/drive/folders/1uauJ-REj1qS55ohOVQhfKQLFpiBj_uR2";
+export interface ResourceGuide {
+  software: string;
+  pages: number;
+  /** The PDF's Drive viewer link. */
+  pdf: string;
+  /** The guide's table of contents. */
+  topics: readonly string[];
+}
+export const RESOURCE_GUIDES: readonly ResourceGuide[] = [
+  {
+    software: "Blender",
+    pages: 14,
+    pdf: "https://drive.google.com/file/d/1AAN4_qH_WQdlXvO0ImO2KtvLnGPI93N9/view",
+    topics: [
+      "Basic Blender interface",
+      "Hard surface modelling",
+      "Parametric modifiers",
+      "Assembly mating",
+      "Materials, lighting and rendering",
+      "Animations",
+      "Common shortcut reference sheet",
+    ],
+  },
+  {
+    software: "Fusion 360",
+    pages: 15,
+    pdf: "https://drive.google.com/file/d/1HmRYjV29zk1ycOgz0S6c60qBHKwyvuur/view",
+    topics: [
+      "2D modelling tools",
+      "3D modelling tools",
+      "Multipart designing",
+      "Assembly and motion mates",
+      "Render workspace",
+    ],
+  },
+  {
+    software: "Onshape",
+    pages: 18,
+    pdf: "https://drive.google.com/file/d/1brNPrtP6waEc5TfH01e4s2HRWy6rHS_L/view",
+    topics: [
+      "2D modelling tools",
+      "3D modelling tools",
+      "Multipart designing",
+      "Assembly and motion mates",
+      "FeatureScript programming",
+      "Surface modelling",
+    ],
+  },
+];
 
 // The nav's section anchors, in page order: short, unnumbered. Old anchors
 // (#why, #timeline, #teachers) are aliased in the page so links shared

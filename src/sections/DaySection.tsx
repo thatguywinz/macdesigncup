@@ -4,7 +4,9 @@ import Sheet from "@/components/blueprint/Sheet";
 import DisplayHeading from "@/components/motion/DisplayHeading";
 import { useSectionProgress, type ScrollOffset } from "@/components/motion/useSectionProgress";
 import { CTA, SECTIONS } from "@/content/copy";
-import { VENUE_MAP_URL } from "@/config/site";
+import { RESOURCES_PATH, VENUE_MAP_URL } from "@/config/site";
+import { Link } from "react-router-dom";
+import { ArrowRight } from "lucide-react";
 import { keepTimes } from "./day/nbsp";
 import { useReducedMotionSafe } from "@/hooks/useReducedMotionSafe";
 import BringGlyph from "./day/BringGlyph";
@@ -187,6 +189,14 @@ export default function DaySection() {
                 </li>
               ))}
             </ul>
+            <p className="mt-4 max-w-xl font-body text-[15px] leading-relaxed text-foreground/75">{s.bring.note}</p>
+            <Link
+              to={RESOURCES_PATH}
+              className="focus-ember mt-1 inline-flex min-h-11 items-center gap-1 font-body text-[15px] text-ember underline underline-offset-4 transition-colors hover:text-foreground"
+            >
+              {s.bring.guides}
+              <ArrowRight aria-hidden="true" size={14} strokeWidth={1.5} />
+            </Link>
           </div>
         </div>
       </div>

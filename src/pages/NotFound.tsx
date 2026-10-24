@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { ArrowRight } from "lucide-react";
-import { REGISTER_PATH } from "@/config/site";
+import { REGISTER_PATH, RESOURCES_PATH } from "@/config/site";
 import { NOT_FOUND } from "@/content/copy";
 import RegisterBlock from "@/components/RegisterBlock";
 import SiteFooter from "@/components/SiteFooter";
@@ -10,6 +10,7 @@ import SiteNav from "@/components/SiteNav";
 const INDEX: ReadonlyArray<{ label: string; to: string }> = [
   { label: NOT_FOUND.links.home, to: "/" },
   { label: NOT_FOUND.links.register, to: REGISTER_PATH },
+  { label: NOT_FOUND.links.resources, to: RESOURCES_PATH },
   { label: NOT_FOUND.links.faq, to: "/#faq" },
   { label: NOT_FOUND.links.partner, to: "/partner" },
 ];

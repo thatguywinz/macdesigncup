@@ -18,7 +18,7 @@ const FINE_PRINT = [
   },
   {
     title: "Arrival and hospitality",
-    description: "Access starts at 8:00 AM, no earlier, and ends at 5:00 PM. Speakers, mentors, and judges receive lunch and refreshments.",
+    description: "Access starts at 8:00 AM, no earlier, and ends at 4:00 PM. Speakers, mentors, and judges receive lunch and refreshments.",
   },
   {
     title: "Before the day",

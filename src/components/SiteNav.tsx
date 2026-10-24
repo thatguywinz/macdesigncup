@@ -2,7 +2,7 @@ import { useEffect, useId, useLayoutEffect, useRef, useState, type MouseEvent } 
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { m, useMotionValue, useMotionValueEvent, useScroll, useSpring } from "framer-motion";
 import { cn } from "@/lib/utils";
-import { EVENT_FULL, REGISTER_PATH } from "@/config/site";
+import { EVENT_FULL, REGISTER_PATH, RESOURCES_PATH } from "@/config/site";
 import { CTA, NAV } from "@/content/copy";
 import { useReducedMotionSafe } from "@/hooks/useReducedMotionSafe";
 import LionMark from "./LionMark";
@@ -116,6 +116,7 @@ export default function SiteNav() {
 
   const menuLinks: MobileNavLink[] = [
     ...SECTION_LINKS.map((l) => ({ label: l.label, href: l.href, current: active === l.href.slice(1) })),
+    { label: NAV.resources, to: RESOURCES_PATH, arrow: true, current: location.pathname === RESOURCES_PATH },
     { label: CTA.partner, to: PARTNER_PATH, arrow: true },
     {
       label: CTA.register,
@@ -202,8 +203,18 @@ export default function SiteNav() {
             />
           </ul>
 
-          {/* partner + register, md+; the menu below lg */}
+          {/* resources + partner + register, md+; the menu below lg */}
           <div className="flex shrink-0 items-center gap-3 md:gap-5">
+            <Link
+              to={RESOURCES_PATH}
+              aria-current={location.pathname === RESOURCES_PATH ? "page" : undefined}
+              className={cn(
+                "focus-ember hidden min-h-[44px] items-center font-body text-[15px] transition-colors hover:text-foreground md:inline-flex",
+                location.pathname === RESOURCES_PATH ? "text-foreground" : "text-foreground/65",
+              )}
+            >
+              {NAV.resources}
+            </Link>
             <Link
               to={PARTNER_PATH}
               className="focus-ember hidden min-h-[44px] items-center font-body text-[15px] text-foreground/65 transition-colors hover:text-foreground md:inline-flex"

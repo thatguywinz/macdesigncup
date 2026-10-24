@@ -10,6 +10,7 @@
 // these rows: one primary query per route, none used twice.
 //   /                 Mackenzie Design Cup + 3D design competition for high school students in Toronto
 //   /register         Mackenzie Design Cup registration
+//   /resources        Mackenzie Design Cup study guides (Blender, Fusion 360, Onshape)
 //   /partner          sponsor a student design competition Toronto
 //   /partner/register (noindex: an unlinked form page; partners reach the
 //                     Tally form from /partner, so it targets no query)
@@ -21,6 +22,7 @@ import {
   EVENT_NAME,
   EVENT_WEEKDAY,
   PRIZE_POOL,
+  RESOURCES_PATH,
   SITE_URL,
   VENUE_CITY,
   VENUE_INSTITUTION,
@@ -36,6 +38,7 @@ import { BREADCRUMBS, NOT_FOUND } from "@/content/copy";
 export const CONTENT_DATES = {
   home: "2026-09-24",
   register: "2026-09-24",
+  resources: "2026-10-24",
   partner: "2026-09-24",
   partnerRegister: "2026-09-24",
 } as const;
@@ -48,6 +51,7 @@ export const CONTENT_DATES = {
 export const CRUMB_LABELS = {
   home: BREADCRUMBS.home,
   register: BREADCRUMBS.register,
+  resources: BREADCRUMBS.resources,
   partner: BREADCRUMBS.partner,
   // Sits under "Partner" in the trail (Home › Partner › Registration).
   partnerRegister: BREADCRUMBS.partnerRegister,
@@ -108,6 +112,16 @@ export const REGISTER_ROUTE: RouteDef = {
   breadcrumb: [HOME_CRUMB, { name: CRUMB_LABELS.register, path: "/register" }],
 };
 
+export const RESOURCES_ROUTE: RouteDef = {
+  path: RESOURCES_PATH,
+  file: "resources/index.html",
+  title: `${EVENT_FULL} Study Guides: Blender, Fusion 360, Onshape`,
+  description: `Free study guides for our 3D design competition on ${EVENT_WEEKDAY}, ${EVENT_DATE_LABEL}: modelling, assemblies and rendering in Blender, Fusion 360 and Onshape.`,
+  sitemap: true,
+  dateModified: CONTENT_DATES.resources,
+  breadcrumb: [HOME_CRUMB, { name: CRUMB_LABELS.resources, path: RESOURCES_PATH }],
+};
+
 export const PARTNER_ROUTE: RouteDef = {
   path: "/partner",
   file: "partner/index.html",
@@ -155,6 +169,7 @@ export const NOT_FOUND_ROUTE: RouteDef = {
 export const ROUTES: readonly RouteDef[] = [
   HOME_ROUTE,
   REGISTER_ROUTE,
+  RESOURCES_ROUTE,
   PARTNER_ROUTE,
   PARTNER_REGISTER_ROUTE,
   NOT_FOUND_ROUTE,

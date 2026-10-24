@@ -4,6 +4,7 @@ import { Route, Routes, useLocation } from "react-router-dom";
 import Index from "./pages/Index.tsx";
 import NotFound from "./pages/NotFound.tsx";
 import Register from "./pages/Register.tsx";
+import Resources from "./pages/Resources.tsx";
 import RouteHead from "./seo/RouteHead";
 import { normalizePath } from "./seo/routes";
 
@@ -166,6 +167,7 @@ const App = ({ pages = LAZY_PAGES }: AppProps) => {
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/register" element={<Register />} />
+              <Route path="/resources" element={<Resources />} />
               {/* Partner routes */}
               <Route path="/partner" element={<PartnerPage />} />
               <Route path="/partner/register" element={<PartnerRegister />} />

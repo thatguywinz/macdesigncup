@@ -7,7 +7,7 @@ import { useReducedMotionSafe } from "@/hooks/useReducedMotionSafe";
 import { TIMES } from "@/config/site";
 
 // Only the set times are printed (organizer, 2026-09-25): access from 8:00 AM,
-// the start at 9:00 AM, done before 5:00 PM. The rest is TBA. `min` only sizes
+// the start at 9:00 AM, done before 4:00 PM. The rest is TBA. `min` only sizes
 // each block on the bar (equal-ish, since the real lengths aren't set).
 const SCHEDULE = [
   { time: TIMES.access, title: "Partner access and setup", min: 60 },
@@ -20,7 +20,7 @@ const SCHEDULE = [
 const END = `Done before ${TIMES.end}`;
 
 /**
- * The day as one drafted strip, 8:00 AM access to a finish before 5:00 PM. From md each block is
+ * The day as one drafted strip, 8:00 AM access to a finish before 4:00 PM. From md each block is
  * sized by its length (design sessions in ember, the rest in bone) with its
  * start time and title under it; phones read the same list down a rail.
  * The list itself is the schedule (no table repeating it).

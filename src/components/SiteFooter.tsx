@@ -2,7 +2,7 @@ import { useId, type MouseEvent, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { ArrowUp, ArrowUpRight } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { CONTACT_EMAIL, EVENT_FULL, REGISTER_PATH, VENUE_MAP_URL } from "@/config/site";
+import { CONTACT_EMAIL, EVENT_FULL, REGISTER_PATH, RESOURCES_PATH, VENUE_MAP_URL } from "@/config/site";
 import { CTA, FOOTER, NAV } from "@/content/copy";
 import LionMark from "./LionMark";
 import SectionLink from "./SectionLink";
@@ -142,6 +142,11 @@ export default function SiteFooter() {
                     </NavAnchor>
                   </li>
                 ))}
+                <li>
+                  <Link to={RESOURCES_PATH} className={cn(LINK, "text-foreground/75 hover:text-foreground")}>
+                    {NAV.resources}
+                  </Link>
+                </li>
                 <li>
                   <Link to="/partner" className={cn(LINK, "text-foreground/75 hover:text-foreground")}>
                     {CTA.partner}

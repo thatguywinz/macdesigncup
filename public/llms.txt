@@ -11,13 +11,14 @@
 - **When does registration close?** Registration for the Mackenzie Design Cup closes on Monday, November 9, 2026, at 11:59 PM, one week before the event.
 - **When is it?** The Mackenzie Design Cup is on Monday, November 16, 2026, at Limberlost Place. We start at 9:00 AM and the whole competition runs in one day.
 - **Where is it?** The Mackenzie Design Cup is at Limberlost Place, 185 Queens Quay East, Toronto, ON M5A 1B6, on George Brown Polytechnic's Waterfront Campus. Before the day, we email directions to everyone who registers.
-- **What time does the day end?** The Mackenzie Design Cup finishes before 5:00 PM on Monday, November 16, 2026. We haven't set the times for judging and the closing ceremony yet; everyone who registers gets the full schedule before the day.
+- **What time does the day end?** The Mackenzie Design Cup finishes before 4:00 PM on Monday, November 16, 2026. We haven't set the times for judging and the closing ceremony yet; everyone who registers gets the full schedule before the day.
 - **What can I win?** First place at the Mackenzie Design Cup takes home a Snapmaker J1S 3D printer valued at $1,500, plus six spools of filament to keep it running, from Shop3D.ca. Second and third place win 3D printing supplies. That tops a $10,000+ prize table that also has 10 Scrimba subscriptions and 10 Aseprite software licences up for grabs. Builders also get 50 seats of Ansys Discovery / Mechanical, Solid Edge and Altair software from Siemens and TriMech, swag to take home, food all day at the venue and their own name tag.
 - **Do I need to know 3D software?** You should have some 3D design knowledge: enough to open a tool and model a simple object. Beyond that, you're free to use any software you want. Blender, Fusion 360, Onshape, Tinkercad, Maya: if you can build in it, you can compete in it.
 - **Can students compete in teams?** Yes, in teams of 1 to 4, but teams are optional and we recommend going solo: one 3D model is hard to split between people. Every team member registers on their own.
 - **Can I use AI?** Assistive and generative tooling is permitted at the Mackenzie Design Cup, at your discretion. Minimal reliance is encouraged; original authorship is expected.
 - **What will I build?** You get the Mackenzie Design Cup's theme on the morning of the event and design a 3D response to it, start to finish: concept, blockout, model, final render. What it becomes is your call: a product, a space, a creature, a machine.
-- **What do students need to bring?** Every student at the Mackenzie Design Cup brings a laptop, its charger and the 3D software they build fastest in, already installed.
+- **What do students need to bring?** Every student at the Mackenzie Design Cup brings their own laptop, its charger and the 3D software they build fastest in, already installed. Your own laptop works best; we don't recommend a school Chromebook. You'll plug your laptop in to present your model, so check it has an HDMI port or a DisplayPort. Lots of thin laptops, including MacBook Airs, only have USB-C: if that's yours, bring a USB-C to HDMI adapter. Not sure? Email us and we'll help you figure it out.
+- **How can I prepare?** Read our free study guides at www.macdesigncup.ca/resources: one each for Blender, Fusion 360 and Onshape, written by the WLMAC 3D Design Club. They open with a TDSB Google account.
 - **Is food provided for students?** Yes. Every student competing gets food all day at Limberlost Place, from George Brown Polytechnic.
 - **How do I contact the organizers?** Email the WLMAC 3D Design Club at wlmac.3ddesignclub@gmail.com. We're the student club at William Lyon Mackenzie Collegiate Institute that runs the Mackenzie Design Cup, and we read everything.
 
@@ -25,6 +26,7 @@
 
 - [Home](https://www.macdesigncup.ca/): $10,000+ in prizes: our one-day 3D design competition for TDSB high school students and their teachers is Monday, November 16, 2026, at George Brown Polytechnic.
 - [Registration](https://www.macdesigncup.ca/register): Teachers, register your whole group on one form. Students, sign yourself up, then bring a teacher from your school with you on Monday, November 16, 2026.
+- [Competition resources](https://www.macdesigncup.ca/resources): Free study guides for our 3D design competition on Monday, November 16, 2026: modelling, assemblies and rendering in Blender, Fusion 360 and Onshape.
 - [Partner](https://www.macdesigncup.ca/partner): Put your company in front of TDSB students who design in 3D. We need sponsors, mentors, judges and speakers for Monday, November 16, 2026, in Toronto.
 
 ## Contact

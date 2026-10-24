@@ -42,6 +42,8 @@ import {
   REGISTER_PATH,
   REGISTRATION_CLOSES_LABEL,
   REGISTRATION_CLOSES_SHORT,
+  RESOURCE_GUIDES,
+  RESOURCES_PATH,
   RUNNER_UP_PRIZE,
   SITE_HOST,
   TEAM_MAX,
@@ -176,7 +178,10 @@ export const SECTIONS = {
     lines: ["The day"],
     bring: {
       title: "Bring",
-      items: ["Laptop", "Charger", "3D software"],
+      items: ["Your own laptop", "Charger", "3D software"],
+      /** Under the list (organizer, 2026-10-24). */
+      note: "Bring your own laptop if you can; we don't recommend a Chromebook. You'll plug it in to present your model, so check it has an HDMI port or DisplayPort. Only USB-C? Bring an adapter.",
+      guides: "Study guides",
     },
     // The one label on the scroll drawing of the cup (decorative, aria-hidden).
     figure: { theme: "Theme" },
@@ -358,7 +363,12 @@ export const FAQS: Faq[] = [
   {
     for: "everyone",
     q: "What do students need to bring?",
-    a: "Every student at the Mackenzie Design Cup brings a laptop, its charger and the 3D software they build fastest in, already installed.",
+    a: "Every student at the Mackenzie Design Cup brings their own laptop, its charger and the 3D software they build fastest in, already installed. Your own laptop works best; we don't recommend a school Chromebook. You'll plug your laptop in to present your model, so check it has an HDMI port or a DisplayPort. Lots of thin laptops, including MacBook Airs, only have USB-C: if that's yours, bring a USB-C to HDMI adapter. Not sure? Email us and we'll help you figure it out.",
+  },
+  {
+    for: "students",
+    q: "How can I prepare?",
+    a: `Read our free study guides at ${SITE_HOST}${RESOURCES_PATH}: one each for ${list(RESOURCE_GUIDES.map((g) => g.software))}, written by the ${CLUB}. They open with a TDSB Google account.`,
   },
   {
     for: "everyone",
@@ -398,6 +408,7 @@ export const REGISTER_PAGE = {
 // ── Site chrome ──────────────────────────────
 export const NAV = {
   partner: "Partner",
+  resources: "Resources",
   menu: "Menu",
   close: "Close",
   /** The short wordmark beside the lion. */
@@ -425,7 +436,7 @@ export const NOT_FOUND = {
   line: "This page doesn't exist. Try one of these instead.",
   /** Accessible name of the list of pages that do exist. */
   index: "Pages",
-  links: { home: "Home", register: "Registration", faq: "FAQ", partner: "Partner with us" },
+  links: { home: "Home", register: "Registration", resources: "Competition resources", faq: "FAQ", partner: "Partner with us" },
 } as const;
 
 // ── Breadcrumbs (/register, /partner, /partner/register) ──
@@ -437,4 +448,21 @@ export const BREADCRUMBS = {
   register: "Registration",
   partner: "Partner",
   partnerRegister: "Registration",
+  resources: "Competition resources",
+} as const;
+
+// ── /resources ───────────────────────────────
+export const RESOURCES_PAGE = {
+  h1: ["Competition", "resources"],
+  intro: `Study guides for the ${EVENT_FULL}, written by the ${CLUB}. Pick the program you'll build in on ${EVENT_MONTH_DAY}.`,
+  /** Drive sharing is TDSB-only. */
+  access: "The guides open in Google Drive. Sign in with your TDSB Google account to view them.",
+  guide: "Event resources",
+  pages: "pages",
+  open: "Open guide",
+  folder: "All guides in Drive",
+  other: "Building in something else? Any 3D software is allowed. These guides cover the three most of us use.",
+  faqLead: "Questions?",
+  faqLink: "Read the FAQ",
+  back: "Back to the hall",
 } as const;
