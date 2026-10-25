@@ -67,6 +67,14 @@ function FaqLine({ className }: { className?: string }) {
         {REGISTER_PAGE.faqLink}
         <ArrowRight aria-hidden="true" size={14} strokeWidth={1.5} />
       </Link>
+      <span aria-hidden="true" className="mx-2 text-concrete/60">·</span>
+      <Link
+        to="/#rules"
+        className="focus-ember inline-flex min-h-11 items-center gap-1 text-ember underline underline-offset-4 transition-colors hover:text-foreground sm:min-h-0"
+      >
+        {REGISTER_PAGE.rulesLink}
+        <ArrowRight aria-hidden="true" size={14} strokeWidth={1.5} />
+      </Link>
     </p>
   );
 }
@@ -79,11 +87,9 @@ function FaqLine({ className }: { className?: string }) {
  * directly and keeps a usable minimum height; the new-tab link below the
  * plate covers everything else (including no JavaScript at all).
  *
- * TODO(owner): the form's own look is set in Tally, not here. In the form's
- * Design settings set the button colour to ember #FF7214 with dark text
- * (#090A0C), text to bone #E9E1CE and the font to Archivo (a Google Font, free
- * in Tally), so the Submit button stops rendering in Tally's default violet.
- * Keep transparentBackground=1 in the embed URL. The "Made with Tally" badge
+ * The form's own look is set in Tally's Customize panel, not here (checked
+ * 2026-10-25): Archivo, text #EAE2CC, button #FF6A14 with #090A0C text, so it
+ * matches the site. Keep transparentBackground=1 in the embed URL. The "Made with Tally" badge
  * goes only with Tally Pro; never clip or hide it from here (free-plan terms,
  * and with dynamicHeight a clip could cut off the Submit row).
  */

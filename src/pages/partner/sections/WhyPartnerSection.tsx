@@ -95,7 +95,6 @@ export default function WhyPartnerSection() {
       <ul className="mt-8 grid md:mt-12 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1fr)] lg:gap-12">
         <Statement
           big
-          // TODO(owner): EXPECTED_STUDENTS (site.ts) is the planned head count; confirm before launch.
           figure={EXPECTED_STUDENTS}
           label="TDSB high schoolers"
           sub={`Grades ${GRADES}, with their teachers`}

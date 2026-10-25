@@ -88,7 +88,7 @@ export const GRADES = "9 to 12";
 // The expected head count, shown only on /partner (to sponsors). Source: the
 // organizers' own /partner page on `main` ("Join 80 TDSB students", "80 TDSB
 // students, Grades 9–12"). It is a plan, not a cap or a registration count.
-// TODO(owner): confirm 80 is still the expected head count before launch.
+// Confirmed by the organizers 2026-10-25.
 export const EXPECTED_STUDENTS = 80;
 /** The WLMAC teacher who comes with every WLMAC student. */
 export const WLMAC_TEACHER = "Mr. Archer";

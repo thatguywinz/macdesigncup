@@ -180,7 +180,7 @@ export const SECTIONS = {
       title: "Bring",
       items: ["Your own laptop", "Charger", "3D software"],
       /** Under the list (organizer, 2026-10-24). */
-      note: "Bring your own laptop if you can; we don't recommend a Chromebook. You'll plug it in to present your model, so check it has an HDMI port or DisplayPort. Only USB-C? Bring an adapter.",
+      note: "Bring your own laptop if you can; we don't recommend a Chromebook. You'll plug it in to present your model, and the screens take HDMI or USB-C, so check your laptop has one of those.",
       guides: "Study guides",
     },
     // The one label on the scroll drawing of the cup (decorative, aria-hidden).
@@ -200,9 +200,9 @@ export const SECTIONS = {
       { time: TIMES.tba, title: "Awards", note: `Done before ${TIMES.end}` },
     ] as readonly DayStep[],
   },
-  // Drafted 2026-10-22 from the organizers' notes (teams of 1 to 4, solo
-  // recommended, AI allowed but kept to a minimum, worded vaguely on purpose); the rest is a first pass.
-  // TODO(owner): read these through and strike any rule the club doesn't want.
+  // From the organizers' notes (2026-10-22: teams of 1 to 4, solo recommended,
+  // AI allowed but kept to a minimum, worded vaguely on purpose). Approved by
+  // the club 2026-10-25.
   rules: {
     lines: ["Rules"],
     body: "Short list. Ask us if anything's unclear.",
@@ -363,7 +363,7 @@ export const FAQS: Faq[] = [
   {
     for: "everyone",
     q: "What do students need to bring?",
-    a: "Every student at the Mackenzie Design Cup brings their own laptop, its charger and the 3D software they build fastest in, already installed. Your own laptop works best; we don't recommend a school Chromebook. You'll plug your laptop in to present your model, so check it has an HDMI port or a DisplayPort. Lots of thin laptops, including MacBook Airs, only have USB-C: if that's yours, bring a USB-C to HDMI adapter. Not sure? Email us and we'll help you figure it out.",
+    a: "Every student at the Mackenzie Design Cup brings their own laptop, its charger and the 3D software they build fastest in, already installed. Your own laptop works best; we don't recommend a school Chromebook. You'll plug your laptop in to present your model. The screens connect by HDMI or USB-C, so check your laptop has one of those ports. Not sure? Email us and we'll help you figure it out.",
   },
   {
     for: "students",
@@ -393,6 +393,7 @@ export const REGISTER_PAGE = {
   teacher: `Students: the teacher on the form comes with you on the day. WLMAC students, put ${WLMAC_TEACHER}. Other schools, put a teacher you think would come; if you're not sure, we can contact them after you sign up.`,
   faqLead: "Questions first?",
   faqLink: "Read the FAQ",
+  rulesLink: "Rules",
   /** The one line over the form. */
   oneForm: "Students and teachers use the same form.",
   fallbackLead: "Form not loading?",
@@ -464,5 +465,6 @@ export const RESOURCES_PAGE = {
   other: "Building in something else? Any 3D software is allowed. These guides cover the three most of us use.",
   faqLead: "Questions?",
   faqLink: "Read the FAQ",
+  rulesLink: "Read the rules",
   back: "Back to the hall",
 } as const;

@@ -122,6 +122,10 @@ export default function Resources() {
                   <ArrowUpRight aria-hidden="true" size={14} strokeWidth={1.5} />
                   <span className="sr-only">{NAV.newTab}</span>
                 </a>
+                <Link to="/#rules" className={TEXT_LINK}>
+                  {RESOURCES_PAGE.rulesLink}
+                  <ArrowRight aria-hidden="true" size={14} strokeWidth={1.5} />
+                </Link>
                 <span className="text-concrete">
                   {RESOURCES_PAGE.faqLead}{" "}
                   <Link to="/#faq" className={TEXT_LINK}>
