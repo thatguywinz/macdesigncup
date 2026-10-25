@@ -6,7 +6,7 @@ import { CONTACT_EMAIL } from "@/config/site";
 const KEY_POINTS = [
   { Icon: Clock, text: "Access from 8:00 AM" },
   { Icon: PlugZap, text: "Table, power and AV on request" },
-  { Icon: ShieldCheck, text: "Students are minors: no recruiting" },
+  { Icon: ShieldCheck, text: "Students are minors: media consent applies" },
 ] as const;
 
 const FINE_PRINT = [
@@ -14,7 +14,7 @@ const FINE_PRINT = [
   { title: "Space and equipment", description: "Request a table, power, AV, early setup, or equipment space." },
   {
     title: "Student privacy",
-    description: "Most students are minors. Direct recruitment and resume collection are not permitted.",
+    description: "Students are minors. Media consent rules must be followed.",
   },
   {
     title: "Arrival and hospitality",

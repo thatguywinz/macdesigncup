@@ -48,10 +48,8 @@ export const VENUE_MAP_URL = `https://www.google.com/maps/search/?api=1&query=${
 
 // ─────────────────────────────────────────────
 // Date. Monday, November 16, 2026 (checked: Nov 1 2026 is a Sunday).
-// Starts at 9:00 AM Eastern (the organizers' marketing and the partner
-// schedule: partner check-in 8 to 9, opening at 9:00). No doors time is
-// published, so the site says "starts", never "doors". DST has ended by
-// then, so the offset is -05:00.
+// Starts at 8:30 AM Eastern, when check-in opens (the run sheet, TIMES
+// below). DST has ended by then, so the offset is -05:00.
 // While EVENT_DATE is null, the countdown renders its "date announced soon" state.
 // ─────────────────────────────────────────────
 export const EVENT_DATE: string | null = "2026-11-16T08:30:00-05:00";

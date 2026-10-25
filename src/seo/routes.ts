@@ -36,10 +36,10 @@ import { BREADCRUMBS, NOT_FOUND } from "@/content/copy";
  * never a build-time `new Date()` (Google drops a lastmod it can see is false).
  */
 export const CONTENT_DATES = {
-  home: "2026-09-24",
-  register: "2026-09-24",
-  resources: "2026-10-24",
-  partner: "2026-09-24",
+  home: "2026-10-25",
+  register: "2026-10-25",
+  resources: "2026-10-25",
+  partner: "2026-10-25",
   partnerRegister: "2026-09-24",
 } as const;
 

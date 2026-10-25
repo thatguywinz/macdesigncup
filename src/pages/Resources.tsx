@@ -4,7 +4,7 @@ import { RESOURCE_GUIDES, RESOURCES_FOLDER_URL, type ResourceGuide } from "@/con
 import { BREADCRUMBS, NAV, RESOURCES_PAGE } from "@/content/copy";
 import DisplayHeading from "@/components/motion/DisplayHeading";
 import Reveal from "@/components/motion/Reveal";
-import WireSolid, { type WireShape } from "@/components/blueprint/WireSolid";
+import SoftwareLogo from "@/components/SoftwareLogo";
 import SiteNav from "@/components/SiteNav";
 import SiteFooter from "@/components/SiteFooter";
 import Breadcrumbs from "@/pages/partner/components/Breadcrumbs";
@@ -12,24 +12,15 @@ import Breadcrumbs from "@/pages/partner/components/Breadcrumbs";
 const TEXT_LINK =
   "focus-ember inline-flex min-h-11 items-center gap-1 font-body text-[15px] text-ember underline underline-offset-4 transition-colors hover:text-foreground";
 
-/** One drafted solid per program: the column's visual anchor. */
-const SHAPES: readonly WireShape[] = ["icosahedron", "cylinder", "prism"];
-
 /**
- * One guide, the way the prize sheet reads: a line-drawn solid, a small grey
+ * One guide, the way the prize sheet reads: the program's mark, a small grey
  * label, the program's name, what it covers in one quiet line, and the link.
  */
 function Guide({ guide, index }: { guide: ResourceGuide; index: number }) {
   const headingId = `guide-${index}`;
   return (
     <Reveal as="li" y={16} delay={0.08 * index} className="flex flex-col border-t border-bone/10 pt-8">
-      <WireSolid
-        shape={SHAPES[index % SHAPES.length]}
-        size="var(--ws)"
-        mobile
-        accent
-        className="[--wire-a:0.5] [--ws:6rem] md:[--ws:7.5rem]"
-      />
+      <SoftwareLogo name={guide.software} className="h-14 w-14 text-bone md:h-16 md:w-16" />
       <p className="mt-8 font-body text-sm text-concrete">
         {guide.pages} {RESOURCES_PAGE.pages}
       </p>

@@ -170,7 +170,7 @@ const event = (): Node => ({
   url: `${SITE_URL}/`,
   image: [OG_IMAGE.url],
   inLanguage: LANG,
-  // The 9:00 AM start to the 4:00 PM latest finish, both date-times with the Eastern
+  // The 8:30 AM check-in to the 4:00 PM finish, both date-times with the Eastern
   // offset (a date-only end beside a date-time start would break Google's
   // "same format as startDate" rule).
   startDate: EVENT_DATE,
