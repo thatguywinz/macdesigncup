@@ -6,21 +6,22 @@ import { DURATION, EASE, VIEWPORT_ONCE } from "@/components/motion/tokens";
 import { useReducedMotionSafe } from "@/hooks/useReducedMotionSafe";
 import { TIMES } from "@/config/site";
 
-// Only the set times are printed (organizer, 2026-09-25): access from 8:00 AM,
-// the start at 9:00 AM, done before 4:00 PM. The rest is TBA. `min` only sizes
-// each block on the bar (equal-ish, since the real lengths aren't set).
+// The organizers' run sheet (TIMES in site.ts). `min` sizes each block on
+// the bar by its real length in minutes.
 const SCHEDULE = [
-  { time: TIMES.access, title: "Partner access and setup", min: 60 },
-  { time: TIMES.start, title: "Opening and theme", min: 60 },
-  { time: "Morning", title: "Design sprint", min: 150, design: true },
-  { time: TIMES.tba, title: "Lunch for speakers, mentors, judges", min: 60 },
-  { time: TIMES.tba, title: "Judging and presentations", min: 70 },
-  { time: TIMES.tba, title: "Closing and awards", min: 50 },
+  { time: TIMES.access, title: "Partner setup", min: 30 },
+  { time: TIMES.start, title: "Check-in and sponsor demos", min: 40 },
+  { time: TIMES.opening, title: "Opening and theme", min: 45 },
+  { time: TIMES.design, title: "Design session 1", min: 125, design: true },
+  { time: TIMES.lunch, title: "Lunch", min: 35 },
+  { time: "12:35 PM", title: "Design session 2", min: 90, design: true },
+  { time: TIMES.judging, title: "Judging and presentations", min: 75 },
+  { time: TIMES.closing, title: "Closing and awards", min: 40 },
 ] as const;
-const END = `Done before ${TIMES.end}`;
+const END = `Done by ${TIMES.end}`;
 
 /**
- * The day as one drafted strip, 8:00 AM access to a finish before 4:00 PM. From md each block is
+ * The day as one drafted strip, 8:00 AM access to a finish by 4:00 PM. From md each block is
  * sized by its length (design sessions in ember, the rest in bone) with its
  * start time and title under it; phones read the same list down a rail.
  * The list itself is the schedule (no table repeating it).

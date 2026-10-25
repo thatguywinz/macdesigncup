@@ -54,25 +54,34 @@ export const VENUE_MAP_URL = `https://www.google.com/maps/search/?api=1&query=${
 // then, so the offset is -05:00.
 // While EVENT_DATE is null, the countdown renders its "date announced soon" state.
 // ─────────────────────────────────────────────
-export const EVENT_DATE: string | null = "2026-11-16T09:00:00-05:00";
+export const EVENT_DATE: string | null = "2026-11-16T08:30:00-05:00";
 export const EVENT_WEEKDAY = "Monday";
 export const EVENT_DATE_LABEL = "November 16, 2026";
 export const EVENT_DATE_SHORT = "Nov 16, 2026";
 export const EVENT_MONTH_DAY = "November 16";
-export const START_TIME = "9:00 AM";
+export const START_TIME = "8:30 AM";
 
-// The day's times (organizer, 2026-09-25): building access starts at 8:00 AM
-// (no earlier, for anyone), we start at 9:00 AM, and everything ends before
-// 4:00 PM, when access ends. Judging and the closing ceremony are not set yet:
-// show them as TBA, never a guessed time.
+// The day's times. Building access starts at 8:00 AM, no earlier, for anyone
+// (organizer, 2026-09-25). The rest is the organizers' run sheet (2026-10-25):
+// check-in and sponsor demos 8:30 to 9:00, opening ceremony 9:10 (the theme
+// is revealed at its end), design session 1 9:55 to 12:00, lunch 12:00 to
+// 12:30, design session 2 12:35 to 2:00 with early judging from 1:30,
+// submissions by 2:00, judging 2:05 to 3:15, closing ceremony and awards
+// 3:20 to 3:50, everyone out by 4:00. Rooms and names stay off the site.
 export const TIMES = {
   /** Building access (partners, setup): never earlier. */
   access: "8:00 AM",
-  /** The start: opening and theme reveal, 9:00 AM. */
+  /** Check-in opens, with sponsor demos in the hall. The day's start. */
   start: START_TIME,
-  /** Everything wraps up before this (access ends). */
+  opening: "9:10 AM",
+  design: "9:55 AM",
+  lunch: "12:00 PM",
+  earlyJudging: "1:30 PM",
+  submit: "2:00 PM",
+  judging: "2:05 PM",
+  closing: "3:20 PM",
+  /** Everyone is out by this (access ends). */
   end: "4:00 PM",
-  tba: "Time TBA",
 } as const;
 
 // ─────────────────────────────────────────────
@@ -158,7 +167,6 @@ export const ON_THE_FLOOR = [
   // `short`: the chip on the prize sheet.
   { item: "Reps judging your work and mentoring you through it", short: "Judges and mentors", from: "Shop3D.ca" },
   { item: "A live product demo", short: "Live demo", from: "Shop3D.ca" },
-  // TODO(owner): Ken's surname and role, once the club confirms how he wants it printed.
   { item: "A talk from Ken", short: "Talk from Ken", from: "Shop3D.ca" },
   { item: "Chatforce's CEO, in the room", short: "Chatforce's CEO", from: "Chatforce" },
   // Organizer, 2026-09-24 (marketing repo, sponsors/12-metavrse).

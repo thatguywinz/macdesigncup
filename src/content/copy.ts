@@ -138,7 +138,7 @@ export const SECTIONS = {
     body: `The theme stays secret until ${EVENT_MONTH_DAY}. Build it in any 3D software.`,
     // The four-cell spec strip: values only (Where keeps its map link).
     spec: {
-      when: { label: "When", value: `${EVENT_WEEKDAY.slice(0, 3)}, ${EVENT_MONTH_DAY.replace("November", "Nov")} · ${HOUR(TIMES.start)} start` },
+      when: { label: "When", value: `${EVENT_WEEKDAY.slice(0, 3)}, ${EVENT_MONTH_DAY.replace("November", "Nov")} · ${TIMES.start} check-in` },
       where: { label: "Where", value: VENUE_BUILDING },
       who: { label: "Who", value: `TDSB, grades ${GRADES}` },
       cost: { label: "Cost", value: "Free" },
@@ -194,10 +194,10 @@ export const SECTIONS = {
         note: VENUE_INSTITUTION,
         map: true,
       },
-      { time: TIMES.start, title: "Start and theme" },
-      { time: "After the start", title: "Design sprint" },
-      { time: TIMES.tba, title: "Judging" },
-      { time: TIMES.tba, title: "Awards", note: `Done before ${TIMES.end}` },
+      { time: TIMES.start, title: "Check-in and opening", note: `Theme revealed at the ${TIMES.opening} opening` },
+      { time: TIMES.design, title: "Design sprint", note: "Lunch at noon" },
+      { time: TIMES.submit, title: "Submit and judging", note: `Present to a judge · early slots from ${TIMES.earlyJudging}` },
+      { time: TIMES.closing, title: "Closing and awards", note: `Done by ${TIMES.end}` },
     ] as readonly DayStep[],
   },
   // From the organizers' notes (2026-10-22: teams of 1 to 4, solo recommended,
@@ -217,7 +217,7 @@ export const SECTIONS = {
       },
       {
         title: "Build it on the day",
-        body: `Everything you submit is modelled at the event, after the theme reveal at ${TIMES.start}. No models made before the day.`,
+        body: `Everything you submit is modelled at the event, after the theme reveal at the opening ceremony. No models made before the day.`,
       },
       {
         title: "Any 3D software",
@@ -229,7 +229,7 @@ export const SECTIONS = {
       },
       {
         title: "Submit before judging",
-        body: "We give you the exact time on the day. Late entries aren't judged.",
+        body: `Submissions close at ${TIMES.submit}. Late entries aren't judged.`,
       },
     ],
   },
@@ -250,7 +250,7 @@ export const SECTIONS = {
     /** The line under the heading. */
     status: `Registration is open until ${REGISTRATION_CLOSES_LABEL}. Spots are limited.`,
     /** The mono line under the button, joined with " · ". */
-    meta: [EVENT_DATE_SHORT, `${HOUR(TIMES.start)} start`, `${VENUE_BUILDING}, ${VENUE_CITY}`],
+    meta: [EVENT_DATE_SHORT, `${TIMES.start} check-in`, `${VENUE_BUILDING}, ${VENUE_CITY}`],
   },
 } as const;
 
@@ -313,7 +313,7 @@ export const FAQS: Faq[] = [
   {
     for: "everyone",
     q: "When is it?",
-    a: `The Mackenzie Design Cup is on ${EVENT_WEEKDAY}, ${EVENT_DATE_LABEL}, at ${VENUE_BUILDING}. We start at ${TIMES.start} and the whole competition runs in one day.`,
+    a: `The Mackenzie Design Cup is on ${EVENT_WEEKDAY}, ${EVENT_DATE_LABEL}, at ${VENUE_BUILDING}. Check-in opens at ${TIMES.start}, the opening ceremony starts at ${TIMES.opening}, and we're done by ${TIMES.end}.`,
   },
   {
     for: "everyone",
@@ -324,7 +324,7 @@ export const FAQS: Faq[] = [
   {
     for: "teachers",
     q: "What time does the day end?",
-    a: `The Mackenzie Design Cup finishes before ${TIMES.end} on ${EVENT_WEEKDAY}, ${EVENT_DATE_LABEL}. We haven't set the times for judging and the closing ceremony yet; everyone who registers gets the full schedule before the day.`,
+    a: `The Mackenzie Design Cup is done by ${TIMES.end} on ${EVENT_WEEKDAY}, ${EVENT_DATE_LABEL}. Students design from ${TIMES.design} until submissions close at ${TIMES.submit}, with lunch at noon. Judging runs from ${TIMES.judging} (early slots open at ${TIMES.earlyJudging}), and the closing ceremony and awards start at ${TIMES.closing}.`,
   },
   {
     for: "students",
@@ -427,7 +427,7 @@ export const FOOTER = {
   descriptor: `Run by the ${CLUB} at William Lyon Mackenzie CI.`,
   labels: { where: "Where", when: "When", contact: "Contact", sections: "On this site" },
   addressLines: [VENUE_BUILDING, VENUE_INSTITUTION, VENUE_STREET, `${VENUE_CITY}, ${VENUE_REGION} ${VENUE_POSTAL}`],
-  when: `${EVENT_WEEKDAY}, ${EVENT_DATE_LABEL} · Starts ${TIMES.start}`,
+  when: `${EVENT_WEEKDAY}, ${EVENT_DATE_LABEL} · Check-in ${TIMES.start}`,
   backToTop: "Back to top",
   copyright: "© 2026 Mac Design Cup",
 } as const;

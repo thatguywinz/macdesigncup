@@ -146,7 +146,7 @@ const clock24 = (clock: string): string | null => {
 };
 
 /**
- * The latest finish, TIMES.end ("4:00 PM": the page says "Done before 4:00 PM"), on the event's date in the same ISO 8601 shape
+ * The latest finish, TIMES.end ("4:00 PM": the page says "Done by 4:00 PM"), on the event's date in the same ISO 8601 shape
  * and UTC offset as EVENT_DATE, as Google asks: "2026-11-16T16:00:00-05:00".
  * Derived rather than retyped, so the markup can never disagree with the
  * page. Like every time after the start it is a working time (registered
@@ -159,7 +159,7 @@ export const EVENT_END: string | null = (() => {
 })();
 
 /** Schema description: third person is correct here (it is not shown as prose). */
-export const EVENT_DESCRIPTION = `${SUMMARY.deck} It starts at ${TIMES.start} on ${EVENT_WEEKDAY}, ${EVENT_DATE_LABEL}, at ${VENUE_NAME}. ${SUMMARY.prize}`;
+export const EVENT_DESCRIPTION = `${SUMMARY.deck} Check-in opens at ${TIMES.start} on ${EVENT_WEEKDAY}, ${EVENT_DATE_LABEL}, at ${VENUE_NAME}. ${SUMMARY.prize}`;
 
 const event = (): Node => ({
   "@type": "Event",
