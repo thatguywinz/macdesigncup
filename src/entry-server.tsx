@@ -18,11 +18,10 @@ import {
   EVENT_DATE_SHORT,
   EVENT_FULL,
   EVENT_WEEKDAY,
-  KICKER,
-  MODEL_NO,
   PRIZE_POOL,
   VENUE_ADDRESS,
   VENUE_BUILDING,
+  VENUE_CITY,
   VENUE_INSTITUTION,
   VENUE_STREET,
 } from "./config/site";
@@ -63,10 +62,9 @@ export const CONTENT_CHECKS = {
 export const OG_CARD = {
   name: EVENT_FULL,
   h1: HERO.h1,
-  model: MODEL_NO,
-  kicker: KICKER,
   date: `${EVENT_WEEKDAY.slice(0, 3)}, ${EVENT_DATE_SHORT}`,
   venue: `${VENUE_BUILDING}, ${VENUE_INSTITUTION}`,
+  /** The card's one where line: building and city. */
+  place: `${VENUE_BUILDING}, ${VENUE_CITY}`,
   prize: `${PRIZE_POOL} in prizes`,
-  audience: "For TDSB students and their teachers",
 };

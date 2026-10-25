@@ -28,22 +28,15 @@ const dataUri = (file, type) => `data:${type};base64,${fs.readFileSync(path.join
 const escape = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
 const fill = {
-  fontAnton: dataUri("node_modules/@fontsource/anton/files/anton-latin-400-normal.woff2", "font/woff2"),
-  fontMono: dataUri("node_modules/@fontsource/space-mono/files/space-mono-latin-400-normal.woff2", "font/woff2"),
-  fontMonoBold: dataUri("node_modules/@fontsource/space-mono/files/space-mono-latin-700-normal.woff2", "font/woff2"),
   fontArchivo: dataUri("node_modules/@fontsource-variable/archivo/files/archivo-latin-wght-normal.woff2", "font/woff2"),
   lion: dataUri("public/lion/lion-mark.png", "image/png"),
 };
 const text = {
-  model: OG_CARD.model,
-  kicker: OG_CARD.kicker,
   h1a: OG_CARD.h1[0],
   h1b: OG_CARD.h1[1],
   date: OG_CARD.date,
-  venue: OG_CARD.venue,
+  venue: OG_CARD.place,
   prize: OG_CARD.prize,
-  audience: OG_CARD.audience,
-  dim: "Ø 300",
 };
 
 let html = fs.readFileSync(path.join(here, "og.html"), "utf8");
@@ -59,7 +52,7 @@ try {
   await page.setContent(html, { waitUntil: "load" });
   await page.evaluate(() => document.fonts.ready);
   const missing = await page.evaluate(() =>
-    ["Anton", "Space Mono", "Archivo"].filter((f) => !document.fonts.check(`16px "${f}"`)),
+    ["Archivo"].filter((f) => !document.fonts.check(`16px "${f}"`)),
   );
   if (missing.length) throw new Error(`og: fonts failed to load: ${missing.join(", ")}`);
   await page.screenshot({ path: out, type: "png", clip: { x: 0, y: 0, width: 1200, height: 630 } });

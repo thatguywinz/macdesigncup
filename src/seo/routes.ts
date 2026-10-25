@@ -203,7 +203,7 @@ export const OG_IMAGE = {
   width: 1200,
   height: 630,
   type: "image/png",
-  alt: `The ${EVENT_FULL} card: a lion mark on a drafting grid, ${EVENT_WEEKDAY}, ${EVENT_DATE_SHORT}, at ${VENUE_NAME}, and ${PRIZE_POOL} in prizes.`,
+  alt: `The ${EVENT_FULL} card: the name beside the lion mark, ${EVENT_WEEKDAY}, ${EVENT_DATE_SHORT}, at ${VENUE_NAME}, and ${PRIZE_POOL} in prizes.`,
 } as const;
 
 /** Indexable pages also allow large image previews (Discover, AI answers). */
