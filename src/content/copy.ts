@@ -180,7 +180,7 @@ export const SECTIONS = {
       title: "Bring",
       items: ["Your own laptop", "Charger", "3D software"],
       /** Under the list (organizer, 2026-10-24). */
-      note: "Bring your own laptop if you can; we don't recommend a Chromebook. You'll plug it in to present your model, and the screens take HDMI or USB-C, so check your laptop has one of those.",
+      note: "Not a Chromebook: you'll present from your laptop, and the screens take HDMI or USB-C.",
       guides: "Study guides",
     },
     // The one label on the scroll drawing of the cup (decorative, aria-hidden).
@@ -437,7 +437,7 @@ export const NOT_FOUND = {
   line: "This page doesn't exist. Try one of these instead.",
   /** Accessible name of the list of pages that do exist. */
   index: "Pages",
-  links: { home: "Home", register: "Registration", resources: "Competition resources", faq: "FAQ", partner: "Partner with us" },
+  links: { home: "Home", register: "Registration", resources: "Resources", faq: "FAQ", partner: "Partner with us" },
 } as const;
 
 // ── Breadcrumbs (/register, /partner, /partner/register) ──
@@ -449,22 +449,16 @@ export const BREADCRUMBS = {
   register: "Registration",
   partner: "Partner",
   partnerRegister: "Registration",
-  resources: "Competition resources",
+  resources: "Resources",
 } as const;
 
 // ── /resources ───────────────────────────────
 export const RESOURCES_PAGE = {
-  h1: ["Competition", "resources"],
-  intro: `Study guides for the ${EVENT_FULL}, written by the ${CLUB}. Pick the program you'll build in on ${EVENT_MONTH_DAY}.`,
-  /** Drive sharing is TDSB-only. */
-  access: "Free for anyone. Each guide opens as a PDF in Google Drive.",
-  guide: "Event resources",
+  h1: ["Resources"],
+  intro: "Free study guides from our club. Pick the program you'll build in.",
   pages: "pages",
   open: "Open guide",
-  folder: "All guides in Drive",
-  other: "Building in something else? Any 3D software is allowed. These guides cover the three most of us use.",
-  faqLead: "Questions?",
-  faqLink: "Read the FAQ",
+  folder: "All guides",
+  other: "Using something else? Any 3D software is allowed.",
   rulesLink: "Read the rules",
-  back: "Back to the hall",
 } as const;

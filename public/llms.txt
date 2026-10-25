@@ -26,7 +26,7 @@
 
 - [Home](https://www.macdesigncup.ca/): $10,000+ in prizes: our one-day 3D design competition for TDSB high school students and their teachers is Monday, November 16, 2026, at George Brown Polytechnic.
 - [Registration](https://www.macdesigncup.ca/register): Teachers, register your whole group on one form. Students, sign yourself up, then bring a teacher from your school with you on Monday, November 16, 2026.
-- [Competition resources](https://www.macdesigncup.ca/resources): Free study guides for our 3D design competition on Monday, November 16, 2026: modelling, assemblies and rendering in Blender, Fusion 360 and Onshape.
+- [Resources](https://www.macdesigncup.ca/resources): Free study guides for our 3D design competition on Monday, November 16, 2026: modelling, assemblies and rendering in Blender, Fusion 360 and Onshape.
 - [Partner](https://www.macdesigncup.ca/partner): Put your company in front of TDSB students who design in 3D. We need sponsors, mentors, judges and speakers for Monday, November 16, 2026, in Toronto.
 
 ## Contact
