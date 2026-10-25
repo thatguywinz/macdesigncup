@@ -178,12 +178,12 @@ export const CONTACT_EMAIL = "wlmac.3ddesignclub@gmail.com";
 // ─────────────────────────────────────────────
 // Competition resources (organizer, 2026-10-24): the club's study guides, one
 // per program, from the "Website Resources" Drive folder. Topics are each
-// guide's own table of contents. Drive sharing is "TDSB: anyone with the link
-// can view", so a visitor must be signed in to a TDSB Google account to open
-// them; the page says so.
+// guide's own table of contents. The PDFs live in the public "Public guides"
+// subfolder (anyone with the link can view, no sign-in; 2026-10-25). To update
+// a guide, use Drive's "Manage versions > Upload new version" so its link stays.
 // ─────────────────────────────────────────────
 export const RESOURCES_PATH = "/resources";
-export const RESOURCES_FOLDER_URL = "https://drive.google.com/drive/folders/1uauJ-REj1qS55ohOVQhfKQLFpiBj_uR2";
+export const RESOURCES_FOLDER_URL = "https://drive.google.com/drive/folders/1eiCzIFcCyHNw5HsAAz4SXbySVY_xklJ4";
 export interface ResourceGuide {
   software: string;
   pages: number;
@@ -196,7 +196,7 @@ export const RESOURCE_GUIDES: readonly ResourceGuide[] = [
   {
     software: "Blender",
     pages: 14,
-    pdf: "https://drive.google.com/file/d/1AAN4_qH_WQdlXvO0ImO2KtvLnGPI93N9/view",
+    pdf: "https://drive.google.com/file/d/1M1nuDE1a-9Dh7NVZz5Bh03QunUeVGrDq/view",
     topics: [
       "Basic Blender interface",
       "Hard surface modelling",
@@ -210,7 +210,7 @@ export const RESOURCE_GUIDES: readonly ResourceGuide[] = [
   {
     software: "Fusion 360",
     pages: 15,
-    pdf: "https://drive.google.com/file/d/1HmRYjV29zk1ycOgz0S6c60qBHKwyvuur/view",
+    pdf: "https://drive.google.com/file/d/1FMdAYFAhCEs6XFKYqwCInI1SjxnmUh7y/view",
     topics: [
       "2D modelling tools",
       "3D modelling tools",
@@ -222,7 +222,7 @@ export const RESOURCE_GUIDES: readonly ResourceGuide[] = [
   {
     software: "Onshape",
     pages: 18,
-    pdf: "https://drive.google.com/file/d/1brNPrtP6waEc5TfH01e4s2HRWy6rHS_L/view",
+    pdf: "https://drive.google.com/file/d/1XXH8cZMncJ6LF-CopVtfz9GI5yqaIlZ7/view",
     topics: [
       "2D modelling tools",
       "3D modelling tools",

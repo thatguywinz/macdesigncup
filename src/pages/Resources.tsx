@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { ArrowLeft, ArrowRight, ArrowUpRight, KeyRound } from "lucide-react";
+import { ArrowLeft, ArrowRight, ArrowUpRight, FileText } from "lucide-react";
 import { RESOURCE_GUIDES, RESOURCES_FOLDER_URL, type ResourceGuide } from "@/config/site";
 import { BREADCRUMBS, NAV, RESOURCES_PAGE } from "@/content/copy";
 import DisplayHeading from "@/components/motion/DisplayHeading";
@@ -102,7 +102,7 @@ export default function Resources() {
               <div className="max-w-[34rem]">
                 <p className="font-body text-lg leading-relaxed text-foreground/75 md:text-xl">{RESOURCES_PAGE.intro}</p>
                 <p className="mt-4 flex items-start gap-3 font-body text-[15px] leading-snug text-foreground/85">
-                  <KeyRound aria-hidden="true" size={16} strokeWidth={1.5} className="mt-[0.1rem] shrink-0 text-ember" />
+                  <FileText aria-hidden="true" size={16} strokeWidth={1.5} className="mt-[0.1rem] shrink-0 text-ember" />
                   {RESOURCES_PAGE.access}
                 </p>
               </div>

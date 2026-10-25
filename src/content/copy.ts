@@ -368,7 +368,7 @@ export const FAQS: Faq[] = [
   {
     for: "students",
     q: "How can I prepare?",
-    a: `Read our free study guides at ${SITE_HOST}${RESOURCES_PATH}: one each for ${list(RESOURCE_GUIDES.map((g) => g.software))}, written by the ${CLUB}. They open with a TDSB Google account.`,
+    a: `Read our free study guides at ${SITE_HOST}${RESOURCES_PATH}: one each for ${list(RESOURCE_GUIDES.map((g) => g.software))}, written by the ${CLUB}.`,
   },
   {
     for: "everyone",
@@ -457,7 +457,7 @@ export const RESOURCES_PAGE = {
   h1: ["Competition", "resources"],
   intro: `Study guides for the ${EVENT_FULL}, written by the ${CLUB}. Pick the program you'll build in on ${EVENT_MONTH_DAY}.`,
   /** Drive sharing is TDSB-only. */
-  access: "The guides open in Google Drive. Sign in with your TDSB Google account to view them.",
+  access: "Free for anyone. Each guide opens as a PDF in Google Drive.",
   guide: "Event resources",
   pages: "pages",
   open: "Open guide",
