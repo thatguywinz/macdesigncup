@@ -158,7 +158,6 @@ export const EVERY_BUILDER = [
   { item: "Solid Edge and Altair software", short: "Solid Edge + Altair", from: "Siemens & TriMech" },
   { item: "Swag to take home", short: "Swag", from: "Shop3D.ca" },
   { item: "Food all day at the venue", short: "Food all day", from: "George Brown Polytechnic" },
-  { item: "Your own name tag", short: "Name tag", from: "Applied Precision 3D" },
 ] as const;
 
 export const ON_THE_FLOOR = [

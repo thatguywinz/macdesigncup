@@ -17,8 +17,8 @@ import wlmacLogo from "@/components/sponsor-images/wlmac.png";
 import scrimbaLogo from "@/components/sponsor-images/scrimba.svg";
 import asepriteLogo from "@/components/sponsor-images/aseprite.png";
 import chatforceLogo from "@/components/sponsor-images/chatforce.svg";
-// Applied Precision 3D's own site header is a plain type wordmark; this file sets those words.
-import appliedPrecisionLogo from "@/components/sponsor-images/appliedprecision.svg";
+// From logicsacademy.com's header PNG: white plate keyed out, trimmed to 640px.
+import logicsAcademyLogo from "@/components/sponsor-images/logics-academy.png";
 // Altair redirects to Siemens now: one Siemens mark stands for both.
 import siemensLogo from "@/components/sponsor-images/siemens.svg";
 import trimechLogo from "@/components/sponsor-images/trimech.svg";
@@ -43,6 +43,7 @@ import metavrseLogo from "@/components/sponsor-images/metavrse.png";
 import agileWall from "@/components/sponsor-images/wall/agile.webp";
 import asepriteWall from "@/components/sponsor-images/wall/aseprite.webp";
 import georgebrownWall from "@/components/sponsor-images/wall/georgebrown.webp";
+import logicsAcademyWall from "@/components/sponsor-images/wall/logics-academy.webp";
 import metavrseWall from "@/components/sponsor-images/wall/metavrse.webp";
 import shop3dcaWall from "@/components/sponsor-images/wall/shop3dca.webp";
 import stratasysWall from "@/components/sponsor-images/wall/stratasys.webp";
@@ -85,7 +86,7 @@ export const SPONSORS: Sponsor[] = [
   { name: "Stratasys", logo: stratasysLogo, wall: { src: stratasysWall, width: 378, height: 114 }, href: "https://www.stratasys.com/", maxH: 72, maxW: 236, hero: true },
   { name: "Scrimba", logo: scrimbaLogo, wall: { src: scrimbaLogo, width: 1350, height: 120 }, href: "https://scrimba.com/", maxH: 22, maxW: 236, hero: true },
   { name: "Aseprite", logo: asepriteLogo, wall: { src: asepriteWall, width: 252, height: 103 }, href: "https://www.aseprite.org/", maxH: 64, maxW: 176, hero: true },
-  { name: "Applied Precision 3D", logo: appliedPrecisionLogo, wall: { src: appliedPrecisionLogo, width: 664, height: 82 }, href: "https://www.appliedprecision.ca/", maxH: 32, maxW: 236, hero: true },
+  { name: "Logics Academy", logo: logicsAcademyLogo, wall: { src: logicsAcademyWall, width: 330, height: 103 }, href: "https://logicsacademy.com", maxH: 64, maxW: 236, hero: true },
   { name: "Chatforce", logo: chatforceLogo, wall: { src: chatforceLogo, width: 2920, height: 560 }, href: "https://chatforce.com/", maxH: 44, maxW: 228, hero: true },
   // Speaker-only (a featured talk): on the sponsor wall, not in the hero hall.
   { name: "METAVRSE", logo: metavrseLogo, wall: { src: metavrseWall, width: 311, height: 48 }, href: "https://metavrse.com/", maxH: 30, maxW: 210 },
@@ -122,7 +123,7 @@ const HALL_ORDER = [
   "Stratasys",
   "Scrimba",
   "Aseprite",
-  "Applied Precision 3D",
+  "Logics Academy",
   "Chatforce",
   "Agile Manufacturing",
   // Last slot = the sign over the door: the host school.
