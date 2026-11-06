@@ -25,7 +25,8 @@ import { PLAQUE_OUT } from "./timeline";
    flat sponsor wall gets from its CSS filter. Plaques face the camera's rest
    pose enough to read, bob and sway a touch, and brighten under the cursor.
    The rest hang on the back wall as lit plates beside and over the door
-   (frame.ts, wallFor); the phone scene has the plinths only. */
+   (frame.ts, wallFor); the phone scene has the plinths only. A click or tap
+   on any of them opens that sponsor's site in a new tab. */
 
 // ── Knockout ─────────────────────────────────────────────────────────
 /** Logo height in the texture, px (wide wordmarks are capped by width).
@@ -177,6 +178,46 @@ const SLAB_D = 0.05;
  *  rest pose roughly) each plaque takes. */
 const FACE = 0.78;
 
+// ── Link ─────────────────────────────────────────────────────────────
+/** Pointer travel, px, past which a press is a drag (a swipe or a look
+ *  around), not a click on the plaque. */
+const CLICK_SLOP = 8;
+
+/** Hover glow, a pointer cursor and click-through to the sponsor's site for
+ *  one plaque or plate, the same new-tab link the flat sponsor wall gives. A
+ *  faded-out one (root hidden) neither lights nor links. */
+function useSponsorLink(href: string, root: { current: THREE.Group }) {
+  const hovered = useRef(false);
+  const invalidate = useThree((s) => s.invalidate);
+  const cursor = (on: boolean) => {
+    document.body.style.cursor = on ? "pointer" : "";
+  };
+  useEffect(
+    () => () => {
+      if (hovered.current) cursor(false);
+    },
+    [],
+  );
+  const onPointerOver = (e: ThreeEvent<PointerEvent>) => {
+    if (!root.current.visible) return;
+    e.stopPropagation();
+    hovered.current = true;
+    cursor(true);
+    invalidate();
+  };
+  const onPointerOut = () => {
+    if (hovered.current) cursor(false);
+    hovered.current = false;
+    invalidate();
+  };
+  const onClick = (e: ThreeEvent<MouseEvent>) => {
+    if (!root.current.visible || e.delta > CLICK_SLOP) return;
+    e.stopPropagation();
+    window.open(href, "_blank", "noopener,noreferrer");
+  };
+  return { hovered, handlers: { onPointerOver, onPointerOut, onClick } };
+}
+
 // ── One plaque ───────────────────────────────────────────────────────
 interface PlaqueProps {
   sponsor: Sponsor;
@@ -201,10 +242,9 @@ function Plaque({ sponsor, slot, faceY, faceZ, seed, reduced, progress, fades }:
   const float = useRef<THREE.Group>(null!);
   const logoMat = useRef<THREE.MeshBasicMaterial>(null!);
   const edgeMat = useRef<THREE.LineBasicMaterial>(null!);
-  const hovered = useRef(false);
+  const { hovered, handlers } = useSponsorLink(sponsor.href, root);
   const glow = useRef(0);
   const shown = useRef(-1);
-  const invalidate = useThree((s) => s.invalidate);
 
   const { s } = slot;
   const yaw = Math.atan2(-slot.x, faceZ - slot.z) * FACE;
@@ -245,6 +285,7 @@ function Plaque({ sponsor, slot, faceY, faceZ, seed, reduced, progress, fades }:
     if (o !== shown.current) {
       shown.current = o;
       root.current.visible = o > 0.01;
+      if (o <= 0.01 && hovered.current) handlers.onPointerOut();
       if (fades) {
         root.current.traverse((obj) => {
           const m = (obj as THREE.Mesh).material as THREE.Material | undefined;
@@ -258,16 +299,6 @@ function Plaque({ sponsor, slot, faceY, faceZ, seed, reduced, progress, fades }:
     }
     if (edgeMat.current) edgeMat.current.opacity = (0.2 + k * 0.35) * o;
   });
-
-  const over = (e: ThreeEvent<PointerEvent>) => {
-    e.stopPropagation();
-    hovered.current = true;
-    invalidate();
-  };
-  const out = () => {
-    hovered.current = false;
-    invalidate();
-  };
 
   const plinthW = SLAB_W * s * 0.62;
   return (
@@ -291,7 +322,7 @@ function Plaque({ sponsor, slot, faceY, faceZ, seed, reduced, progress, fades }:
 
       <group ref={float} position={[0, baseY, 0]} rotation={[0, yaw, 0]} scale={s}>
         <group rotation={[-tilt, 0, 0]}>
-          <mesh geometry={slabGeo} onPointerOver={over} onPointerOut={out}>
+          <mesh geometry={slabGeo} {...handlers}>
             {/* pushed back a hair so the coplanar edge lines never z-fight into dashes */}
             <meshStandardMaterial
               color="#0d0e11"
@@ -342,10 +373,9 @@ function WallLogo({ sponsor, plate, progress, fades }: WallLogoProps) {
   const root = useRef<THREE.Group>(null!);
   const logoMat = useRef<THREE.MeshBasicMaterial>(null!);
   const edgeMat = useRef<THREE.LineBasicMaterial>(null!);
-  const hovered = useRef(false);
+  const { hovered, handlers } = useSponsorLink(sponsor.href, root);
   const glow = useRef(0);
   const shown = useRef(-1);
-  const invalidate = useThree((s) => s.invalidate);
   const { w, h } = plate;
   const box = useMemo(() => new THREE.BoxGeometry(w, h, PLATE_D), [w, h]);
   const edges = useMemo(() => new THREE.EdgesGeometry(box), [box]);
@@ -383,6 +413,7 @@ function WallLogo({ sponsor, plate, progress, fades }: WallLogoProps) {
     if (o !== shown.current) {
       shown.current = o;
       root.current.visible = o > 0.01;
+      if (o <= 0.01 && hovered.current) handlers.onPointerOut();
       if (fades) {
         root.current.traverse((obj) => {
           const m = (obj as THREE.Mesh).material as THREE.Material | undefined;
@@ -397,19 +428,9 @@ function WallLogo({ sponsor, plate, progress, fades }: WallLogoProps) {
     if (edgeMat.current) edgeMat.current.opacity = (0.22 + k * 0.35) * o;
   });
 
-  const over = (e: ThreeEvent<PointerEvent>) => {
-    e.stopPropagation();
-    hovered.current = true;
-    invalidate();
-  };
-  const out = () => {
-    hovered.current = false;
-    invalidate();
-  };
-
   return (
     <group ref={root} position={[plate.x, plate.y, WALL_Z + PLATE_D / 2]}>
-      <mesh geometry={box} onPointerOver={over} onPointerOut={out}>
+      <mesh geometry={box} {...handlers}>
         <meshStandardMaterial
           color="#101114"
           roughness={0.5}
