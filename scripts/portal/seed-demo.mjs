@@ -6,6 +6,7 @@
 //   npm run dev                      (in one terminal)
 //   node scripts/portal/make-demo-models.mjs
 //   node scripts/portal/seed-demo.mjs [http://localhost:8080]
+import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "@playwright/test";
@@ -67,10 +68,83 @@ export const DEMO_ENTRIES = [
     team: "Tension Lab",
     software: ["Fusion 360", "SolidWorks"],
     summary: "A tensegrity side table: the top seems to float, held by one cable in the middle and four at the corners.",
+    sketches: true,
+  },
+  // These four should trip the originality checks (see make-demo-models.mjs).
+  {
+    file: "tidal-lamp.glb",
+    title: "Wave Lamp",
+    members: [["Chris Patel", "Northern SS", "11"]],
+    software: ["Blender"],
+    summary: "A lamp with a rippled shade inspired by waves, sized for a bedside table and printable without supports.",
+  },
+  {
+    file: "dragon-knot.glb",
+    title: "Dragon Knot",
+    members: [["Riley Brooks", "Lawrence Park CI", "10"]],
+    software: ["Blender"],
+    summary: "A knotted sculpture that represents the theme as one continuous line that never ends or breaks.",
+  },
+  {
+    file: "ripple-vase.glb",
+    title: "Ripple Vase",
+    members: [["Jamie Fox", "Northview Heights SS", "9"]],
+    software: ["Tinkercad"],
+    summary: "A vase whose rippled walls catch light, designed for single-wall vase-mode printing.",
+  },
+  {
+    file: "shelf-bracket.3mf",
+    title: "Shelf Bracket",
+    members: [["Morgan Lee", "York Mills CI", "12"]],
+    software: ["Fusion 360"],
+    summary: "A braced shelf bracket that holds a 10 kg shelf with the least plastic, tuned with a diagonal brace.",
+    up: "z",
   },
 ];
 
-export async function submitViaForm(page, e) {
+// Honest entries check in sketches during the day before submitting.
+for (const e of DEMO_ENTRIES.slice(0, 6)) e.sketches = true;
+
+/**
+ * Sample "sketch" screenshots for the demo: a blueprint-style 2D profile and
+ * a feature-tree panel, drawn as SVG and screenshotted. Stand-ins for the
+ * screenshots real teams upload. Returns the two PNG paths.
+ */
+export async function makeSketches(page, e) {
+  const dir = path.join(models, "sketches");
+  fs.mkdirSync(dir, { recursive: true });
+  const slug = e.title.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+  const seed = [...e.title].reduce((a, c) => a + c.charCodeAt(0), 0);
+  const pts = Array.from({ length: 9 }, (_, i) => [80 + i * 70, 300 - 60 * Math.sin((i + seed) * 0.7) - i * 12]);
+  const poly = pts.map((p) => p.join(",")).join(" ");
+  const grid = Array.from({ length: 40 }, (_, i) => `<line x1="${i * 25}" y1="0" x2="${i * 25}" y2="450" stroke="#1d3150" stroke-width="1"/><line x1="0" y1="${i * 25}" x2="900" y2="${i * 25}" stroke="#1d3150" stroke-width="1"/>`).join("");
+  const sketch = `<svg xmlns="http://www.w3.org/2000/svg" width="900" height="450" style="background:#0d1b2e;font-family:Segoe UI,Arial">${grid}
+    <text x="24" y="36" fill="#9fb7d9" font-size="18">Sketch 1 · Front plane · ${e.title} (sample)</text>
+    <polyline points="${poly}" fill="none" stroke="#e8f0ff" stroke-width="3"/>
+    <line x1="80" y1="390" x2="640" y2="390" stroke="#ff8a3d" stroke-width="2"/><text x="330" y="380" fill="#ff8a3d" font-size="18">${40 + (seed % 60)} mm</text>
+    <line x1="40" y1="${pts[8][1]}" x2="40" y2="${pts[0][1]}" stroke="#ff8a3d" stroke-width="2"/><text x="48" y="230" fill="#ff8a3d" font-size="18">R${8 + (seed % 12)}</text>
+    ${pts.map((p) => `<circle cx="${p[0]}" cy="${p[1]}" r="5" fill="#0d1b2e" stroke="#7fb2ff" stroke-width="2"/>`).join("")}
+  </svg>`;
+  const features = ["Sketch 1", "Extrude 1", "Sketch 2", "Revolve 1", "Fillet 1", "Shell 1", "Pattern 1", "Chamfer 2"].slice(0, 5 + (seed % 4));
+  const tree = `<svg xmlns="http://www.w3.org/2000/svg" width="900" height="450" style="background:#f3f4f6;font-family:Segoe UI,Arial">
+    <rect x="0" y="0" width="300" height="450" fill="#ffffff" stroke="#d1d5db"/>
+    <text x="20" y="34" fill="#111827" font-size="17" font-weight="600">Features (${features.length}) · sample</text>
+    ${features.map((f, i) => `<rect x="14" y="${52 + i * 40}" width="272" height="32" rx="4" fill="${i === features.length - 1 ? "#dbeafe" : "#ffffff"}"/><text x="28" y="${73 + i * 40}" fill="#374151" font-size="16">${f}</text>`).join("")}
+    <polygon points="${pts.map((p) => `${p[0] * 0.55 + 380},${p[1] * 0.8 + 40}`).join(" ")} 732,380 424,380" fill="#cbd5e1" stroke="#475569" stroke-width="2"/>
+    <text x="330" y="430" fill="#6b7280" font-size="14">${e.title}, work in progress</text>
+  </svg>`;
+  const out = [];
+  for (const [i, svg] of [sketch, tree].entries()) {
+    await page.setContent(`<html><body style="margin:0">${svg}</body></html>`);
+    const file = path.join(dir, `${slug}-${i + 1}.png`);
+    await page.locator("svg").screenshot({ path: file });
+    out.push(file);
+  }
+  return out;
+}
+
+export async function submitViaForm(page, e, sketchPage) {
+  const sketches = e.sketches && sketchPage ? await makeSketches(sketchPage, e) : [];
   await page.goto(`${BASE}/submit`);
   await page.getByLabel("Entry code").fill("MDC-DEMO");
   await page.getByLabel("Title").fill(e.title);
@@ -97,6 +171,12 @@ export async function submitViaForm(page, e) {
   if (e.up === "z") await page.getByRole("button", { name: /Switch to Z up/ }).click();
   await page.waitForTimeout(600);
   await page.getByLabel(/We modelled this/).check();
+  // Check in the sketches first (Save draft), the way a team would mid-morning.
+  if (sketches.length) {
+    await page.getByLabel("Choose sketches and progress shots").setInputFiles(sketches);
+    await page.getByRole("button", { name: "Save draft" }).click();
+    await page.getByText(/^Draft saved at/).waitFor({ timeout: 60_000 });
+  }
   await page.getByRole("button", { name: "Submit entry" }).click();
   await page.getByLabel(/^Share link/).waitFor({ timeout: 90_000 });
   const share = await page.getByLabel(/^Share link/).inputValue();
@@ -130,13 +210,14 @@ async function main() {
   const ctx = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
   const page = await ctx.newPage();
   const links = [];
+  const sketchPage = await ctx.newPage();
   for (const e of DEMO_ENTRIES) {
-    const l = await submitViaForm(page, e);
+    const l = await submitViaForm(page, e, sketchPage);
     links.push({ title: e.title, ...l });
     console.log(`submitted ${e.title}: ${l.share}`);
   }
   const score = (seed) => (i) => {
-    if (i === 5 && seed === 2) return null; // leave one for judge two to do live
+    if ((i === 5 && seed === 2) || i > 8) return null; // leave some for the live demo
     const v = (k) => 5 + ((i * 7 + k * 3 + seed) % 5);
     return { Theme: v(1), Creativity: v(2), "Technical skill": v(3), Presentation: v(4) };
   };
@@ -144,7 +225,18 @@ async function main() {
   await judge(await jctx.newPage(), "Judge Rivera", "judge-demo", score(1));
   const jctx2 = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
   await judge(await jctx2.newPage(), "Judge Thompson", "judge-demo", score(2));
+  // A sample size spec, so the spec check shows up across entries.
+  const h = { "Content-Type": "application/json", "X-Portal": "1" };
+  const login = await fetch(`${BASE}/api/portal/judge/login`, { method: "POST", headers: h, body: JSON.stringify({ name: "Organizer Demo", passcode: "admin-demo" }) });
+  const cookie = (login.headers.get("set-cookie") ?? "").split(";")[0];
+  await fetch(`${BASE}/api/portal/judge/settings`, {
+    method: "PUT",
+    headers: { ...h, Cookie: cookie },
+    body: JSON.stringify({ spec: { maxW: 300, maxD: 300, maxH: 300, volume: null, note: "Fits in a 300 mm cube (demo spec)" } }),
+  });
   await browser.close();
+  // The teams' links, so a demo can open a team's own edit page (local only, git-ignored).
+  fs.writeFileSync(path.join(root, ".data", "demo-links.json"), JSON.stringify(links, null, 2));
   console.log(JSON.stringify(links, null, 2));
 }
 

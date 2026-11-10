@@ -79,6 +79,61 @@ entries started on that laptop.
 - Organizers can pin an award, add an entry to the gallery, hide it from the
   public, reopen editing, mark it late, or delete it.
 
+## Measurements and the size spec
+
+Modelled on how CAD speed-modelling tournaments check accuracy (the model's
+measured volume or mass against a target, within a tolerance).
+
+- The viewer measures every model from the file itself: width × depth × height
+  in millimetres, volume (only for a closed, watertight solid), surface area,
+  triangle count, and whether the mesh is closed. Teams pick the units their
+  file is in (STL and OBJ don't say); a model that comes out a few millimetres
+  across gets a "was this exported in metres?" hint.
+- Judges' viewers re-measure from the uploaded file, so what judges see doesn't
+  depend on the team's browser.
+- **Size spec** (optional, `/judge/settings`): max width / depth / height and/or a
+  target volume ± %. Teams see pass/fail live before they submit; the viewer
+  draws the limit as a dashed box (red when the model doesn't fit); judges see
+  the check on each entry and "Outside spec" on its card. A footprint limit
+  counts either way round, so a model turned 90° still fits.
+
+## Sketches and process
+
+- **Sketches and progress shots**: up to 8 screenshots of sketches, the
+  feature tree or timeline. Teams press **Save draft** during the day to
+  upload them (a draft needs only a title); the server stamps each upload with
+  its own clock, so judges see a real timeline that can't be backdated.
+- **CAD document link**: an optional view-only link (Onshape, Fusion a360.co,
+  Tinkercad, 3DEXPERIENCE or Google Drive only) so judges can open the history.
+- The judge page's **Process** panel shows the timeline, the link, what the
+  model file says exported it, and the team's note about their files.
+
+## Originality checks
+
+Evidence, never verdicts. Nothing is rejected automatically and no team is
+told it cheated: metadata can be missing or wrong, and a false accusation
+against a student costs more than a missed one.
+
+| Check | Level | What it looks at |
+| --- | --- | --- |
+| Same model file as another entry | needs review | SHA-256 of the whole file (both entries get it) |
+| Same geometry as another entry | needs review | same triangle count, area and size within 0.2% |
+| File metadata mentions a download site | needs review | Sketchfab, Thingiverse, Printables, GrabCAD, ... in the exporter/header/comments |
+| Made with an AI 3D generator, not disclosed | needs review | Meshy, Tripo, Rodin, ... named in the file while the form says no AI |
+| Made with an AI 3D generator (disclosed) | info | the same, when the team said they used it |
+| File dated before the theme reveal | needs review | 3MF/GLB creation date earlier than the reveal (2 h slack) |
+| Exported from different software | info | exporter isn't in the team's software list (often just a conversion) |
+| No process evidence | info | no sketches, CAD link or project file |
+
+- Word lists match whole words only and are tested against near-misses
+  ("Onshape" isn't "Shap-E", "tripod" isn't "Tripo").
+- Judges see each check with its exact evidence. **Only organizers decide**:
+  "Looks fine, clear it" or "Confirm it's a problem" (and Reopen).
+- The team sees a neutral note on their edit page (never another team's name)
+  and can answer in "Anything judges should know about your files?"; judges
+  see that answer next to the evidence. A cleared check disappears for the team.
+- The reveal time defaults to the 9:10 AM opening; change it in Settings.
+
 ## The deadline
 
 Submissions close at **2:00 PM on Nov 16** (`PORTAL_DEADLINE`, default

@@ -118,6 +118,62 @@ export function prepareModel(object: THREE.Object3D, hasMaterials: boolean, upAx
   return { object: root, size, triangles: countTriangles(object), hasMaterials };
 }
 
+export interface Geometry {
+  /** Absolute volume in model units³ (only meaningful when closed). */
+  volume: number;
+  /** Surface area in model units². */
+  area: number;
+  /** Every edge shared by exactly two triangles (a watertight solid). */
+  closed: boolean;
+}
+
+/**
+ * Volume (divergence theorem over the triangles), surface area, and whether
+ * the mesh is closed, in world space after the up-axis turn. Very large
+ * meshes skip the closed test (it needs a map of every edge).
+ */
+export function measureGeometry(root: THREE.Object3D): Geometry {
+  root.updateMatrixWorld(true);
+  let volume = 0;
+  let area = 0;
+  let closed = true;
+  let triangles = 0;
+  const a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3();
+  const ab = new THREE.Vector3(), ac = new THREE.Vector3(), cross = new THREE.Vector3();
+  const box = new THREE.Box3().setFromObject(root);
+  const q = Math.max(...box.getSize(new THREE.Vector3()).toArray(), 1e-9) * 1e-6;
+  const edges = new Map<string, number>();
+  const key = (v: THREE.Vector3) => `${Math.round(v.x / q)},${Math.round(v.y / q)},${Math.round(v.z / q)}`;
+  root.traverse((o) => {
+    const mesh = o as THREE.Mesh;
+    if (!mesh.isMesh || !mesh.visible || !mesh.geometry?.attributes.position) return;
+    const pos = mesh.geometry.attributes.position as THREE.BufferAttribute;
+    const index = mesh.geometry.index;
+    const count = index ? index.count : pos.count;
+    triangles += count / 3;
+    const doEdges = triangles < 1_500_000;
+    if (!doEdges) closed = false;
+    for (let i = 0; i + 2 < count; i += 3) {
+      const ia = index ? index.getX(i) : i, ib = index ? index.getX(i + 1) : i + 1, ic = index ? index.getX(i + 2) : i + 2;
+      a.fromBufferAttribute(pos, ia).applyMatrix4(mesh.matrixWorld);
+      b.fromBufferAttribute(pos, ib).applyMatrix4(mesh.matrixWorld);
+      c.fromBufferAttribute(pos, ic).applyMatrix4(mesh.matrixWorld);
+      volume += a.dot(cross.crossVectors(b, c)) / 6;
+      area += cross.crossVectors(ab.subVectors(b, a), ac.subVectors(c, a)).length() / 2;
+      if (doEdges) {
+        const ka = key(a), kb = key(b), kc = key(c);
+        for (const [p, r] of [[ka, kb], [kb, kc], [kc, ka]] as const) {
+          if (p === r) continue; // degenerate sliver
+          const k = p < r ? `${p}|${r}` : `${r}|${p}`;
+          edges.set(k, (edges.get(k) ?? 0) + 1);
+        }
+      }
+    }
+  });
+  if (closed) for (const n of edges.values()) if (n !== 2) { closed = false; break; }
+  return { volume: Math.abs(volume), area, closed: closed && edges.size > 0 };
+}
+
 /** Fetches a file with progress (0..1). */
 export async function fetchBytes(url: string, onProgress?: (p: number) => void, signal?: AbortSignal): Promise<ArrayBuffer> {
   const res = await fetch(url, { signal, credentials: "same-origin" });

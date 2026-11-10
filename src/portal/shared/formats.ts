@@ -4,7 +4,7 @@
 // actually arrived). One table, so the two can never disagree on a limit.
 // ─────────────────────────────────────────────
 
-export type FileSlot = "model" | "image" | "source" | "thumb";
+export type FileSlot = "model" | "image" | "progress" | "source" | "thumb";
 
 /** Formats the in-browser viewer can open. */
 export const VIEWABLE_EXTS = ["glb", "stl", "obj", "3mf", "ply"] as const;
@@ -35,6 +35,14 @@ export const SLOTS: Record<FileSlot, SlotRule> = {
     exts: ["png", "jpg", "jpeg", "webp"],
     maxBytes: 12 * MB,
     maxCount: 4,
+    accept: "image/png,image/jpeg,image/webp",
+  },
+  // Sketches, feature tree / timeline screenshots, work in progress. Uploaded
+  // as the team goes (Save draft); the server time on each forms a timeline.
+  progress: {
+    exts: ["png", "jpg", "jpeg", "webp"],
+    maxBytes: 12 * MB,
+    maxCount: 8,
     accept: "image/png,image/jpeg,image/webp",
   },
   // The native project file, for judges only. Never opened by the site.

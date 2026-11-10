@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { ApiError, api, when } from "../../api";
 import { JudgeShell, useMe } from "./context";
+import { RevealInput, SpecSection } from "./specSettings";
+import type { Spec } from "../../shared/checks";
 
 interface Settings {
   entryCode: string;
@@ -11,6 +13,8 @@ interface Settings {
   deadline: string;
   closed: boolean;
   judges: string[];
+  revealAt: string;
+  spec: Spec | null;
   open: boolean;
   graceSeconds: number;
   storage: string;
@@ -119,6 +123,16 @@ export default function SettingsPage() {
                   {saved}
                 </p>
               )}
+            </section>
+
+            <SpecSection settings={s} busy={busy} onSave={put} />
+
+            <section className="border-t border-bone/10 py-7">
+              <h2 className="p-block-title">Theme reveal</h2>
+              <p className="p-hint mt-1 max-w-[38rem]">
+                Model files that say they were created before this time are flagged for review (with two hours of slack for clocks). Default: the 9:10 AM opening.
+              </p>
+              <RevealInput value={s.revealAt} busy={busy} onSave={(v) => put({ revealAt: v }, "Reveal time saved.")} />
             </section>
 
             <section className="border-t border-bone/10 py-7">

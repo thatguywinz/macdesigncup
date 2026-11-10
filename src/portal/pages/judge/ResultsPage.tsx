@@ -21,6 +21,7 @@ interface Row {
   byJudge: Record<string, number | null>;
   notes: { judge: string; notes: string }[];
   judgeCount: number;
+  openReviews: number;
 }
 
 interface Results {
@@ -109,6 +110,7 @@ export default function ResultsPage() {
                       <div className="mt-0.5 text-[13px] text-concrete">
                         {r.members.map((m) => m.name).join(", ")}
                         {r.late && <span className="p-tag p-tag--bad ml-2">Late</span>}
+                        {r.openReviews > 0 && <span className="p-tag p-tag--ember ml-2">Needs review</span>}
                         {r.award && <span className="p-tag p-tag--solid ml-2">{r.award}</span>}
                       </div>
                     </td>

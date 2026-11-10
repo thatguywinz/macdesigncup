@@ -3,7 +3,25 @@
 // validator both sides run. The browser runs it for inline errors; the API
 // runs it again and trusts nothing else.
 // ─────────────────────────────────────────────
+// Type-only imports between shared modules (erased at build), so the server
+// can load these files without a bundler.
 import type { FileSlot } from "./formats";
+import type { Check, CheckReview, FileMeta, Measure, Spec, Units } from "./checks";
+
+const UNIT_LIST = ["mm", "cm", "m", "in"] as const;
+const CAD_HOSTS = ["onshape.com", "a360.co", "autodesk360.com", "autodesk.com", "tinkercad.com", "3dexperience.3ds.com", "solidworks.com", "drive.google.com", "docs.google.com"];
+
+/** An https link on a CAD (or Drive) host, normalized; null if it isn't one. */
+function cadLinkOf(s: string): string | null {
+  try {
+    const u = new URL(s);
+    const host = u.hostname.toLowerCase();
+    if (u.protocol !== "https:" || !CAD_HOSTS.some((h) => host === h || host.endsWith(`.${h}`))) return null;
+    return u.toString();
+  } catch {
+    return null;
+  }
+}
 
 export const GRADES = ["9", "10", "11", "12"] as const;
 export type Grade = (typeof GRADES)[number];
@@ -33,6 +51,7 @@ export const LIMITS = {
   process: 1500,
   aiNote: 500,
   softwareOther: 60,
+  filesNote: 600,
 } as const;
 
 export interface MemberInput {
@@ -63,6 +82,12 @@ export interface EntryInput {
   original: boolean;
   /** How the viewer stands the model up. CAD exports are usually Z-up. */
   upAxis: "y" | "z";
+  /** The units the model file was exported in (STL and OBJ don't say). */
+  units: Units;
+  /** Link to the CAD document, so judges can see the sketches and history. Optional. */
+  cadLink: string;
+  /** Anything judges should know about the files (answers an originality note). Optional. */
+  filesNote: string;
 }
 
 export type FieldErrors = Partial<Record<string, string>>;
@@ -94,15 +119,27 @@ export function emptyEntry(): EntryInput {
     shareable: true,
     original: false,
     upAxis: "y",
+    units: "mm",
+    cadLink: "",
+    filesNote: "",
   };
 }
 
-/** Validates and normalizes untrusted input. Never throws. */
-export function parseEntry(raw: unknown): Parsed {
+/**
+ * Validates and normalizes untrusted input. Never throws. With `draft`, only
+ * the title is required (a team can save early and check in progress shots);
+ * length and format rules still apply, and submitting re-checks everything.
+ */
+export function parseEntry(raw: unknown, opts: { draft?: boolean } = {}): Parsed {
   const r = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
   const errors: FieldErrors = {};
+  const draft = !!opts.draft;
   const tooLong = (field: string, value: string, max: number, label: string) => {
     if (value.length > max) errors[field] = `${label} can be at most ${max} characters.`;
+  };
+  /** A required-field error: skipped for drafts. */
+  const need = (field: string, message: string) => {
+    if (!draft) errors[field] = message;
   };
 
   const title = str(r.title, LIMITS.title);
@@ -119,28 +156,28 @@ export function parseEntry(raw: unknown): Parsed {
     const name = str(o.name, LIMITS.name);
     const school = str(o.school, LIMITS.school);
     const grade = (GRADES as readonly string[]).includes(String(o.grade)) ? (String(o.grade) as Grade) : null;
-    if (!name) errors[`members.${i}.name`] = "Full name, please.";
+    if (!name) need(`members.${i}.name`, "Full name, please.");
     tooLong(`members.${i}.name`, name, LIMITS.name, "A name");
-    if (!school) errors[`members.${i}.school`] = "Which school?";
+    if (!school) need(`members.${i}.school`, "Which school?");
     tooLong(`members.${i}.school`, school, LIMITS.school, "A school name");
     if (!grade) errors[`members.${i}.grade`] = "Pick a grade.";
     return { name, school, grade: grade ?? "9" };
   });
-  if (members.length === 0) errors.members = "Add at least one team member.";
+  if (members.length === 0) need("members", "Add at least one team member.");
 
   const contactEmail = str(r.contactEmail, LIMITS.email).toLowerCase();
-  if (!EMAIL.test(contactEmail)) errors.contactEmail = "An email we can reach your team at.";
+  if (contactEmail ? !EMAIL.test(contactEmail) : !draft) errors.contactEmail = "An email we can reach your team at.";
   tooLong("contactEmail", contactEmail, LIMITS.email, "The email");
 
   const software = Array.isArray(r.software)
     ? [...new Set(r.software.map(String).filter((s) => (SOFTWARE as readonly string[]).includes(s)))]
     : [];
-  if (software.length === 0) errors.software = "Pick the software you used.";
+  if (software.length === 0) need("software", "Pick the software you used.");
   const softwareOther = software.includes("Other") ? str(r.softwareOther, LIMITS.softwareOther) : "";
-  if (software.includes("Other") && !softwareOther) errors.softwareOther = "Which other software?";
+  if (software.includes("Other") && !softwareOther) need("softwareOther", "Which other software?");
 
   const summary = str(r.summary, LIMITS.summary);
-  if (summary.length < 20) errors.summary = "A sentence or two on how your design answers the theme.";
+  if (summary.length < 20) need("summary", "A sentence or two on how your design answers the theme.");
   tooLong("summary", summary, LIMITS.summary, "This");
 
   const process = str(r.process, LIMITS.process);
@@ -148,17 +185,25 @@ export function parseEntry(raw: unknown): Parsed {
 
   const aiUse = r.aiUse === "some" ? "some" : "none";
   const aiNote = aiUse === "some" ? str(r.aiNote, LIMITS.aiNote) : "";
-  if (aiUse === "some" && !aiNote) errors.aiNote = "Say briefly what you used it for.";
+  if (aiUse === "some" && !aiNote) need("aiNote", "Say briefly what you used it for.");
   tooLong("aiNote", aiNote, LIMITS.aiNote, "This");
 
   const credit = r.credit === "team" ? "team" : "names";
-  if (credit === "team" && !teamName) errors.teamName = "Add a team name, or credit your names instead.";
+  if (credit === "team" && !teamName) need("teamName", "Add a team name, or credit your names instead.");
 
   const shareable = r.shareable !== false;
   const original = r.original === true;
-  if (!original) errors.original = "Confirm the design was made at the event.";
+  if (!original) need("original", "Confirm the design was made at the event.");
 
   const upAxis = r.upAxis === "z" ? "z" : "y";
+  const units: Units = (UNIT_LIST as readonly string[]).includes(String(r.units)) ? (String(r.units) as Units) : "mm";
+
+  const rawLink = str(r.cadLink, 500);
+  const cadLink = rawLink ? cadLinkOf(rawLink) : "";
+  if (cadLink === null) errors.cadLink = "Use a share link from Onshape, Fusion (a360.co), Tinkercad, 3DEXPERIENCE or Google Drive.";
+
+  const filesNote = str(r.filesNote, LIMITS.filesNote);
+  tooLong("filesNote", filesNote, LIMITS.filesNote, "This");
 
   if (Object.keys(errors).length) return { ok: false, errors };
   return {
@@ -178,6 +223,9 @@ export function parseEntry(raw: unknown): Parsed {
       shareable,
       original,
       upAxis,
+      units,
+      cadLink: cadLink ?? "",
+      filesNote,
     },
   };
 }
@@ -208,7 +256,12 @@ export interface FileRef {
   size: number;
   /** Storage key. Never sent to the browser. */
   path: string;
+  /** Server time the upload was confirmed (progress shots form a timeline from these). */
   uploadedAt: string;
+  /** SHA-256 of the whole file (model files), for spotting identical submissions. */
+  sha256?: string;
+  /** What the file's own metadata says (model files). */
+  meta?: FileMeta;
 }
 
 export type EntryStatus = "draft" | "submitted";
@@ -232,6 +285,15 @@ export interface EntryRecord extends EntryInput {
   award: string;
   /** An organizer reopened editing after the deadline. */
   unlocked: boolean;
+  /** What the viewer measured when the team saved (judges' viewers re-measure live). */
+  measure?: Measure | null;
+  /** Organizers' decisions on originality checks: check id -> review. */
+  reviews?: Record<string, CheckReview>;
+}
+
+/** A check with its review, as judges see it. */
+export interface CheckView extends Check {
+  review: CheckReview | null;
 }
 
 /** A file as the browser sees it: a short-lived URL, no storage key. */
@@ -242,6 +304,8 @@ export interface FileView {
   ext: string;
   size: number;
   url: string;
+  /** When the server received it. */
+  uploadedAt?: string;
 }
 
 /** The share page. */
@@ -268,6 +332,8 @@ export interface OwnEntry extends EntryInput {
   late: boolean;
   files: FileView[];
   locked: boolean;
+  /** Neutral notes from the originality checks the team can answer in filesNote. */
+  notices: string[];
 }
 
 export interface Score {
@@ -292,6 +358,10 @@ export interface JudgeEntry extends EntryInput {
   files: FileView[];
   myScore: Score | null;
   scoreCount: number;
+  measure: Measure | null;
+  checks: CheckView[];
+  /** Model file metadata (generator, created), for the process panel. */
+  modelMeta: FileMeta | null;
 }
 
 /** A dashboard card. */
@@ -310,6 +380,10 @@ export interface JudgeCard {
   thumb: string | null;
   myTotal: number | null;
   scoreCount: number;
+  /** Originality checks still waiting for an organizer. */
+  openReviews: number;
+  /** Spec lines failed (null: no spec or not measured). */
+  specFails: number | null;
 }
 
 export interface PortalStatus {
@@ -318,4 +392,6 @@ export interface PortalStatus {
   /** Seconds the server allows a started upload to finish after the deadline. */
   graceSeconds: number;
   now: string;
+  /** The size spec teams design to, if organizers set one. */
+  spec: Spec | null;
 }

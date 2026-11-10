@@ -99,6 +99,12 @@ export class BlobStorage implements Storage {
     return new Uint8Array(await streamToBuffer(res.stream, n));
   }
 
+  async readAll(path: string, max: number): Promise<Uint8Array | null> {
+    const res = await get(path, { access: "private", useCache: false });
+    if (!res || res.statusCode !== 200 || (res.blob.size ?? 0) > max) return null;
+    return new Uint8Array(await streamToBuffer(res.stream));
+  }
+
   async delete(paths: string[]): Promise<void> {
     if (paths.length) await del(paths);
   }

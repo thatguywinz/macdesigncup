@@ -8,6 +8,7 @@
 //   portal/settings.json  organizer overrides (deadline, closed)
 //
 // Uploaded files live beside them under portal/files/<entry id>/.
+import type { Spec } from "../../src/portal/shared/checks.js";
 import type { EntryRecord, Score } from "../../src/portal/shared/schema.js";
 import { PreconditionFailed, type Storage } from "./storage/types.js";
 
@@ -41,6 +42,10 @@ export interface SettingsDoc {
    * those people can sign in as judges and only their marks count.
    */
   judges?: string[];
+  /** When the theme is revealed (originality: files dated earlier are flagged). */
+  revealAt?: string;
+  /** Optional size spec for the theme. */
+  spec?: Spec | null;
   /** Replaces the configured deadline (an organizer extended or moved it). */
   deadlineOverride: string | null;
   /** Organizer closed submissions early, whatever the clock says. */

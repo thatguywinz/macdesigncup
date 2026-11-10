@@ -228,4 +228,79 @@ function gear(teeth, radius, depth, toothH) {
   await writeGlb("tensegrity-table.glb", scene);
 }
 
+// ── Files that should trip the originality checks (for the demo) ─────────
+// Their metadata is set the way the real tools write it, so the checks can
+// be shown working. They are sample files, not anyone's work.
+
+/** Rewrites a GLB's asset.generator (the string exporters stamp in). */
+function setGlbGenerator(name, generator) {
+  const file = path.join(out, name);
+  const buf = fs.readFileSync(file);
+  const jsonLen = buf.readUInt32LE(12);
+  const json = JSON.parse(buf.subarray(20, 20 + jsonLen).toString("utf8"));
+  json.asset.generator = generator;
+  let text = JSON.stringify(json);
+  while (Buffer.byteLength(text) % 4) text += " ";
+  const jsonBuf = Buffer.from(text);
+  const rest = buf.subarray(20 + jsonLen);
+  const head = Buffer.alloc(20);
+  head.write("glTF", 0);
+  head.writeUInt32LE(2, 4);
+  head.writeUInt32LE(20 + jsonBuf.length + rest.length, 8);
+  head.writeUInt32LE(jsonBuf.length, 12);
+  head.writeUInt32LE(0x4e4f534a, 16);
+  fs.writeFileSync(file, Buffer.concat([head, jsonBuf, rest]));
+}
+
+// 7. "Dragon Knot": metadata says it came from Sketchfab.
+{
+  const scene = new THREE.Scene();
+  const knot = new THREE.Mesh(new THREE.TorusKnotGeometry(50, 16, 220, 32, 2, 3), mat(0x2f8f6a, 0.35, 0.2));
+  knot.position.y = 72;
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(40, 46, 10, 64), mat(0x2b2d33, 0.5));
+  base.position.y = 5;
+  scene.add(knot, base);
+  await writeGlb("dragon-knot.glb", scene);
+  setGlbGenerator("dragon-knot.glb", "Sketchfab-16.4.0");
+}
+
+// 8. "Ripple Vase": metadata says Meshy (an AI text-to-3D tool).
+{
+  const scene = new THREE.Scene();
+  const pts = [];
+  for (let i = 0; i <= 50; i++) {
+    const t = i / 50;
+    pts.push(new THREE.Vector2(22 + 18 * Math.sin(t * Math.PI * 1.2) + 3 * Math.sin(t * 40), t * 140));
+  }
+  const vase = new THREE.Mesh(new THREE.LatheGeometry(pts, 80), new THREE.MeshStandardMaterial({ color: 0x6b8cff, roughness: 0.3, side: THREE.DoubleSide }));
+  scene.add(vase);
+  await writeGlb("ripple-vase.glb", scene);
+  setGlbGenerator("ripple-vase.glb", "Meshy AI v4 (meshy.ai)");
+}
+
+// 9. "Shelf Bracket": a 3MF whose CreationDate is from 2025.
+{
+  const { zipSync, strToU8 } = await import("three/examples/jsm/libs/fflate.module.js");
+  const parts = [new THREE.BoxGeometry(80, 6, 30), new THREE.BoxGeometry(6, 80, 30)];
+  parts[0].translate(40, 3, 15);
+  parts[1].translate(3, 40, 15);
+  const brace = new THREE.BoxGeometry(70, 6, 20);
+  brace.rotateZ(-Math.PI / 4);
+  brace.translate(30, 30, 15);
+  parts.push(brace);
+  const geo = mergeGeometries(parts.map((g) => g.toNonIndexed()), false);
+  const p = geo.attributes.position;
+  const verts = [];
+  const tris = [];
+  for (let i = 0; i < p.count; i++) verts.push(`<vertex x="${p.getX(i).toFixed(3)}" y="${p.getZ(i).toFixed(3)}" z="${p.getY(i).toFixed(3)}"/>`);
+  for (let i = 0; i < p.count; i += 3) tris.push(`<triangle v1="${i}" v2="${i + 2}" v3="${i + 1}"/>`);
+  const model = `<?xml version="1.0" encoding="UTF-8"?><model unit="millimeter" xml:lang="en-US" xmlns="http://schemas.microsoft.com/3dmanufacturing/core/2015/02"><metadata name="Application">PrusaSlicer-2.8.1</metadata><metadata name="CreationDate">2025-03-14</metadata><metadata name="Title">Shelf bracket</metadata><resources><object id="1" type="model"><mesh><vertices>${verts.join("")}</vertices><triangles>${tris.join("")}</triangles></mesh></object></resources><build><item objectid="1"/></build></model>`;
+  const zip = zipSync({
+    "[Content_Types].xml": strToU8('<?xml version="1.0" encoding="UTF-8"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="model" ContentType="application/vnd.ms-package.3dmanufacturing-3dmodel+xml"/></Types>'),
+    "_rels/.rels": strToU8('<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Target="/3D/3dmodel.model" Id="rel0" Type="http://schemas.microsoft.com/3dmanufacturing/2013/01/3dmodel"/></Relationships>'),
+    "3D/3dmodel.model": strToU8(model),
+  });
+  fs.writeFileSync(path.join(out, "shelf-bracket.3mf"), zip);
+}
+
 for (const f of fs.readdirSync(out)) console.log(`${f}  ${(fs.statSync(path.join(out, f)).size / 1024).toFixed(0)} KB`);

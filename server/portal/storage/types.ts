@@ -36,6 +36,8 @@ export interface Storage {
   head(path: string): Promise<ObjectInfo | null>;
   /** The first `n` bytes of an object (for checking what a file really is). */
   readHead(path: string, n: number): Promise<Uint8Array | null>;
+  /** A whole object, up to `max` bytes (null if missing or larger). */
+  readAll(path: string, max: number): Promise<Uint8Array | null>;
   delete(paths: string[]): Promise<void>;
   /** A short-lived URL the browser can GET the object from. */
   signedGetUrl(path: string, ttlSeconds: number): Promise<string>;

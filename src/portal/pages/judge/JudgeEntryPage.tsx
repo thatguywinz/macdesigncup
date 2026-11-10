@@ -9,6 +9,8 @@ import { ApiError, api, clock } from "../../api";
 import { formatBytes, isViewable, type ViewableExt } from "../../shared/formats";
 import { AWARDS, CRITERIA, MARK_MAX, MAX_TOTAL, totalOf } from "../../shared/judging";
 import type { JudgeEntry, Score } from "../../shared/schema";
+import type { Measure, Spec } from "../../shared/checks";
+import { ChecksPanel, MeasurePanel, ProcessPanel } from "./panels";
 import ModelViewer from "../../viewer/ModelViewer";
 import { JudgeShell, useMe } from "./context";
 
@@ -16,6 +18,7 @@ interface EntryResponse {
   entry: JudgeEntry;
   prev: string | null;
   next: string | null;
+  spec: Spec | null;
 }
 
 export default function JudgeEntryPage() {
@@ -24,6 +27,8 @@ export default function JudgeEntryPage() {
   const navigate = useNavigate();
   const [data, setData] = useState<EntryResponse | null>(null);
   const [error, setError] = useState("");
+  // Measured live from the actual file in this browser (not what the team's browser reported).
+  const [liveMeasure, setLiveMeasure] = useState<Measure | null>(null);
 
   useEffect(() => {
     setData(null);
@@ -72,6 +77,9 @@ export default function JudgeEntryPage() {
         <ModelViewer
           source={model && isViewable(model.ext) ? { kind: "url", url: model.url, ext: model.ext as ViewableExt } : null}
           upAxis={e?.upAxis ?? "y"}
+          units={e?.units ?? "mm"}
+          spec={data?.spec ?? null}
+          onMeasure={setLiveMeasure}
           label={e ? `${e.title}, 3D model` : "3D model"}
           className="h-[56vh] min-h-[320px] w-full lg:sticky lg:top-20 lg:h-[calc(100dvh-7.5rem)]"
           empty={<span className="font-body text-sm text-concrete">{e ? "This entry has no viewable model." : ""}</span>}
@@ -173,6 +181,10 @@ export default function JudgeEntryPage() {
                 </a>
               </li>
             </ul>
+
+            <MeasurePanel measure={liveMeasure} spec={data?.spec ?? null} reported={e.measure} />
+            <ProcessPanel entry={e} />
+            <ChecksPanel entry={e} admin={me.role === "admin"} onChange={(entry) => setData((d) => (d ? { ...d, entry } : d))} />
 
             <ScoreForm key={e.id} entryId={e.id} initial={e.myScore} scoreCount={e.scoreCount} next={data?.next ?? null} />
 

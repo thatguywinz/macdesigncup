@@ -17,7 +17,7 @@ interface ListResponse {
   open: boolean;
 }
 
-type Filter = "all" | "todo" | "done" | "late";
+type Filter = "all" | "todo" | "done" | "late" | "review";
 
 export default function JudgeList() {
   const { me, signOut } = useMe();
@@ -59,6 +59,7 @@ export default function JudgeList() {
       if (filter === "todo" && c.myTotal !== null) return false;
       if (filter === "done" && c.myTotal === null) return false;
       if (filter === "late" && !c.late) return false;
+      if (filter === "review" && !c.openReviews) return false;
       if (!q) return true;
       return [c.title, c.creditLine, ...c.schools, ...c.software].some((s) => s.toLowerCase().includes(q));
     });
@@ -100,6 +101,7 @@ export default function JudgeList() {
               ["todo", "To mark"],
               ["done", "Marked"],
               ["late", "Late"],
+              ["review", "Needs review"],
             ] as [Filter, string][]
           ).map(([f, label]) => (
             <button key={f} type="button" className="p-chip" aria-pressed={filter === f} onClick={() => setFilter(f)}>
@@ -154,6 +156,8 @@ export default function JudgeList() {
                   <span className="truncate font-body text-[13px] text-concrete">{c.schools.join(", ")}</span>
                   <span className="mt-auto flex flex-wrap items-center gap-1.5 pt-2">
                     {c.late && <span className="p-tag p-tag--bad">Late</span>}
+                    {c.openReviews > 0 && <span className="p-tag p-tag--ember">Needs review</span>}
+                    {!!c.specFails && <span className="p-tag p-tag--bad">Outside spec</span>}
                     {c.award && <span className="p-tag p-tag--solid">{c.award}</span>}
                     {c.hidden && <span className="p-tag">Hidden</span>}
                     <span className="p-mono ml-auto text-[11px] text-concrete">

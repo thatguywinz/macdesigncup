@@ -9,7 +9,7 @@
 // pressing the button again picks up where it stopped.
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
-import { Check, Copy, ExternalLink, FileBox, ImagePlus, Plus, Trash2, Upload, X } from "lucide-react";
+import { Check, Copy, ExternalLink, FileBox, ImagePlus, PenTool, Plus, Trash2, Upload, X } from "lucide-react";
 import Shell from "../components/Shell";
 import { Block, Field, Progress } from "../components/fields";
 import { ApiError, api, clock, closesLabel } from "../api";
@@ -29,13 +29,14 @@ import {
   type OwnEntry,
 } from "../shared/schema";
 import { uploadFile } from "../upload";
+import { CAD_LINK_HINT, UNITS, formatMeasure, hasSpec, specCheck, type Measure, type Spec, type Units } from "../shared/checks";
 import ModelViewer, { type CaptureFn, type ModelSource } from "../viewer/ModelViewer";
 
 type Item = { kind: "existing"; view: FileView } | { kind: "new"; key: string; file: File; progress: number; error?: string };
 
 type Files = Record<Exclude<FileSlot, "thumb">, Item[]>;
 
-const noFiles = (): Files => ({ model: [], image: [], source: [] });
+const noFiles = (): Files => ({ model: [], image: [], progress: [], source: [] });
 
 function filesFrom(entry: OwnEntry): Files {
   const f = noFiles();
@@ -73,6 +74,8 @@ export default function SubmitPage() {
   const [loadError, setLoadError] = useState("");
   const [busy, setBusy] = useState<string>("");
   const [done, setDone] = useState(false);
+  const [draftSaved, setDraftSaved] = useState("");
+  const [measure, setMeasure] = useState<Measure | null>(null);
   const captureRef = useRef<CaptureFn | null>(null);
   const savedAxis = useRef<"y" | "z">("y");
 
@@ -96,7 +99,7 @@ export default function SubmitPage() {
     setLoading(true);
     api<{ entry: OwnEntry }>(`/entries/${routeId}`, { editKey: key })
       .then(({ entry }) => {
-        const { id, status: _s, submittedAt: _a, late: _l, files: _f, locked: _k, ...input } = entry;
+        const { id, status: _s, submittedAt: _a, late: _l, files: _f, locked: _k, notices: _n, ...input } = entry;
         setForm(input);
         setFiles(filesFrom(entry));
         setSaved(entry);
@@ -170,14 +173,25 @@ export default function SubmitPage() {
   const closedForNew = status ? !status.open : false;
   const locked = saved?.locked ?? false;
 
-  async function onSubmit(ev: FormEvent) {
+  function onSubmit(ev: FormEvent) {
     ev.preventDefault();
+    void save("submit");
+  }
+
+  /**
+   * "submit": everything checked, then the entry is submitted.
+   * "draft": only the title is needed; files upload and the entry stays a
+   * draft, so a team can check in sketches and progress shots during the day.
+   */
+  async function save(mode: "submit" | "draft") {
     if (busy) return;
+    const draft = mode === "draft";
     setFormError("");
-    const parsed = parseEntry(form);
+    setDraftSaved("");
+    const parsed = parseEntry(form, { draft });
     const errs: FieldErrors = "errors" in parsed ? { ...parsed.errors } : {};
     if (!isEdit && !code.trim()) errs.code = "Enter the code from the screen at the front of the room.";
-    if (!modelItem) errs.model = "Add your 3D model.";
+    if (!modelItem && !draft) errs.model = "Add your 3D model.";
     if (Object.keys(errs).length || !("value" in parsed)) {
       setErrors(errs);
       setFormError("Some fields need another look.");
@@ -191,7 +205,7 @@ export default function SubmitPage() {
       // 1. Details.
       setBusy("Saving your details…");
       if (!id) {
-        const created = await api<{ id: string; editKey: string; entry: OwnEntry }>("/entries", { body: { code, entry: parsed.value } });
+        const created = await api<{ id: string; editKey: string; entry: OwnEntry }>("/entries", { body: { code, entry: parsed.value, draft, measure } });
         id = created.id;
         key = created.editKey;
         createdHere.current = id;
@@ -202,7 +216,7 @@ export default function SubmitPage() {
         navigate(`/submit/edit/${id}#k=${key}`, { replace: true });
         setSaved(created.entry);
       } else {
-        const res = await api<{ entry: OwnEntry }>(`/entries/${id}`, { method: "PUT", body: { entry: parsed.value }, editKey: key });
+        const res = await api<{ entry: OwnEntry }>(`/entries/${id}`, { method: "PUT", body: { entry: parsed.value, draft, measure }, editKey: key });
         setSaved(res.entry);
         rememberEntry({ id, key, title: parsed.value.title, at: new Date().toISOString() });
       }
@@ -218,7 +232,7 @@ export default function SubmitPage() {
 
       // 3. New files, model first.
       const queue: [keyof Files, Extract<Item, { kind: "new" }>][] = [];
-      for (const slot of ["model", "image", "source"] as const) {
+      for (const slot of ["model", "progress", "image", "source"] as const) {
         for (const item of files[slot]) if (item.kind === "new") queue.push([slot, item]);
       }
       const modelIsNew = files.model.some((x) => x.kind === "new");
@@ -257,6 +271,15 @@ export default function SubmitPage() {
         }
       }
       savedAxis.current = parsed.value.upAxis;
+
+      // 5a. A draft stops here: saved, not submitted.
+      if (draft) {
+        const fresh = await api<{ entry: OwnEntry }>(`/entries/${id}`, { editKey: key });
+        setSaved(fresh.entry);
+        setFiles(filesFrom(fresh.entry));
+        setDraftSaved(`Draft saved at ${clock(new Date().toISOString())}. Come back with your edit link to add progress shots or submit.`);
+        return;
+      }
 
       // 5. Submit.
       setBusy("Submitting…");
@@ -407,6 +430,9 @@ export default function SubmitPage() {
                 source={modelSource}
                 upAxis={form.upAxis}
                 onUpAxisChange={(a) => set("upAxis", a)}
+                onMeasure={setMeasure}
+                units={form.units}
+                spec={status?.spec ?? null}
                 captureRef={captureRef}
                 label="Preview of your model"
                 className="aspect-[4/3] w-full"
@@ -423,6 +449,22 @@ export default function SubmitPage() {
               onRemove={(it) => removeItem("model", it)}
               icon={<FileBox size={20} strokeWidth={1.4} />}
             />
+            <ModelChecks units={form.units} onUnits={(u) => set("units", u)} measure={measure} spec={status?.spec ?? null} hasModel={!!modelItem} />
+            <FilePicker
+              slot="progress"
+              label="Sketches and progress shots"
+              optional
+              hint="Screenshots of your sketches, feature tree or timeline, as you go. Press Save draft to upload them during the day: each one is timestamped, and judges see them in order."
+              items={files.progress}
+              error={errors.progress}
+              onAdd={(l) => addFiles("progress", l)}
+              onRemove={(it) => removeItem("progress", it)}
+              icon={<PenTool size={20} strokeWidth={1.4} />}
+              multiple
+            />
+            <Field label="Link to your CAD document" optional hint={`A view-only share link (${CAD_LINK_HINT}), so judges can open your sketches and history.`} error={errors.cadLink}>
+              {(p) => <input {...p} type="url" inputMode="url" className="p-input" placeholder="https://cad.onshape.com/documents/…" value={form.cadLink} onChange={(e) => set("cadLink", e.target.value)} />}
+            </Field>
             <FilePicker
               slot="image"
               label="Renders or screenshots"
@@ -582,6 +624,34 @@ export default function SubmitPage() {
             </label>
             {errors.original && <p className="p-error -mt-4">{errors.original}</p>}
 
+            {saved && saved.notices.length > 0 && (
+              <div className="p-notice font-body text-[15px]" role="status">
+                <p className="font-medium text-foreground">Our file check noticed something judges will ask about:</p>
+                <ul className="mt-2 list-disc pl-5 text-foreground/85">
+                  {saved.notices.map((n) => (
+                    <li key={n}>{n}</li>
+                  ))}
+                </ul>
+                <p className="mt-2 text-sm text-foreground/70">
+                  That's not a judgement: files can carry odd metadata. An organizer looks at it either way. If there's an explanation, add it below.
+                </p>
+              </div>
+            )}
+            <Field
+              label="Anything judges should know about your files?"
+              optional
+              hint="For example: you started from a template, converted the file, or used a part from a library."
+              error={errors.filesNote}
+              counter={{ value: form.filesNote.length, max: LIMITS.filesNote }}
+            >
+              {(p) => <textarea {...p} className="p-textarea min-h-[5rem]" value={form.filesNote} onChange={(e) => set("filesNote", e.target.value)} />}
+            </Field>
+
+            {draftSaved && (
+              <p className="p-notice p-notice--calm font-body text-[15px]" role="status">
+                {draftSaved}
+              </p>
+            )}
             {formError && (
               <p className="p-notice p-notice--bad font-body" role="alert">
                 {formError}
@@ -591,6 +661,11 @@ export default function SubmitPage() {
               <button type="submit" className="btn-portal p-btn min-w-[11rem]" disabled={!!busy || locked}>
                 {busy ? "Working…" : isEdit && saved?.status === "submitted" ? "Save changes" : "Submit entry"}
               </button>
+              {saved?.status !== "submitted" && (
+                <button type="button" className="btn-ghost p-btn" disabled={!!busy || locked} onClick={() => void save("draft")}>
+                  Save draft
+                </button>
+              )}
               {busy && (
                 <span className="font-body text-sm text-concrete" role="status">
                   {busy}
@@ -607,6 +682,9 @@ export default function SubmitPage() {
               source={modelSource}
               upAxis={form.upAxis}
               onUpAxisChange={(a) => set("upAxis", a)}
+              onMeasure={setMeasure}
+              units={form.units}
+              spec={status?.spec ?? null}
               captureRef={captureRef}
               label="Preview of your model"
               className="aspect-[4/5] w-full xl:aspect-square"
@@ -618,6 +696,78 @@ export default function SubmitPage() {
         )}
       </form>
     </Shell>
+  );
+}
+
+/**
+ * Under the model picker: the units the file is in (STL and OBJ don't say),
+ * what the model measures, and the organizers' size spec if there is one, so
+ * a team knows before submitting whether it fits.
+ */
+function ModelChecks({
+  units,
+  onUnits,
+  measure,
+  spec,
+  hasModel,
+}: {
+  units: Units;
+  onUnits: (u: Units) => void;
+  measure: Measure | null;
+  spec: Spec | null;
+  hasModel: boolean;
+}) {
+  const lines = measure && hasSpec(spec) ? specCheck(measure, spec) : [];
+  const largest = measure ? Math.max(measure.w, measure.d, measure.h) : 0;
+  // A Blender GLB is in metres; read as millimetres it comes out a few mm across.
+  const suggest: Units | null = measure && units === "mm" && largest < 5 ? "m" : measure && units === "m" && largest > 20_000 ? "mm" : null;
+  return (
+    <div className="flex flex-col gap-3 border-l border-bone/10 pl-4">
+      <label className="flex flex-wrap items-center gap-3">
+        <span className="p-label">Units in the file</span>
+        <select className="p-select w-auto min-w-[6rem]" value={units} onChange={(e) => onUnits(e.target.value as Units)}>
+          {UNITS.map((u) => (
+            <option key={u} value={u}>
+              {u}
+            </option>
+          ))}
+        </select>
+      </label>
+      {measure && (
+        <p className="font-body text-sm text-foreground/85">
+          Measures <span className="p-mono">{formatMeasure(measure)}</span>
+          {measure.volume !== null ? (
+            <span className="text-concrete"> · {(measure.volume / 1000).toFixed(1)} cm³ solid</span>
+          ) : (
+            <span className="text-concrete"> · open mesh (no volume)</span>
+          )}
+        </p>
+      )}
+      {suggest && (
+        <p className="p-hint">
+          That's {suggest === "m" ? "very small" : "very large"}. Was the file exported in {suggest === "m" ? "metres" : "millimetres"}?{" "}
+          <button type="button" className="p-link focus-ember" onClick={() => onUnits(suggest)}>
+            Use {suggest}
+          </button>
+        </p>
+      )}
+      {hasSpec(spec) && (
+        <div>
+          <p className="p-label">Size spec{spec.note ? `: ${spec.note}` : ""}</p>
+          {!hasModel || !measure ? (
+            <p className="p-hint mt-1">Add your model to check it against the spec.</p>
+          ) : (
+            <ul className="mt-1.5 flex flex-col gap-1 font-body text-sm">
+              {lines.map((l) => (
+                <li key={l.label} className={l.ok === false ? "text-[#ff7a6b]" : l.ok ? "text-[#9fd59a]" : "text-concrete"}>
+                  {l.ok === false ? "✕" : l.ok ? "✓" : "–"} {l.label}: {l.text}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
 

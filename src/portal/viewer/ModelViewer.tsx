@@ -9,16 +9,12 @@ import { ContactShadows, Grid, Html, Line, OrbitControls } from "@react-three/dr
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import * as THREE from "three";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
-import { Box, Expand, Focus, Rotate3d, Ruler, Shrink } from "lucide-react";
+import { Box, Expand, Focus, Package, Rotate3d, Ruler, Shrink } from "lucide-react";
 import type { ViewableExt } from "../shared/formats";
-import { disposeObject, fetchBytes, formatDims, parseModel, prepareModel, type LoadedModel } from "./loadModel";
+import { MM_PER, formatMeasure, hasSpec, specCheck, type Measure, type Spec, type Units } from "../shared/checks";
+import { disposeObject, fetchBytes, measureGeometry, parseModel, prepareModel, type LoadedModel } from "./loadModel";
 
 export type ModelSource = { kind: "url"; url: string; ext: ViewableExt } | { kind: "file"; file: File; ext: ViewableExt };
-
-export interface ViewerStats {
-  dims: string;
-  triangles: number;
-}
 
 /** Call to get a PNG of what the viewer shows right now (max 960 px wide). */
 export type CaptureFn = () => Promise<Blob | null>;
@@ -28,7 +24,12 @@ interface ModelViewerProps {
   upAxis: "y" | "z";
   /** Shows the "stand it up" switch (the form uses it; viewers just look). */
   onUpAxisChange?: (axis: "y" | "z") => void;
-  onStats?: (stats: ViewerStats | null) => void;
+  /** Receives the measurement (mm) whenever the model, its up axis or units change. */
+  onMeasure?: (m: Measure | null) => void;
+  /** The units the file was exported in. Default mm. */
+  units?: Units;
+  /** Organizers' size spec: drawn as a box, checked in the readout. */
+  spec?: Spec | null;
   /** Receives a capture function once a model is on screen. */
   captureRef?: React.MutableRefObject<CaptureFn | null>;
   className?: string;
@@ -68,8 +69,9 @@ function Environment() {
 }
 
 /** Ember CAD dimensions along the model's width, depth and height. */
-function Dimensions({ size }: { size: THREE.Vector3 }) {
+function Dimensions({ size, mmPer }: { size: THREE.Vector3; mmPer: number }) {
   const max = Math.max(size.x, size.y, size.z);
+  const mmMax = max * mmPer;
   const gap = max * 0.08; // how far the lines stand off the model
   const tick = max * 0.025;
   const hx = size.x / 2;
@@ -113,9 +115,35 @@ function Dimensions({ size }: { size: THREE.Vector3 }) {
       {ticks.map((pts, i) => (
         <Line key={`t${i}`} points={pts} color={color} lineWidth={1.25} transparent opacity={0.9} />
       ))}
-      {label(fmt(size.x, max), [0, y0, hz + gap])}
-      {label(fmt(size.z, max), [hx + gap, y0, 0])}
-      {label(fmt(size.y, max), [-hx - gap, size.y / 2, hz + gap])}
+      {label(`${fmt(size.x * mmPer, mmMax)} mm`, [0, y0, hz + gap])}
+      {label(`${fmt(size.z * mmPer, mmMax)} mm`, [hx + gap, y0, 0])}
+      {label(`${fmt(size.y * mmPer, mmMax)} mm`, [-hx - gap, size.y / 2, hz + gap])}
+    </group>
+  );
+}
+
+/**
+ * The organizers' size limit as a dashed box around the model (model units).
+ * Bone when the model fits, red when it doesn't. Unset sides follow the model.
+ */
+function SpecBox({ size, mmPer, spec, fits }: { size: THREE.Vector3; mmPer: number; spec: Spec; fits: boolean }) {
+  const w = (spec.maxW ?? size.x * mmPer) / mmPer;
+  const d = (spec.maxD ?? size.z * mmPer) / mmPer;
+  const h = (spec.maxH ?? size.y * mmPer) / mmPer;
+  // Footprint limits apply either way round: line the box up with the model's longer side.
+  const [bx, bz] = spec.maxW !== null && spec.maxD !== null && size.x >= size.z !== w >= d ? [d, w] : [w, d];
+  const x = bx / 2, z = bz / 2;
+  const c: [number, number, number][] = [
+    [-x, 0, -z], [x, 0, -z], [x, 0, z], [-x, 0, z],
+    [-x, h, -z], [x, h, -z], [x, h, z], [-x, h, z],
+  ];
+  const edges = [[0, 1], [1, 2], [2, 3], [3, 0], [4, 5], [5, 6], [6, 7], [7, 4], [0, 4], [1, 5], [2, 6], [3, 7]];
+  const color = fits ? "#eae2cc" : "#ef4b3c";
+  return (
+    <group>
+      {edges.map(([p, q], i) => (
+        <Line key={i} points={[c[p], c[q]]} color={color} lineWidth={1} dashed dashSize={Math.max(bx, h) / 60} gapSize={Math.max(bx, h) / 90} transparent opacity={0.55} />
+      ))}
     </group>
   );
 }
@@ -229,7 +257,18 @@ function webglAvailable(): boolean {
 
 // ── The viewer ────────────────────────────────
 
-export default function ModelViewer({ source, upAxis, onUpAxisChange, onStats, captureRef, className, label, empty }: ModelViewerProps) {
+export default function ModelViewer({
+  source,
+  upAxis,
+  onUpAxisChange,
+  onMeasure,
+  units = "mm",
+  spec = null,
+  captureRef,
+  className,
+  label,
+  empty,
+}: ModelViewerProps) {
   const [raw, setRaw] = useState<{ object: THREE.Object3D; hasMaterials: boolean } | null>(null);
   const [status, setStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const [progress, setProgress] = useState(0);
@@ -288,9 +327,28 @@ export default function ModelViewer({ source, upAxis, onUpAxisChange, onStats, c
 
   useEffect(() => () => void (raw && disposeObject(raw.object)), [raw]);
 
+  // What the model measures, in millimetres (volume only for closed solids).
+  const mmPer = MM_PER[units];
+  const geometry = useMemo(() => (model ? measureGeometry(model.object) : null), [model]);
+  const measure: Measure | null = useMemo(() => {
+    if (!model || !geometry) return null;
+    return {
+      w: model.size.x * mmPer,
+      d: model.size.z * mmPer,
+      h: model.size.y * mmPer,
+      volume: geometry.closed ? geometry.volume * mmPer ** 3 : null,
+      area: geometry.area * mmPer ** 2,
+      triangles: model.triangles,
+      closed: geometry.closed,
+    };
+  }, [model, geometry, mmPer]);
+  const specLines = useMemo(() => (measure && hasSpec(spec) ? specCheck(measure, spec) : []), [measure, spec]);
+  const fits = specLines.every((l) => l.ok !== false);
+  const [showSpec, setShowSpec] = useState(true);
+
   useEffect(() => {
-    onStats?.(model ? { dims: formatDims(model.size), triangles: model.triangles } : null);
-  }, [model, onStats]);
+    onMeasure?.(measure);
+  }, [measure, onMeasure]);
 
   // Wireframe toggle.
   useEffect(() => {
@@ -385,16 +443,27 @@ export default function ModelViewer({ source, upAxis, onUpAxisChange, onStats, c
                 fadeDistance={max * 9}
                 fadeStrength={1.6}
               />
-              {dims && <Dimensions size={model.size} />}
+              {dims && <Dimensions size={model.size} mmPer={mmPer} />}
+              {showSpec && hasSpec(spec) && <SpecBox size={model.size} mmPer={mmPer} spec={spec} fits={fits} />}
               <Rig model={model} controlsRef={controlsRef} autoRotate={autoRotate} />
               <Capture captureRef={captureRef} />
-              <Redraw deps={[wire, dims, model]} />
+              <Redraw deps={[wire, dims, model, showSpec, spec, units]} />
             </Suspense>
           </Canvas>
 
           <div className="viewer-readout" aria-live="polite">
-            <span>{formatDims(model.size)}</span>
-            <span className="text-concrete">{model.triangles.toLocaleString("en-CA")} triangles</span>
+            {measure && (
+              <>
+                <span>{formatMeasure(measure)}</span>
+                <span className="text-concrete">
+                  {measure.volume !== null ? `${(measure.volume / 1000).toFixed(measure.volume < 10_000 ? 2 : 1)} cm³ · ` : "open mesh · "}
+                  {(measure.area / 100).toFixed(1)} cm² · {model.triangles.toLocaleString("en-CA")} tris
+                </span>
+                {specLines.length > 0 && (
+                  <span className={fits ? "text-[#9fd59a]" : "text-[#ff7a6b]"}>{fits ? "Fits the spec" : "Outside the spec"}</span>
+                )}
+              </>
+            )}
           </div>
 
           <div className="viewer-tools" role="toolbar" aria-label="View controls">
@@ -410,6 +479,11 @@ export default function ModelViewer({ source, upAxis, onUpAxisChange, onStats, c
             <ToolButton label="Dimensions" pressed={dims} onClick={() => setDims((v) => !v)}>
               <Ruler size={17} strokeWidth={1.5} />
             </ToolButton>
+            {hasSpec(spec) && (
+              <ToolButton label="Size limit box" pressed={showSpec} onClick={() => setShowSpec((v) => !v)}>
+                <Package size={17} strokeWidth={1.5} />
+              </ToolButton>
+            )}
             <ToolButton label={full ? "Exit full screen" : "Full screen"} onClick={toggleFull}>
               {full ? <Shrink size={17} strokeWidth={1.5} /> : <Expand size={17} strokeWidth={1.5} />}
             </ToolButton>

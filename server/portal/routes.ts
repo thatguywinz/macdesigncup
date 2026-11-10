@@ -14,7 +14,11 @@
 import type { FileSlot } from "../../src/portal/shared/formats.js";
 import { SLOTS, checkFile, contentTypeFor, extOf } from "../../src/portal/shared/formats.js";
 import { AWARDS, CRITERIA, MAX_TOTAL, cleanMarks, totalOf } from "../../src/portal/shared/judging.js";
+import { hasSpec, specCheck, type Measure, type Spec } from "../../src/portal/shared/checks.js";
+import { DEFAULT_REVEAL, originalityChecks } from "./originality.js";
+import { inspectModel, sha256Of } from "./inspect.js";
 import type {
+  CheckView,
   EntryRecord,
   FileRef,
   FileView,
@@ -91,7 +95,33 @@ const iso = (ms: number) => new Date(ms).toISOString();
 async function fileView(ctx: PortalContext, f: FileRef, opts: { publicName?: string } = {}): Promise<FileView> {
   // Public views get a neutral name: a student's file name can hold their surname.
   const name = opts.publicName ? `${opts.publicName}.${f.ext}` : f.name;
-  return { id: f.id, slot: f.slot, name, ext: f.ext, size: f.size, url: await ctx.db.storage.signedGetUrl(f.path, DOWNLOAD_TTL) };
+  return {
+    id: f.id,
+    slot: f.slot,
+    name,
+    ext: f.ext,
+    size: f.size,
+    url: await ctx.db.storage.signedGetUrl(f.path, DOWNLOAD_TTL),
+    ...(opts.publicName ? {} : { uploadedAt: f.uploadedAt }),
+  };
+}
+
+/** The checks for an entry, each with the organizers' review if there is one. */
+function checksFor(e: EntryRecord, all: EntryRecord[], settings: SettingsDoc): CheckView[] {
+  return originalityChecks(e, all, settings.revealAt ?? DEFAULT_REVEAL).map((c) => ({ ...c, review: e.reviews?.[c.id] ?? null }));
+}
+
+/** Review-level checks no organizer has decided on yet. */
+const openReviews = (checks: CheckView[]) => checks.filter((c) => c.level === "review" && !c.review).length;
+
+/** Validates a measurement the browser sent. Anything odd becomes null (judges re-measure anyway). */
+function cleanMeasure(raw: unknown): Measure | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Record<string, unknown>;
+  const num = (v: unknown, max: number) => (typeof v === "number" && Number.isFinite(v) && v >= 0 && v <= max ? v : null);
+  const w = num(r.w, 1e7), d = num(r.d, 1e7), h = num(r.h, 1e7), area = num(r.area, 1e14), triangles = num(r.triangles, 5e7);
+  if (w === null || d === null || h === null || area === null || triangles === null) return null;
+  return { w, d, h, area, triangles: Math.round(triangles), volume: num(r.volume, 1e21), closed: r.closed === true };
 }
 
 const firstOf = (e: EntryRecord, slot: FileSlot) => e.files.find((f) => f.slot === slot) ?? null;
@@ -117,6 +147,11 @@ async function publicView(ctx: PortalContext, e: EntryRecord): Promise<PublicEnt
 
 async function ownView(ctx: PortalContext, w: Window, e: EntryRecord): Promise<OwnEntry> {
   const { id, status, submittedAt, late } = e;
+  const all = Object.values((await ctx.db.read("entries")).entries);
+  // The team sees the neutral wording of open review-level checks, never another team's name.
+  const notices = checksFor(e, all, w.settings)
+    .filter((c) => c.level === "review" && c.teamNote && c.review?.status !== "cleared")
+    .map((c) => c.teamNote);
   return {
     ...inputOf(e),
     id,
@@ -125,16 +160,36 @@ async function ownView(ctx: PortalContext, w: Window, e: EntryRecord): Promise<O
     late,
     files: await Promise.all(e.files.map((f) => fileView(ctx, f))),
     locked: !canChange(w, e),
+    notices,
   };
 }
 
 function inputOf(e: EntryRecord) {
   const { title, teamName, members, contactEmail, software, softwareOther, summary, process, aiUse, aiNote, credit, shareable, original, upAxis } = e;
-  return { title, teamName, members, contactEmail, software, softwareOther, summary, process, aiUse, aiNote, credit, shareable, original, upAxis };
+  return {
+    title,
+    teamName,
+    members,
+    contactEmail,
+    software,
+    softwareOther,
+    summary,
+    process,
+    aiUse,
+    aiNote,
+    credit,
+    shareable,
+    original,
+    upAxis,
+    // Fields added after the first entries existed: default them.
+    units: e.units ?? "mm",
+    cadLink: e.cadLink ?? "",
+    filesNote: e.filesNote ?? "",
+  };
 }
 
 async function judgeView(ctx: PortalContext, e: EntryRecord, s: Session): Promise<JudgeEntry> {
-  const [scores, settings] = await Promise.all([ctx.db.read("scores"), ctx.db.read("settings")]);
+  const [scores, settings, doc] = await Promise.all([ctx.db.read("scores"), ctx.db.read("settings"), ctx.db.read("entries")]);
   const mine = scores.judges[s.key]?.scores[e.id] ?? null;
   const scoreCount = countedSheets(scores, settings).filter(([, j]) => totalOf(j.scores[e.id]?.marks) !== null).length;
   return {
@@ -152,6 +207,9 @@ async function judgeView(ctx: PortalContext, e: EntryRecord, s: Session): Promis
     files: await Promise.all(e.files.map((f) => fileView(ctx, f))),
     myScore: mine,
     scoreCount,
+    measure: e.measure ?? null,
+    checks: checksFor(e, Object.values(doc.entries), settings),
+    modelMeta: firstOf(e, "model")?.meta ?? null,
   };
 }
 
@@ -191,7 +249,7 @@ function prunePending(e: EntryRecord, now: number): string[] {
   return stale;
 }
 
-const SLOT_NAMES: readonly FileSlot[] = ["model", "image", "source", "thumb"];
+const SLOT_NAMES: readonly FileSlot[] = ["model", "image", "progress", "source", "thumb"];
 
 /** Keys of the organizers' judges list, or null when there is no list. */
 function rosterKeys(settings: SettingsDoc): Set<string> | null {
@@ -242,6 +300,7 @@ on("GET", "/status", async (ctx, _req, res) => {
     now: iso(w.now),
     devDefaults: ctx.cfg.devDefaults,
     storage: ctx.cfg.storage,
+    spec: hasSpec(w.settings.spec) ? w.settings.spec : null,
   };
   sendJson(res, 200, body);
 });
@@ -284,9 +343,11 @@ on("POST", "/entries", async (ctx, req, res) => {
   }
   const w = await windowOf(ctx);
   if (!w.open) fail(409, "Submissions are closed.");
-  const parsed = parseEntry(body.entry);
+  // A draft (Save draft) needs only a title; submitting checks everything.
+  const parsed = parseEntry(body.entry, { draft: body.draft === true });
   if (!parsed.ok) fail(422, "Some fields need another look.", { errors: parsed.errors });
   const value = parsed.value;
+  const measure = cleanMeasure(body.measure);
   const editKey = randomSecret();
   const now = iso(w.now);
   const record = await ctx.db.mutate("entries", (doc) => {
@@ -308,6 +369,8 @@ on("POST", "/entries", async (ctx, req, res) => {
       gallery: false,
       award: "",
       unlocked: false,
+      measure,
+      reviews: {},
     };
     doc.entries[id] = e;
     return e;
@@ -321,16 +384,19 @@ on("GET", "/entries/:id", async (ctx, req, res, { id }) => {
 });
 
 on("PUT", "/entries/:id", async (ctx, req, res, { id }) => {
-  await loadOwned(ctx, req, id);
+  const current = await loadOwned(ctx, req, id);
   const body = await readJson(req);
-  const parsed = parseEntry(body.entry);
+  // Drafts save with just a title; a submitted entry must stay complete.
+  const parsed = parseEntry(body.entry, { draft: body.draft === true && current.status === "draft" });
   if (!parsed.ok) fail(422, "Some fields need another look.", { errors: parsed.errors });
   const value = parsed.value;
+  const measure = "measure" in body ? cleanMeasure(body.measure) : undefined;
   const w = await windowOf(ctx);
   const e = await ctx.db.mutate("entries", (doc) => {
     const e = ownedIn(doc.entries, id, req);
     if (!canChange(w, e)) fail(409, "Submissions are closed. This entry can't be changed now.");
     Object.assign(e, value, { updatedAt: iso(w.now) });
+    if (measure !== undefined) e.measure = measure;
     return e;
   });
   sendJson(res, 200, { entry: await ownView(ctx, w, e) });
@@ -398,6 +464,13 @@ on("POST", "/entries/:id/files/:fileId/complete", async (ctx, req, res, { id, fi
   const why = sniff(pending.ext, head, info.size);
   if (why) await reject(why);
 
+  // Model files: a fingerprint (identical files across entries) and the file's own metadata.
+  let fingerprint: Pick<FileRef, "sha256" | "meta"> = {};
+  if (pending.slot === "model") {
+    const bytes = await storage.readAll(pending.path, rule.maxBytes);
+    if (bytes) fingerprint = { sha256: sha256Of(bytes), meta: inspectModel(pending.ext, bytes) };
+  }
+
   const w = await windowOf(ctx);
   const removed: string[] = [];
   const e = await ctx.db.mutate("entries", (doc) => {
@@ -413,7 +486,7 @@ on("POST", "/entries/:id/files/:fileId/complete", async (ctx, req, res, { id, fi
       for (const old of e.files.filter((f) => f.slot === p.slot)) removed.push(old.path);
       e.files = e.files.filter((f) => f.slot !== p.slot);
     }
-    e.files.push({ ...p, size: info.size, uploadedAt: iso(w.now) });
+    e.files.push({ ...p, size: info.size, uploadedAt: iso(w.now), ...fingerprint });
     e.updatedAt = iso(w.now);
     // Swapping the model after submitting keeps the entry submitted; late if after the deadline.
     if (e.status === "submitted" && w.now >= w.deadline && !e.unlocked) e.late = true;
@@ -555,6 +628,7 @@ on("GET", "/judge/entries", async (ctx, req, res) => {
   const submitted = all.filter((e) => e.status === "submitted");
   const mine = scores.judges[s.key]?.scores ?? {};
   const counted = countedSheets(scores, w.settings);
+  const spec = hasSpec(w.settings.spec) ? w.settings.spec : null;
   const cards: JudgeCard[] = await Promise.all(
     submitted
       .sort((a, b) => String(b.submittedAt).localeCompare(String(a.submittedAt)))
@@ -575,6 +649,8 @@ on("GET", "/judge/entries", async (ctx, req, res) => {
           thumb: thumb ? await ctx.db.storage.signedGetUrl(thumb.path, DOWNLOAD_TTL) : null,
           myTotal: totalOf(mine[e.id]?.marks),
           scoreCount: counted.filter(([, j]) => totalOf(j.scores[e.id]?.marks) !== null).length,
+          openReviews: openReviews(checksFor(e, all, w.settings)),
+          specFails: spec && e.measure ? specCheck(e.measure, spec).filter((l) => l.ok === false).length : null,
         };
       }),
   );
@@ -599,6 +675,7 @@ on("GET", "/judge/entries/:id", async (ctx, req, res, { id }) => {
   const i = order.indexOf(id);
   sendJson(res, 200, {
     entry: await judgeView(ctx, e, s),
+    spec: hasSpec((await ctx.db.read("settings")).spec) ? (await ctx.db.read("settings")).spec : null,
     prev: i > 0 ? order[i - 1] : null,
     next: i >= 0 && i < order.length - 1 ? order[i + 1] : null,
   });
@@ -665,6 +742,7 @@ async function results(ctx: PortalContext) {
         byJudge: Object.fromEntries(marked.map((x) => [x.key, totalOf(x.score.marks)])),
         notes: marked.filter((x) => x.score.notes).map((x) => ({ judge: scores.judges[x.key].name, notes: x.score.notes })),
         judgeCount: marked.length,
+        openReviews: openReviews(checksFor(e, Object.values(doc.entries), settings)),
       };
     })
     .sort((a, b) => (b.average ?? -1) - (a.average ?? -1));
@@ -763,6 +841,8 @@ function settingsView(ctx: PortalContext, w: Window) {
     deadline: iso(w.deadline),
     closed: w.settings.closed,
     judges: w.settings.judges ?? [],
+    revealAt: w.settings.revealAt ?? new Date(Date.parse(DEFAULT_REVEAL)).toISOString(),
+    spec: w.settings.spec ?? null,
     open: w.open,
     graceSeconds: GRACE_SECONDS,
     storage: ctx.cfg.storage,
@@ -784,12 +864,61 @@ on("PUT", "/judge/settings", async (ctx, req, res) => {
     if (Array.isArray(body.judges)) {
       const seen = new Set<string>();
       st.judges = body.judges
-        .map((n) => String(n).replace(/s+/g, " ").trim().slice(0, LIMITS.name))
+        .map((n) => String(n).replace(/\s+/g, " ").trim().slice(0, LIMITS.name))
         .filter((n) => n.length >= 2 && judgeKey(n) && !seen.has(judgeKey(n)) && seen.add(judgeKey(n)))
         .slice(0, 40);
     }
+    if ("revealAt" in body) {
+      const v = body.revealAt;
+      if (v === null || v === "") delete st.revealAt;
+      else if (typeof v === "string" && !Number.isNaN(Date.parse(v))) st.revealAt = new Date(Date.parse(v)).toISOString();
+      else fail(422, "That reveal time isn't a valid date.");
+    }
+    if ("spec" in body) st.spec = cleanSpec(body.spec);
   });
   sendJson(res, 200, settingsView(ctx, await windowOf(ctx)));
+});
+
+/** Validates an organizer's size spec. Empty or all-blank clears it. */
+function cleanSpec(raw: unknown): Spec | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Record<string, unknown>;
+  const pos = (v: unknown) => {
+    if (v === null || v === undefined || v === "") return null;
+    const n = Number(v);
+    if (!Number.isFinite(n) || n <= 0 || n > 1e6) fail(422, "Spec sizes must be positive numbers.");
+    return n;
+  };
+  const vol = (r.volume ?? null) as Record<string, unknown> | null;
+  const target = vol ? pos(vol.target) : null;
+  const tol = vol && target !== null ? Number(vol.tolerancePct ?? 2) : 0;
+  if (target !== null && (!Number.isFinite(tol) || tol < 0 || tol > 100)) fail(422, "Tolerance must be 0 to 100%.");
+  const spec: Spec = {
+    maxW: pos(r.maxW),
+    maxD: pos(r.maxD),
+    maxH: pos(r.maxH),
+    volume: target !== null ? { target, tolerancePct: tol } : null,
+    note: String(r.note ?? "").slice(0, 200),
+  };
+  return hasSpec(spec) ? spec : null;
+}
+
+// An organizer's decision on one originality check: cleared (fine), confirmed
+// (a real problem), or null to reopen it.
+on("PUT", "/judge/entries/:id/checks/:checkId", async (ctx, req, res, { id, checkId }) => {
+  const s = requireAdmin(ctx.cfg, req);
+  const body = await readJson(req);
+  const status = body.status;
+  if (status !== "cleared" && status !== "confirmed" && status !== null) fail(422, "Status must be cleared, confirmed or null.");
+  await ctx.db.mutate("entries", (doc) => {
+    const e = Object.hasOwn(doc.entries, id) ? doc.entries[id] : null;
+    if (!e) fail(404, "No such entry.");
+    e.reviews ??= {};
+    if (status === null) delete e.reviews[checkId];
+    else e.reviews[checkId] = { status, by: s.name, at: new Date().toISOString(), note: String(body.note ?? "").slice(0, 500) };
+  });
+  const doc = await ctx.db.read("entries", { fresh: true });
+  sendJson(res, 200, { entry: await judgeView(ctx, doc.entries[id], s) });
 });
 
 // ── Dispatch ──────────────────────────────────

@@ -100,6 +100,16 @@ export class LocalStorage implements Storage {
     }
   }
 
+  async readAll(key: string, max: number): Promise<Uint8Array | null> {
+    try {
+      const file = this.resolve(key);
+      if ((await fs.stat(file)).size > max) return null;
+      return new Uint8Array(await fs.readFile(file));
+    } catch {
+      return null;
+    }
+  }
+
   async delete(keys: string[]): Promise<void> {
     await Promise.all(keys.map((k) => fs.rm(this.resolve(k), { force: true })));
   }
