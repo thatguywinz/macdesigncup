@@ -5,6 +5,15 @@
   "outputDirectory": "dist",
   "cleanUrls": true,
   "trailingSlash": false,
+  "rewrites": [
+    { "source": "/api/portal/:path*", "destination": "/api/portal?__path=:path*" },
+    { "source": "/submit", "destination": "/portal.html" },
+    { "source": "/submit/:path*", "destination": "/portal.html" },
+    { "source": "/entry/:path*", "destination": "/portal.html" },
+    { "source": "/gallery", "destination": "/portal.html" },
+    { "source": "/judge", "destination": "/portal.html" },
+    { "source": "/judge/:path*", "destination": "/portal.html" }
+  ],
   "headers": [
     {
       "source": "/assets/(.*)",
@@ -35,6 +44,14 @@
           "key": "Content-Security-Policy-Report-Only",
           "value": "default-src 'self'; script-src 'self' https://tally.so; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' https://tally.so https://api.tally.so data: blob:; frame-src https://tally.so; worker-src 'self' blob:; frame-ancestors 'self'; base-uri 'self'; form-action 'self' https://tally.so; object-src 'none'"
         }
+      ]
+    },
+    {
+      "source": "/(submit|entry|gallery|judge|portal)(.*)",
+      "headers": [
+        { "key": "X-Robots-Tag", "value": "noindex, nofollow" },
+        { "key": "Referrer-Policy", "value": "no-referrer" },
+        { "key": "Content-Security-Policy-Report-Only", "value": "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.blob.vercel-storage.com; font-src 'self' data:; connect-src 'self' blob: data: https://*.blob.vercel-storage.com https://vercel.com; worker-src 'self' blob:; frame-ancestors 'self'; base-uri 'self'; form-action 'self'; object-src 'none'" }
       ]
     },
     {

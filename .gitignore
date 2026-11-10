@@ -36,3 +36,6 @@ dist-ssr
 lion3d/*.avi
 
 .vercel
+
+# Submission portal: local-preview storage (uploads, entries, scores)
+.data/

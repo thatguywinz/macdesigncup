@@ -8,6 +8,8 @@
 //   - unknown paths -> 404.html with HTTP 404
 //   - the "headers" rules from vercel.json, including the host switch
 //     (`missing` host), so curl -H "Host: www.macdesigncup.ca" behaves like prod
+//   - "rewrites" (the submission portal's pages -> portal.html) and the
+//     portal API (/api/portal/*), so the portal can be tried on a real build
 //   - compression: text responses go out brotli (or gzip) when the client
 //     accepts it, as Vercel serves them. Without it a local Lighthouse run
 //     measures ~300 KB of raw HTML and a 1 MB raw GalleryScene chunk that
@@ -18,7 +20,7 @@ import http from "node:http";
 import fs from "node:fs";
 import path from "node:path";
 import zlib from "node:zlib";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const root = path.resolve(repo, process.argv[2] || "dist");
@@ -50,6 +52,39 @@ try {
 } catch {
   /* no vercel.json: no extra headers */
 }
+// vercel.json "rewrites" (the submission portal's pages -> portal.html). Only
+// the ":name*" segment form, which is all this project uses.
+let rewrites = [];
+try {
+  rewrites = (JSON.parse(fs.readFileSync(path.join(repo, "vercel.json"), "utf8")).rewrites ?? [])
+    .filter((r) => !r.source.startsWith("/api/"))
+    .map((r) => ({ re: new RegExp(`^${r.source.replace(/\/:[a-zA-Z]+\*/g, "(?:/.*)?")}$`), file: r.destination.replace(/^\//, "") }));
+} catch {
+  /* no rewrites */
+}
+const rewrite = (pathname) => rewrites.find((r) => r.re.test(pathname))?.file ?? null;
+
+// The portal API (/api/portal/*), bundled from server/portal with esbuild at
+// startup and run in-process. Local storage (.data/portal) unless
+// PORTAL_STORAGE=blob and BLOB_READ_WRITE_TOKEN are set.
+let portalApi = null;
+async function loadPortalApi() {
+  const { build } = await import("esbuild");
+  const result = await build({
+    entryPoints: [path.join(repo, "server", "portal", "handler.ts")],
+    bundle: true,
+    platform: "node",
+    format: "esm",
+    packages: "external",
+    target: "node20",
+    write: false,
+  });
+  const out = path.join(repo, "node_modules", ".cache", "portal-api.mjs");
+  fs.mkdirSync(path.dirname(out), { recursive: true });
+  fs.writeFileSync(out, result.outputFiles[0].text);
+  portalApi = await import(pathToFileURL(out).href);
+}
+
 const hostOf = (req) => String(req.headers.host ?? "").replace(/:\d+$/, "");
 const conditionMet = (cond, req) => {
   if (cond.type !== "host") return false;
@@ -137,6 +172,17 @@ async function warm(dir) {
 http
   .createServer((req, res) => {
     const url = new URL(req.url, "http://localhost");
+    if (url.pathname === "/api/portal" || url.pathname.startsWith("/api/portal/")) {
+      if (!portalApi) {
+        res.writeHead(503, { "Content-Type": "application/json" });
+        return res.end(JSON.stringify({ error: "The portal API is still starting." }));
+      }
+      return void portalApi.handlePortal(req, res).catch((e) => {
+        console.error(e);
+        if (!res.headersSent) res.writeHead(500);
+        res.end();
+      });
+    }
     const p = decodeURIComponent(url.pathname);
     const redirect = (to) => {
       res.writeHead(308, { Location: (to || "/") + url.search });
@@ -168,6 +214,8 @@ http
       fs.createReadStream(f).pipe(res);
     };
     if (file) return send(file, 200);
+    const rewritten = rewrite(p);
+    if (rewritten && isFile(path.join(root, rewritten))) return send(path.join(root, rewritten), 200);
     const notFound = path.join(root, "404.html");
     if (isFile(notFound)) return send(notFound, 404);
     res.writeHead(404);
@@ -175,6 +223,10 @@ http
   })
   .listen(port, () => {
     console.log(`serving ${root} on http://localhost:${port}`);
+    loadPortalApi().then(
+      () => console.log("portal API ready"),
+      (e) => console.error("portal API failed to load:", e),
+    );
     const t0 = Date.now();
     warm(root).then(
       () => console.log(`brotli cache warm (${encoded.size} files, ${Date.now() - t0} ms)`),

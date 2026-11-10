@@ -1,0 +1,440 @@
+// @vitest-environment node
+// End-to-end tests for the portal API against local storage in a temp
+// folder: a real HTTP server, real uploads, the same calls the browser makes.
+import fs from "node:fs";
+import http from "node:http";
+import os from "node:os";
+import path from "node:path";
+import type { AddressInfo } from "node:net";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { createContext } from "./handler";
+import { resetRateLimits } from "./http";
+import { dispatch, type PortalContext } from "./routes";
+
+let server: http.Server;
+let base = "";
+let dir = "";
+let clock = Date.parse("2026-11-16T13:00:00-05:00");
+let ctx: PortalContext;
+
+/** A binary STL: one triangle. */
+function tinyStl(): Buffer {
+  const b = Buffer.alloc(84 + 50);
+  b.write("tiny", 0);
+  b.writeUInt32LE(1, 80);
+  const v = [0, 0, 1, 0, 0, 0, 10, 0, 0, 0, 10, 0];
+  v.forEach((x, i) => b.writeFloatLE(x, 84 + i * 4));
+  return b;
+}
+
+const PNG = Buffer.from("89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4890000000d4944415478da63f8ffff3f0005fe02fea7d6a4a50000000049454e44ae426082", "hex");
+
+const entry = (over: Record<string, unknown> = {}) => ({
+  title: "Tidal Lamp",
+  teamName: "",
+  members: [
+    { name: "Avery Lin", school: "William Lyon Mackenzie CI", grade: "11" },
+    { name: "Sam Okafor", school: "William Lyon Mackenzie CI", grade: "10" },
+  ],
+  contactEmail: "avery@example.com",
+  software: ["Fusion 360"],
+  softwareOther: "",
+  summary: "A lamp whose shade folds like a wave, answering the theme with motion.",
+  process: "",
+  aiUse: "none",
+  aiNote: "",
+  credit: "names",
+  shareable: true,
+  original: true,
+  upAxis: "z",
+  ...over,
+});
+
+interface Opts {
+  method?: string;
+  body?: unknown;
+  key?: string;
+  cookie?: string;
+  headers?: Record<string, string>;
+  raw?: Buffer;
+}
+
+async function call(p: string, o: Opts = {}) {
+  const method = o.method ?? (o.body !== undefined || o.raw ? "POST" : "GET");
+  const headers: Record<string, string> = { ...(method !== "GET" ? { "X-Portal": "1" } : {}), ...(o.headers ?? {}) };
+  if (o.body !== undefined) headers["Content-Type"] = "application/json";
+  if (o.key) headers["X-Edit-Key"] = o.key;
+  if (o.cookie) headers.Cookie = o.cookie;
+  const res = await fetch(`${base}${p.startsWith("/api") ? p : `/api/portal${p}`}`, {
+    method,
+    headers,
+    body: o.raw ?? (o.body === undefined ? undefined : JSON.stringify(o.body)),
+  });
+  const text = await res.text();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- test responses are read loosely
+  let json: Record<string, any> = {};
+  try {
+    json = JSON.parse(text);
+  } catch {
+    /* csv or file */
+  }
+  return { status: res.status, json, text, headers: res.headers };
+}
+
+async function create(over: Record<string, unknown> = {}) {
+  const r = await call("/entries", { body: { code: "mdc-demo", entry: entry(over) } });
+  expect(r.status).toBe(201);
+  return { id: r.json.id as string, key: r.json.editKey as string };
+}
+
+async function upload(id: string, key: string, slot: string, name: string, bytes: Buffer) {
+  const s = await call(`/entries/${id}/files`, { body: { slot, name, size: bytes.length }, key });
+  if (s.status !== 200) return s;
+  const url = new URL(s.json.ticket.url, base);
+  const put = await fetch(url, { method: "PUT", body: bytes, headers: { "X-Portal": "1" } });
+  expect(put.status).toBe(200);
+  return call(`/entries/${id}/files/${s.json.fileId}/complete`, { body: {}, key });
+}
+
+async function login(passcode: string, name = "Judge Rivera") {
+  const r = await call("/judge/login", { body: { name, passcode } });
+  const cookie = (r.headers.get("set-cookie") ?? "").split(";")[0];
+  return { ...r, cookie };
+}
+
+beforeAll(async () => {
+  dir = fs.mkdtempSync(path.join(os.tmpdir(), "portal-test-"));
+  delete process.env.VERCEL;
+  delete process.env.PORTAL_STORAGE;
+  ctx = createContext({ localRoot: dir, now: () => clock });
+  server = http.createServer((req, res) => {
+    void dispatch(ctx, req, res);
+  });
+  await new Promise<void>((r) => server.listen(0, "127.0.0.1", () => r()));
+  base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+});
+
+afterAll(() => {
+  server?.close();
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
+beforeEach(() => {
+  resetRateLimits();
+  clock = Date.parse("2026-11-16T13:00:00-05:00");
+});
+
+describe("teams", () => {
+  it("creates, uploads, submits, and shares an entry", async () => {
+    const { id, key } = await create();
+    expect(id).toMatch(/^[A-Za-z0-9]{12}$/);
+    expect(key.length).toBeGreaterThan(30);
+
+    const up = await upload(id, key, "model", "Lamp v3.STL", tinyStl());
+    expect(up.status).toBe(200);
+    expect(up.json.entry.files).toHaveLength(1);
+    expect(up.json.entry.files[0].path).toBeUndefined(); // storage keys never leave the server
+
+    expect((await call(`/entry/${id}`)).status).toBe(404); // drafts aren't shared
+
+    const sub = await call(`/entries/${id}/submit`, { body: {}, key });
+    expect(sub.status).toBe(200);
+    expect(sub.json.entry.status).toBe("submitted");
+    expect(sub.json.entry.late).toBe(false);
+
+    const pub = await call(`/entry/${id}`);
+    expect(pub.status).toBe(200);
+    expect(pub.json.credit).toBe("Avery L. and Sam O.");
+    expect(JSON.stringify(pub.json)).not.toMatch(/avery@example|Okafor|Mackenzie CI|editKey/);
+    // The model URL is a signed, working download.
+    const file = await fetch(new URL(pub.json.model.url, base));
+    expect(file.status).toBe(200);
+    expect(Buffer.from(await file.arrayBuffer()).equals(tinyStl())).toBe(true);
+  });
+
+  it("refuses a wrong entry code", async () => {
+    const r = await call("/entries", { body: { code: "nope", entry: entry() } });
+    expect(r.status).toBe(403);
+    expect(r.json.field).toBe("code");
+  });
+
+  it("validates fields on the server", async () => {
+    const r = await call("/entries", { body: { code: "MDC-DEMO", entry: entry({ title: "", original: false, members: [] }) } });
+    expect(r.status).toBe(422);
+    expect(Object.keys(r.json.errors)).toEqual(expect.arrayContaining(["title", "original", "members"]));
+  });
+
+  it("needs the edit key, and the same answer for wrong key and no entry", async () => {
+    const { id } = await create();
+    const wrong = await call(`/entries/${id}`, { key: "x".repeat(43) });
+    const missing = await call(`/entries/AAAAAAAAAAAA`, { key: "x".repeat(43) });
+    expect(wrong.status).toBe(404);
+    expect(missing.status).toBe(404);
+    expect(wrong.json.error).toBe(missing.json.error);
+  });
+
+  it("rejects a file whose bytes don't match its extension", async () => {
+    const { id, key } = await create();
+    const r = await upload(id, key, "model", "evil.glb", Buffer.from("<html><script>alert(1)</script></html>"));
+    expect(r.status).toBe(422);
+    const own = await call(`/entries/${id}`, { key });
+    expect(own.json.entry.files).toHaveLength(0);
+    expect(fs.readdirSync(path.join(dir, "portal", "files", id))).toHaveLength(0);
+  });
+
+  it("rejects a disallowed type and an oversize file before upload", async () => {
+    const { id, key } = await create();
+    expect((await call(`/entries/${id}/files`, { body: { slot: "model", name: "x.html", size: 10 }, key })).status).toBe(422);
+    expect((await call(`/entries/${id}/files`, { body: { slot: "image", name: "x.png", size: 999_000_000 }, key })).status).toBe(422);
+  });
+
+  it("caps an upload at the size the ticket allows", async () => {
+    const { id, key } = await create();
+    const s = await call(`/entries/${id}/files`, { body: { slot: "thumb", name: "p.png", size: 10 }, key });
+    const big = Buffer.concat([PNG, Buffer.alloc(3 * 1024 * 1024)]);
+    const put = await fetch(new URL(s.json.ticket.url, base), { method: "PUT", body: big, headers: { "X-Portal": "1" } });
+    expect(put.status).toBe(413);
+  });
+
+  it("refuses a forged upload ticket", async () => {
+    const r = await fetch(`${base}/api/portal/local-upload?t=eyJ.forged`, { method: "PUT", body: "x", headers: { "X-Portal": "1" } });
+    expect(r.status).toBe(403);
+  });
+
+  it("replaces the model instead of keeping two", async () => {
+    const { id, key } = await create();
+    await upload(id, key, "model", "a.stl", tinyStl());
+    const r = await upload(id, key, "model", "b.stl", tinyStl());
+    expect(r.json.entry.files.filter((f: { slot: string }) => f.slot === "model").map((f: { name: string }) => f.name)).toEqual(["b.stl"]);
+  });
+
+  it("won't submit without a model", async () => {
+    const { id, key } = await create();
+    const r = await call(`/entries/${id}/submit`, { body: {}, key });
+    expect(r.status).toBe(422);
+    expect(r.json.field).toBe("model");
+  });
+
+  it("closes at the deadline, with grace for drafts already started", async () => {
+    const { id, key } = await create();
+    await upload(id, key, "model", "a.stl", tinyStl());
+    clock = Date.parse("2026-11-16T14:05:00-05:00"); // 5 minutes late
+    expect((await call("/entries", { body: { code: "MDC-DEMO", entry: entry() } })).status).toBe(409);
+    const sub = await call(`/entries/${id}/submit`, { body: {}, key });
+    expect(sub.status).toBe(200);
+    expect(sub.json.entry.late).toBe(true);
+    clock = Date.parse("2026-11-16T14:20:00-05:00"); // past grace
+    expect((await call(`/entries/${id}`, { method: "PUT", body: { entry: entry({ title: "Changed" }) }, key })).status).toBe(409);
+  });
+
+  it("locks a submitted entry at the deadline (no grace for edits)", async () => {
+    const { id, key } = await create();
+    await upload(id, key, "model", "a.stl", tinyStl());
+    await call(`/entries/${id}/submit`, { body: {}, key });
+    clock = Date.parse("2026-11-16T14:01:00-05:00");
+    expect((await call(`/entries/${id}`, { method: "PUT", body: { entry: entry({ title: "Changed" }) }, key })).status).toBe(409);
+    expect((await call(`/entries/${id}`, { key })).json.entry.locked).toBe(true);
+  });
+
+  it("keeps a private entry off its share link", async () => {
+    const { id, key } = await create({ shareable: false });
+    await upload(id, key, "model", "a.stl", tinyStl());
+    await call(`/entries/${id}/submit`, { body: {}, key });
+    expect((await call(`/entry/${id}`)).status).toBe(404);
+  });
+});
+
+describe("request guards", () => {
+  it("needs the X-Portal header on writes", async () => {
+    const r = await call("/entries", { body: { code: "MDC-DEMO", entry: entry() }, headers: { "X-Portal": "0" } });
+    expect(r.status).toBe(403);
+  });
+
+  it("refuses cross-origin writes", async () => {
+    const r = await call("/entries", { body: { code: "MDC-DEMO", entry: entry() }, headers: { Origin: "https://evil.example" } });
+    expect(r.status).toBe(403);
+  });
+
+  it("rate-limits entry-code guessing", async () => {
+    let last = 0;
+    for (let i = 0; i < 62; i++) last = (await call("/entries", { body: { code: `guess${i}`, entry: entry() } })).status;
+    expect(last).toBe(429);
+  });
+
+  it("answers unknown routes with 404 and wrong methods with 405", async () => {
+    expect((await call("/nope")).status).toBe(404);
+    expect((await call("/status", { method: "DELETE" })).status).toBe(405);
+  });
+});
+
+describe("judges", () => {
+  it("doesn't lock out a shared venue IP after many good sign-ins", async () => {
+    for (let i = 0; i < 30; i++) expect((await login("judge-demo", `Judge ${i}`)).status).toBe(200);
+  });
+
+  it("signs in with the passcode only", async () => {
+    expect((await login("wrong")).status).toBe(401);
+    const ok = await login("judge-demo");
+    expect(ok.status).toBe(200);
+    expect(ok.json.role).toBe("judge");
+    expect(ok.headers.get("set-cookie")).toMatch(/HttpOnly; SameSite=Strict/);
+    expect((await call("/judge/entries")).status).toBe(401);
+  });
+
+  it("rejects a tampered session cookie", async () => {
+    const { cookie } = await login("judge-demo");
+    const [name, value] = cookie.split("=");
+    const [body, sig] = value.split(".");
+    const forged = Buffer.from(JSON.stringify({ ...JSON.parse(Buffer.from(body, "base64url").toString()), role: "admin" })).toString("base64url");
+    expect((await call("/judge/results", { cookie: `${name}=${forged}.${sig}` })).status).toBe(401);
+  });
+
+  it("lists submitted entries, scores them, and keeps judges' marks apart", async () => {
+    const { id, key } = await create({ title: "Scored Entry" });
+    await upload(id, key, "model", "a.stl", tinyStl());
+    await call(`/entries/${id}/submit`, { body: {}, key });
+
+    const a = await login("judge-demo", "Judge A");
+    const b = await login("judge-demo", "Judge B");
+    const list = await call("/judge/entries", { cookie: a.cookie });
+    expect(list.status).toBe(200);
+    const card = list.json.cards.find((c: { id: string }) => c.id === id);
+    expect(card.myTotal).toBeNull();
+
+    const marks = { theme: 8, creativity: 9, technical: 7, presentation: 12 }; // 12 clamps to 10
+    const s = await call(`/judge/entries/${id}/score`, { method: "PUT", body: { marks, notes: "Lovely fold." }, cookie: a.cookie });
+    expect(s.status).toBe(200);
+    expect(s.json.total).toBe(34);
+    await call(`/judge/entries/${id}/score`, { method: "PUT", body: { marks: { theme: 6, creativity: 6, technical: 6, presentation: 6 } }, cookie: b.cookie });
+
+    const detail = await call(`/judge/entries/${id}`, { cookie: a.cookie });
+    expect(detail.json.entry.myScore.marks.presentation).toBe(10);
+    expect(detail.json.entry.scoreCount).toBe(2);
+    expect(detail.json.entry.members[1].name).toBe("Sam Okafor"); // judges see full names
+
+    // Judges can't see results; organizers can.
+    expect((await call("/judge/results", { cookie: a.cookie })).status).toBe(403);
+    const admin = await login("admin-demo", "Organizer");
+    const res = await call("/judge/results", { cookie: admin.cookie });
+    const row = res.json.rows.find((r: { id: string }) => r.id === id);
+    expect(row.average).toBe(29);
+    expect(row.judgeCount).toBe(2);
+  });
+
+  it("exports CSV without formula injection", async () => {
+    const { id, key } = await create({ title: "=HYPERLINK(1)" });
+    await upload(id, key, "model", "a.stl", tinyStl());
+    await call(`/entries/${id}/submit`, { body: {}, key });
+    const admin = await login("admin-demo", "Organizer");
+    const csv = await call("/judge/export.csv", { cookie: admin.cookie });
+    expect(csv.status).toBe(200);
+    expect(csv.headers.get("content-type")).toMatch(/text\/csv/);
+    expect(csv.text).toContain("'=HYPERLINK(1)");
+  });
+
+  it("lets organizers hide, award, gallery and delete", async () => {
+    const { id, key } = await create({ title: "Admin Target" });
+    await upload(id, key, "model", "a.stl", tinyStl());
+    await call(`/entries/${id}/submit`, { body: {}, key });
+    const admin = await login("admin-demo", "Organizer");
+    const judge = await login("judge-demo", "Judge C");
+    expect((await call(`/judge/entries/${id}`, { method: "PATCH", body: { hidden: true }, cookie: judge.cookie })).status).toBe(403);
+
+    await call(`/judge/entries/${id}`, { method: "PATCH", body: { hidden: true }, cookie: admin.cookie });
+    expect((await call(`/entry/${id}`)).status).toBe(404);
+    await call(`/judge/entries/${id}`, { method: "PATCH", body: { hidden: false, gallery: true, award: "1st place" }, cookie: admin.cookie });
+    const gallery = await call("/gallery");
+    expect(gallery.json.entries[0].id).toBe(id);
+    expect(gallery.json.entries[0].award).toBe("1st place");
+    expect((await call(`/judge/entries/${id}`, { method: "PATCH", body: { award: "Best vibes" }, cookie: admin.cookie })).status).toBe(422);
+
+    expect((await call(`/judge/entries/${id}`, { method: "DELETE", cookie: admin.cookie })).status).toBe(200);
+    expect((await call(`/entry/${id}`)).status).toBe(404);
+    expect(fs.existsSync(path.join(dir, "portal", "files", id)) ? fs.readdirSync(path.join(dir, "portal", "files", id)) : []).toHaveLength(0);
+  });
+
+  it("lets organizers move the deadline and close early", async () => {
+    const admin = await login("admin-demo", "Organizer");
+    let r = await call("/judge/settings", { method: "PUT", body: { closed: true }, cookie: admin.cookie });
+    expect(r.json.open).toBe(false);
+    expect((await call("/entries", { body: { code: "MDC-DEMO", entry: entry() } })).status).toBe(409);
+    await call("/judge/settings", { method: "PUT", body: { closed: false }, cookie: admin.cookie });
+    clock = Date.parse("2026-11-16T14:30:00-05:00");
+    r = await call("/judge/settings", { method: "PUT", body: { deadlineOverride: "2026-11-16T15:00:00-05:00" }, cookie: admin.cookie });
+    expect(r.json.open).toBe(true);
+    expect((await call("/entries", { body: { code: "MDC-DEMO", entry: entry() } })).status).toBe(201);
+    await call("/judge/settings", { method: "PUT", body: { deadlineOverride: null }, cookie: admin.cookie });
+  });
+});
+
+describe("concurrency", () => {
+  it("never loses an entry when many teams submit at once", async () => {
+    const before = Object.keys((await ctx.db.read("entries", { fresh: true })).entries).length;
+    const made = await Promise.all(Array.from({ length: 15 }, (_, i) => call("/entries", { body: { code: "MDC-DEMO", entry: entry({ title: `Rush ${i}` }) } })));
+    // The create limit is per IP, so some may be rate-limited; every 201 must be stored.
+    const ok = made.filter((r) => r.status === 201).map((r) => r.json.id as string);
+    const after = (await ctx.db.read("entries", { fresh: true })).entries;
+    expect(Object.keys(after).length).toBe(before + ok.length);
+    for (const id of ok) expect(after[id]).toBeTruthy();
+  });
+});
+
+describe("security review fixes", () => {
+  it("lets the right entry code through even after a flood of wrong ones", async () => {
+    for (let i = 0; i < 62; i++) await call("/entries", { body: { code: `typo${i}`, entry: entry() } });
+    expect((await call("/entries", { body: { code: "wrong", entry: entry() } })).status).toBe(429);
+    expect((await call("/entries", { body: { code: "MDC-DEMO", entry: entry() } })).status).toBe(201);
+  });
+
+  it("keeps uploaded file names off public pages and out of storage keys", async () => {
+    const { id, key } = await create();
+    await upload(id, key, "model", "Avery_Lindqvist_final.stl", tinyStl());
+    await call(`/entries/${id}/submit`, { body: {}, key });
+    const pub = await call(`/entry/${id}`);
+    expect(JSON.stringify(pub.json)).not.toMatch(/Lindqvist/);
+    expect(pub.json.model.name).toBe("model.stl");
+    expect(fs.readdirSync(path.join(dir, "portal", "files", id)).join()).not.toMatch(/Lindqvist/);
+    // The team and judges still see the name they uploaded.
+    expect((await call(`/entries/${id}`, { key })).json.entry.files[0].name).toBe("Avery_Lindqvist_final.stl");
+  });
+
+  it("refuses route ids like __proto__", async () => {
+    const admin = await login("admin-demo", "Organizer");
+    const r = await call("/judge/entries/__proto__", { method: "PATCH", body: { unlocked: true }, cookie: admin.cookie });
+    expect(r.status).toBe(404);
+    expect(({} as Record<string, unknown>).unlocked).toBeUndefined();
+  });
+
+  it("deletes abandoned uploads from storage", async () => {
+    const { id, key } = await create();
+    const s = await call(`/entries/${id}/files`, { body: { slot: "image", name: "a.png", size: PNG.length }, key });
+    await fetch(new URL(s.json.ticket.url, base), { method: "PUT", body: PNG, headers: { "X-Portal": "1" } });
+    const filesDir = path.join(dir, "portal", "files", id);
+    expect(fs.readdirSync(filesDir)).toHaveLength(1);
+    clock += 60 * 60 * 1000; // an hour later, never completed
+    await call(`/entries/${id}/files`, { body: { slot: "image", name: "b.png", size: PNG.length }, key });
+    expect(fs.readdirSync(filesDir)).toHaveLength(0);
+  });
+
+  it("with a judges list, only listed judges sign in and count", async () => {
+    const { id, key } = await create({ title: "Roster Entry" });
+    await upload(id, key, "model", "a.stl", tinyStl());
+    await call(`/entries/${id}/submit`, { body: {}, key });
+    const admin = await login("admin-demo", "Organizer");
+    // A phantom judge marks before the list exists...
+    const phantom = await login("judge-demo", "Judge Phantom");
+    await call(`/judge/entries/${id}/score`, { method: "PUT", body: { marks: { theme: 10, creativity: 10, technical: 10, presentation: 10 } }, cookie: phantom.cookie });
+    await call("/judge/settings", { method: "PUT", body: { judges: ["Judge Real", " judge real ", "x"] }, cookie: admin.cookie });
+    const st = await call("/judge/settings", { cookie: admin.cookie });
+    expect(st.json.judges).toEqual(["Judge Real"]);
+    expect((await login("judge-demo", "Judge Phantom 2")).status).toBe(403);
+    const real = await login("judge-demo", "judge  REAL");
+    expect(real.status).toBe(200);
+    await call(`/judge/entries/${id}/score`, { method: "PUT", body: { marks: { theme: 5, creativity: 5, technical: 5, presentation: 5 } }, cookie: real.cookie });
+    const res = await call("/judge/results", { cookie: admin.cookie });
+    const row = res.json.rows.find((r: { id: string }) => r.id === id);
+    expect(row.average).toBe(20); // the phantom's 40 doesn't count
+    expect(res.json.unlisted.map((u: { name: string }) => u.name)).toContain("Judge Phantom");
+    await call("/judge/settings", { method: "PUT", body: { judges: [] }, cookie: admin.cookie });
+  });
+});
