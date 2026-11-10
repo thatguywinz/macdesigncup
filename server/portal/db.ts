@@ -62,7 +62,20 @@ type DocName = keyof typeof DOCS;
 type DocType = { entries: EntriesDoc; scores: ScoresDoc; settings: SettingsDoc };
 
 /** Storage key for an upload: ids and the extension only, never the student's file name. */
-export const filePath = (entryId: string, fileId: string, ext: string) => `portal/files/${entryId}/${fileId}.${ext}`;
+/**
+ * Storage namespace. Production uses the store's root; preview and
+ * development deployments get their own folder, so testing a preview never
+ * touches the live portal's entries (both use the same Blob store).
+ * PORTAL_NAMESPACE overrides it (local tests against the real store).
+ */
+export function namespace(): string {
+  const env = process.env;
+  const ns = env.PORTAL_NAMESPACE ?? (env.VERCEL_ENV && env.VERCEL_ENV !== "production" ? env.VERCEL_ENV : "");
+  const clean = ns.replace(/[^A-Za-z0-9_-]/g, "");
+  return clean ? `${clean}/` : "";
+}
+
+export const filePath = (entryId: string, fileId: string, ext: string) => `${namespace()}portal/files/${entryId}/${fileId}.${ext}`;
 
 export class Db {
   /** A very short read cache: a burst of dashboard polls costs one read. */
@@ -74,7 +87,7 @@ export class Db {
   ) {}
 
   async read<N extends DocName>(name: N, { fresh = false } = {}): Promise<DocType[N]> {
-    const path = DOCS[name];
+    const path = namespace() + DOCS[name];
     const hit = this.cache.get(path);
     if (!fresh && hit && Date.now() - hit.at < this.cacheMs) return structuredClone(hit.value) as DocType[N];
     const doc = await this.storage.getDoc<DocType[N]>(path);
@@ -90,7 +103,7 @@ export class Db {
    * `fn` aborts without writing.
    */
   async mutate<N extends DocName, R>(name: N, fn: (doc: DocType[N]) => R): Promise<R> {
-    const path = DOCS[name];
+    const path = namespace() + DOCS[name];
     for (let attempt = 0; attempt < 10; attempt++) {
       const current = await this.storage.getDoc<DocType[N]>(path);
       const doc = current?.value ?? (EMPTY[name]() as DocType[N]);

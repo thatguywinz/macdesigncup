@@ -38,6 +38,13 @@ async function streamToBuffer(stream: ReadableStream<Uint8Array>, limit = Infini
   return Number.isFinite(limit) ? buf.subarray(0, limit) : buf;
 }
 
+/**
+ * The CDN compresses larger JSON responses and then reports a weak ETag
+ * (W/"…") for them, but a conditional put (ifMatch) only accepts the strong
+ * one. Same content, same hash: drop the W/ so compare-and-swap works.
+ */
+export const strongEtag = (etag: string) => etag.replace(/^W\//, "");
+
 export class BlobStorage implements Storage {
   readonly kind = "blob" as const;
   private delegation: Delegation | null = null;
@@ -60,7 +67,7 @@ export class BlobStorage implements Storage {
     const res = await get(path, { access: "private", useCache: false });
     if (!res || res.statusCode !== 200) return null;
     const raw = await streamToBuffer(res.stream);
-    return { value: JSON.parse(raw.toString("utf8")) as T, etag: res.blob.etag };
+    return { value: JSON.parse(raw.toString("utf8")) as T, etag: strongEtag(res.blob.etag) };
   }
 
   async putDoc<T>(path: string, value: T, etag: string | null): Promise<string> {

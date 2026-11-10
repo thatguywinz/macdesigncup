@@ -249,6 +249,18 @@ function prunePending(e: EntryRecord, now: number): string[] {
   return stale;
 }
 
+/** Step timings for slow-request debugging (PORTAL_DEBUG_TIMING=1); a no-op otherwise. */
+function stopwatch(label: string) {
+  const on = !!process.env.PORTAL_DEBUG_TIMING;
+  let last = Date.now();
+  return (step: string) => {
+    if (!on) return;
+    const now = Date.now();
+    console.log(`[portal:timing] ${label} ${step} ${now - last} ms`);
+    last = now;
+  };
+}
+
 const SLOT_NAMES: readonly FileSlot[] = ["model", "image", "progress", "source", "thumb"];
 
 /** Keys of the organizers' judges list, or null when there is no list. */
@@ -443,11 +455,14 @@ on("POST", "/entries/:id/files", async (ctx, req, res, { id }) => {
 });
 
 on("POST", "/entries/:id/files/:fileId/complete", async (ctx, req, res, { id, fileId }) => {
+  const lap = stopwatch("complete");
   const e0 = await loadOwned(ctx, req, id);
+  lap("loadOwned");
   const pending = e0.pending[fileId];
   if (!pending) fail(404, "That upload has expired. Pick the file again.");
   const storage = ctx.db.storage;
   const info = await storage.head(pending.path);
+  lap("head");
   if (!info) fail(409, "The file didn't arrive. Try the upload again.");
   const rule = SLOTS[pending.slot];
   const reject = async (msg: string) => {
@@ -461,6 +476,7 @@ on("POST", "/entries/:id/files/:fileId/complete", async (ctx, req, res, { id, fi
   // Blob reports the stored type; it must be the one this upload was signed for.
   if (info.contentType && info.contentType.split(";")[0].trim() !== contentTypeFor(pending.ext)) await reject("unexpected file type");
   const head = (await storage.readHead(pending.path, SNIFF_BYTES)) ?? new Uint8Array();
+  lap("readHead");
   const why = sniff(pending.ext, head, info.size);
   if (why) await reject(why);
 
@@ -469,6 +485,7 @@ on("POST", "/entries/:id/files/:fileId/complete", async (ctx, req, res, { id, fi
   if (pending.slot === "model") {
     const bytes = await storage.readAll(pending.path, rule.maxBytes);
     if (bytes) fingerprint = { sha256: sha256Of(bytes), meta: inspectModel(pending.ext, bytes) };
+    lap("readAll+inspect");
   }
 
   const w = await windowOf(ctx);
@@ -492,8 +509,11 @@ on("POST", "/entries/:id/files/:fileId/complete", async (ctx, req, res, { id, fi
     if (e.status === "submitted" && w.now >= w.deadline && !e.unlocked) e.late = true;
     return e;
   });
+  lap("mutate");
   if (removed.length) await storage.delete(removed).catch(() => {});
-  sendJson(res, 200, { entry: await ownView(ctx, w, e) });
+  const view = await ownView(ctx, w, e);
+  lap("ownView");
+  sendJson(res, 200, { entry: view });
 });
 
 on("DELETE", "/entries/:id/files/:fileId", async (ctx, req, res, { id, fileId }) => {

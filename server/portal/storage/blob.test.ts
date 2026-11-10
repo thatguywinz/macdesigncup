@@ -54,3 +54,28 @@ describe("BlobStorage presigning", () => {
     expect(url.searchParams.get("vercel-blob-signature")).toBeTruthy();
   });
 });
+
+describe("Blob quirks", () => {
+  it("turns the CDN's weak ETag into the strong one ifMatch needs", async () => {
+    const { strongEtag } = await import("./blob");
+    expect(strongEtag('W/"d354e9d16b78b702a9b94544f98b6311"')).toBe('"d354e9d16b78b702a9b94544f98b6311"');
+    expect(strongEtag('"abc"')).toBe('"abc"');
+  });
+
+  it("keeps preview and development data out of production's paths", async () => {
+    const { namespace, filePath } = await import("../db");
+    const saved = { ...process.env };
+    try {
+      delete process.env.PORTAL_NAMESPACE;
+      process.env.VERCEL_ENV = "production";
+      expect(namespace()).toBe("");
+      expect(filePath("e1", "f1", "glb")).toBe("portal/files/e1/f1.glb");
+      process.env.VERCEL_ENV = "preview";
+      expect(filePath("e1", "f1", "glb")).toBe("preview/portal/files/e1/f1.glb");
+      process.env.PORTAL_NAMESPACE = "test-run";
+      expect(namespace()).toBe("test-run/");
+    } finally {
+      process.env = saved;
+    }
+  });
+});
