@@ -39,3 +39,5 @@ lion3d/*.avi
 
 # Submission portal: local-preview storage (uploads, entries, scores)
 .data/
+
+.env*
