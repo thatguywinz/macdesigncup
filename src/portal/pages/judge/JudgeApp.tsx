@@ -16,21 +16,29 @@ export default function JudgeApp() {
   const [roster, setRoster] = useState<string[]>([]);
   const navigate = useNavigate();
 
+  // Who's signed in; when nobody is, the judges list for the name picker.
+  const loadMe = useCallback(
+    () =>
+      api<{ role: Me["role"] | null; name?: string; roster?: string[] }>("/judge/me")
+        .then((r) => {
+          setRoster(r.roster ?? []);
+          setMe(r.role ? { role: r.role, name: r.name ?? "" } : null);
+        })
+        .catch(() => setMe(null)),
+    [],
+  );
+
   useEffect(() => {
-    api<{ role: Me["role"] | null; name?: string; roster?: string[] }>("/judge/me")
-      .then((r) => {
-        setRoster(r.roster ?? []);
-        setMe(r.role ? { role: r.role, name: r.name ?? "" } : null);
-      })
-      .catch(() => setMe(null));
-  }, []);
+    void loadMe();
+  }, [loadMe]);
 
   const signOut = useCallback(() => {
-    void api("/judge/logout", { body: {} }).finally(() => {
-      setMe(null);
-      navigate("/judge");
-    });
-  }, [navigate]);
+    // Re-ask after signing out: the name list only comes with a signed-out answer.
+    void api("/judge/logout", { body: {} })
+      .catch(() => {})
+      .then(loadMe)
+      .finally(() => navigate("/judge"));
+  }, [navigate, loadMe]);
 
   if (me === undefined) return <div className="portal-shell" />;
   if (!me) return <SignIn onIn={setMe} roster={roster} />;
