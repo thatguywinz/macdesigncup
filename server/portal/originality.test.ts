@@ -167,6 +167,18 @@ describe("originality checks", () => {
   });
 });
 
+describe("judges list on the sign-in page", () => {
+  it("offers the listed names when signed out, and nothing else", async () => {
+    await call("/judge/settings", { method: "PUT", cookie: admin, body: { judges: ["Jamie McIntyre", "Ken Wan"] } });
+    const out = await call("/judge/me");
+    expect(out.json).toEqual({ role: null, roster: ["Jamie McIntyre", "Ken Wan"] });
+    const signedIn = await call("/judge/me", { cookie: admin });
+    expect(signedIn.json.roster).toBeUndefined();
+    expect((await call("/judge/login", { body: { name: "ken wan", passcode: "judge-demo" } })).status).toBe(200);
+    await call("/judge/settings", { method: "PUT", cookie: admin, body: { judges: [] } });
+  });
+});
+
 describe("no false flags from near-miss words", () => {
   it("doesn't read Onshape, a tripod or a garden trellis as AI generators", async () => {
     const { AI_GENERATORS, SOURCE_SITES } = await import("../../src/portal/shared/checks");

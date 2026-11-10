@@ -638,7 +638,10 @@ on("POST", "/judge/logout", async (ctx, _req, res) => {
 
 on("GET", "/judge/me", async (ctx, req, res) => {
   const s = readSession(ctx.cfg, req);
-  sendJson(res, 200, s ? { role: s.role, name: s.name } : { role: null });
+  // Signed out: the organizers' judges list, so the sign-in page can offer the
+  // names to pick from (no typos that would lock a judge out). Names only.
+  const roster = s ? [] : ((await ctx.db.read("settings")).judges ?? []);
+  sendJson(res, 200, s ? { role: s.role, name: s.name } : { role: null, roster });
 });
 
 on("GET", "/judge/entries", async (ctx, req, res) => {

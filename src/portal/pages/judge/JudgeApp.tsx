@@ -13,11 +13,15 @@ import SettingsPage from "./SettingsPage";
 
 export default function JudgeApp() {
   const [me, setMe] = useState<Me | null | undefined>(undefined);
+  const [roster, setRoster] = useState<string[]>([]);
   const navigate = useNavigate();
 
   useEffect(() => {
-    api<{ role: Me["role"] | null; name?: string }>("/judge/me")
-      .then((r) => setMe(r.role ? { role: r.role, name: r.name ?? "" } : null))
+    api<{ role: Me["role"] | null; name?: string; roster?: string[] }>("/judge/me")
+      .then((r) => {
+        setRoster(r.roster ?? []);
+        setMe(r.role ? { role: r.role, name: r.name ?? "" } : null);
+      })
       .catch(() => setMe(null));
   }, []);
 
@@ -29,7 +33,7 @@ export default function JudgeApp() {
   }, [navigate]);
 
   if (me === undefined) return <div className="portal-shell" />;
-  if (!me) return <SignIn onIn={setMe} />;
+  if (!me) return <SignIn onIn={setMe} roster={roster} />;
 
   return (
     <MeContext.Provider value={{ me, signOut }}>
@@ -57,8 +61,21 @@ function OrganizersOnly() {
   );
 }
 
-function SignIn({ onIn }: { onIn: (me: Me) => void }) {
-  const [name, setName] = useState("");
+const OTHER = "__other__";
+
+/**
+ * Judges pick their name from the organizers' list (no typos that would lock
+ * them out); organizers choose "Someone else" and type theirs. A judge's card
+ * links to /judge?as=<name>, which preselects it.
+ */
+function SignIn({ onIn, roster }: { onIn: (me: Me) => void; roster: string[] }) {
+  const preset = (() => {
+    const as = new URLSearchParams(window.location.search).get("as") ?? "";
+    return roster.find((n) => n.toLowerCase() === as.trim().toLowerCase()) ?? "";
+  })();
+  const [pick, setPick] = useState(preset || (roster.length ? "" : OTHER));
+  const [typed, setTyped] = useState("");
+  const name = pick === OTHER ? typed : pick;
   const [passcode, setPasscode] = useState("");
   const [errors, setErrors] = useState<{ name?: string; passcode?: string; form?: string }>({});
   const [busy, setBusy] = useState(false);
@@ -85,13 +102,34 @@ function SignIn({ onIn }: { onIn: (me: Me) => void }) {
         <div>
           <h1 className="display-scene">Judges sign in</h1>
           <p className="mt-4 max-w-[30rem] font-body text-lg leading-relaxed text-foreground/75">
-            Use your full name so your marks are yours alone. The passcode is on your judging sheet.
+            {roster.length
+              ? "Pick your name, then enter the passcode from your judging card."
+              : "Use your full name so your marks are yours alone. The passcode is on your judging card."}
           </p>
         </div>
         <form onSubmit={submit} noValidate className="flex max-w-[26rem] flex-col gap-6">
-          <Field label="Your name" error={errors.name}>
-            {(p) => <input {...p} className="p-input" autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} />}
-          </Field>
+          {roster.length > 0 && (
+            <Field label="Your name" error={pick !== OTHER ? errors.name : undefined}>
+              {(p) => (
+                <select {...p} className="p-select" value={pick} onChange={(e) => setPick(e.target.value)}>
+                  <option value="" disabled>
+                    Choose your name
+                  </option>
+                  {roster.map((n) => (
+                    <option key={n} value={n}>
+                      {n}
+                    </option>
+                  ))}
+                  <option value={OTHER}>Someone else (organizers)</option>
+                </select>
+              )}
+            </Field>
+          )}
+          {pick === OTHER && (
+            <Field label={roster.length ? "Name" : "Your name"} error={errors.name}>
+              {(p) => <input {...p} className="p-input" autoComplete="name" value={typed} onChange={(e) => setTyped(e.target.value)} />}
+            </Field>
+          )}
           <Field label="Passcode" error={errors.passcode}>
             {(p) => <input {...p} type="password" className="p-input" autoComplete="current-password" value={passcode} onChange={(e) => setPasscode(e.target.value)} />}
           </Field>
