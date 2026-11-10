@@ -47,6 +47,7 @@ const entry = (over: Record<string, unknown> = {}) => ({
   shareable: true,
   original: true,
   upAxis: "z",
+  videoLink: "https://youtu.be/abcdefghijk",
   ...over,
 });
 
@@ -103,6 +104,7 @@ async function login(passcode: string, name = "Judge Rivera") {
 }
 
 beforeAll(async () => {
+  process.env.PORTAL_SKIP_VIDEO_CHECK = "1";
   dir = fs.mkdtempSync(path.join(os.tmpdir(), "portal-test-"));
   delete process.env.VERCEL;
   delete process.env.PORTAL_STORAGE;
@@ -208,11 +210,30 @@ describe("teams", () => {
     expect(r.json.entry.files.filter((f: { slot: string }) => f.slot === "model").map((f: { name: string }) => f.name)).toEqual(["b.stl"]);
   });
 
-  it("won't submit without a model", async () => {
-    const { id, key } = await create();
+  it("won't submit without a video, but a link or an upload is enough", async () => {
+    const { id, key } = await create({ videoLink: "" });
     const r = await call(`/entries/${id}/submit`, { body: {}, key });
     expect(r.status).toBe(422);
-    expect(r.json.field).toBe("model");
+    expect(r.json.field).toBe("video");
+    // An uploaded MP4 counts (no 3D model needed).
+    const mp4 = Buffer.concat([Buffer.from([0, 0, 0, 0x18]), Buffer.from("ftypmp42"), Buffer.alloc(64)]);
+    expect((await upload(id, key, "video", "pitch.mp4", mp4)).status).toBe(200);
+    expect((await call(`/entries/${id}/submit`, { body: {}, key })).status).toBe(200);
+    // A fake MP4 is rejected.
+    const other = await create({ videoLink: "" });
+    expect((await upload(other.id, other.key, "video", "x.mp4", Buffer.from("<html>nope</html>"))).status).toBe(422);
+  });
+
+  it("accepts known video links and turns them into embeds; refuses others", async () => {
+    const { parseVideoLink } = await import("../../src/portal/shared/video");
+    expect(parseVideoLink("https://youtu.be/abcdefghijk")?.embed).toBe("https://www.youtube-nocookie.com/embed/abcdefghijk");
+    expect(parseVideoLink("https://www.youtube.com/watch?v=abcdefghijk&t=3")?.host).toBe("youtube");
+    expect(parseVideoLink("https://youtube.com/shorts/abcdefghijk")?.embed).toContain("abcdefghijk");
+    expect(parseVideoLink("https://drive.google.com/file/d/1AbCdEfGhIjKlMnOp/view?usp=sharing")?.embed).toBe("https://drive.google.com/file/d/1AbCdEfGhIjKlMnOp/preview");
+    expect(parseVideoLink("https://vimeo.com/123456789")?.embed).toBe("https://player.vimeo.com/video/123456789");
+    expect(parseVideoLink("http://youtu.be/abcdefghijk")).toBeNull();
+    expect(parseVideoLink("https://evil.example/video.mp4")).toBeNull();
+    expect((await call("/entries", { body: { code: "MDC-DEMO", entry: entry({ videoLink: "https://evil.example/v" }) } })).json.errors.videoLink).toBeTruthy();
   });
 
   it("closes at the deadline, with grace for drafts already started", async () => {

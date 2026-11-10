@@ -12,6 +12,8 @@ import type { JudgeEntry, Score } from "../../shared/schema";
 import type { Measure, Spec } from "../../shared/checks";
 import { ChecksPanel, MeasurePanel, ProcessPanel } from "./panels";
 import ModelViewer from "../../viewer/ModelViewer";
+import VideoPlayer from "../../components/VideoPlayer";
+import { parseVideoLink } from "../../shared/video";
 import { JudgeShell, useMe } from "./context";
 
 interface EntryResponse {
@@ -54,6 +56,11 @@ export default function JudgeEntryPage() {
   const model = e?.files.find((f) => f.slot === "model");
   const source = e?.files.find((f) => f.slot === "source");
   const images = e?.files.filter((f) => f.slot === "image") ?? [];
+  const videoFile = e?.files.find((f) => f.slot === "video") ?? null;
+  const videoLink = (() => {
+    const v = e?.videoLink ? parseVideoLink(e.videoLink) : null;
+    return v ? { url: v.url, host: v.host, embed: v.embed } : null;
+  })();
 
   return (
     <JudgeShell section="Judging">
@@ -74,16 +81,30 @@ export default function JudgeEntryPage() {
       {error && <p className="p-notice p-notice--bad mt-6 font-body">{error}</p>}
 
       <div className="mt-4 grid gap-8 lg:grid-cols-[minmax(0,1fr)_26rem] xl:grid-cols-[minmax(0,1fr)_30rem]">
-        <ModelViewer
-          source={model && isViewable(model.ext) ? { kind: "url", url: model.url, ext: model.ext as ViewableExt } : null}
-          upAxis={e?.upAxis ?? "y"}
-          units={e?.units ?? "mm"}
-          spec={data?.spec ?? null}
-          onMeasure={setLiveMeasure}
-          label={e ? `${e.title}, 3D model` : "3D model"}
-          className="h-[56vh] min-h-[320px] w-full lg:sticky lg:top-20 lg:h-[calc(100dvh-7.5rem)]"
-          empty={<span className="font-body text-sm text-concrete">{e ? "This entry has no viewable model." : ""}</span>}
-        />
+        <div className="flex min-w-0 flex-col gap-4 lg:sticky lg:top-20 lg:self-start">
+          {/* The team's video first (what they present), then their 3D model if they added one. */}
+          {e && (videoFile || videoLink) && (
+            <>
+              <VideoPlayer title={e.title} file={videoFile} link={videoLink} poster={e.files.find((f) => f.slot === "thumb")?.url} />
+              {videoLink && e.videoCheck && e.videoCheck.status !== "public" && (
+                <p className="p-notice p-notice--calm font-body text-sm">Link check: {e.videoCheck.note}</p>
+              )}
+            </>
+          )}
+          {e && !videoFile && !videoLink && <p className="p-notice font-body text-sm">This entry has no video.</p>}
+          {(!e || model) && (
+            <ModelViewer
+              source={model && isViewable(model.ext) ? { kind: "url", url: model.url, ext: model.ext as ViewableExt } : null}
+              upAxis={e?.upAxis ?? "y"}
+              units={e?.units ?? "mm"}
+              spec={data?.spec ?? null}
+              onMeasure={setLiveMeasure}
+              label={e ? `${e.title}, 3D model` : "3D model"}
+              className={videoFile || videoLink ? "aspect-[16/10] w-full" : "h-[56vh] min-h-[320px] w-full lg:h-[calc(100dvh-7.5rem)]"}
+              empty={<span className="font-body text-sm text-concrete">{e ? "This entry has no viewable model." : ""}</span>}
+            />
+          )}
+        </div>
 
         {!e ? (
           <p className="font-body text-concrete" role="status">
@@ -141,6 +162,12 @@ export default function JudgeEntryPage() {
                 <dt className="text-sm font-medium text-concrete">How it answers the theme</dt>
                 <dd className="mt-1.5 whitespace-pre-line text-[15px] leading-relaxed text-foreground/90">{e.summary}</dd>
               </div>
+              {e.presentation && (
+                <div>
+                  <dt className="text-sm font-medium text-concrete">Their presentation</dt>
+                  <dd className="mt-1.5 whitespace-pre-line text-[15px] leading-relaxed text-foreground/90">{e.presentation}</dd>
+                </div>
+              )}
               {e.process && (
                 <div>
                   <dt className="text-sm font-medium text-concrete">What to look for</dt>
@@ -372,7 +399,7 @@ function AdminPanel({ entry, onChange }: { entry: JudgeEntry; onChange: (e: Judg
             ))}
           </select>
         </label>
-        {toggle("Show in the gallery", "Lists it on /gallery, if the team allowed public viewing.", entry.gallery, "gallery")}
+        {toggle("Pick for the public page", "Shown on /submissions when Settings is set to \"Only the ones I pick\", if the team allowed public viewing.", entry.gallery, "gallery")}
         {toggle("Hide from the public", "The share link stops working for everyone but judges.", entry.hidden, "hidden")}
         {toggle("Let the team edit again", "Reopens their edit link after the deadline.", entry.unlocked, "unlocked")}
         {toggle("Mark as late", "Judges see the late flag on the card.", entry.late, "late")}

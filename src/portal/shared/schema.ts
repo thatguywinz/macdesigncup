@@ -7,6 +7,8 @@
 // can load these files without a bundler.
 import type { FileSlot } from "./formats";
 import type { Check, CheckReview, FileMeta, Measure, Spec, Units } from "./checks";
+// Value import with .js: on Vercel the server runs these files as plain ES modules.
+import { parseVideoLink, type VideoCheck } from "./video.js";
 
 const UNIT_LIST = ["mm", "cm", "m", "in"] as const;
 const CAD_HOSTS = ["onshape.com", "a360.co", "autodesk360.com", "autodesk.com", "tinkercad.com", "3dexperience.3ds.com", "solidworks.com", "drive.google.com", "docs.google.com"];
@@ -52,6 +54,8 @@ export const LIMITS = {
   aiNote: 500,
   softwareOther: 60,
   filesNote: 600,
+  presentation: 1200,
+  videoLink: 500,
 } as const;
 
 export interface MemberInput {
@@ -86,6 +90,10 @@ export interface EntryInput {
   units: Units;
   /** Link to the CAD document, so judges can see the sketches and history. Optional. */
   cadLink: string;
+  /** A link to the presentation video (YouTube, Drive, ...), when it isn't uploaded. */
+  videoLink: string;
+  /** What the team will present: the judges read it before the presentation. */
+  presentation: string;
   /** Anything judges should know about the files (answers an originality note). Optional. */
   filesNote: string;
 }
@@ -121,6 +129,8 @@ export function emptyEntry(): EntryInput {
     upAxis: "y",
     units: "mm",
     cadLink: "",
+    videoLink: "",
+    presentation: "",
     filesNote: "",
   };
 }
@@ -202,6 +212,14 @@ export function parseEntry(raw: unknown, opts: { draft?: boolean } = {}): Parsed
   const cadLink = rawLink ? cadLinkOf(rawLink) : "";
   if (cadLink === null) errors.cadLink = "Use a share link from Onshape, Fusion (a360.co), Tinkercad, 3DEXPERIENCE or Google Drive.";
 
+  const rawVideo = str(r.videoLink, LIMITS.videoLink);
+  const video = rawVideo ? parseVideoLink(rawVideo) : null;
+  if (rawVideo && !video) errors.videoLink = "Use a share link from YouTube, Google Drive, Vimeo, Loom, OneDrive or Dropbox.";
+  const videoLink = video ? video.url : "";
+
+  const presentation = str(r.presentation, LIMITS.presentation);
+  tooLong("presentation", presentation, LIMITS.presentation, "This");
+
   const filesNote = str(r.filesNote, LIMITS.filesNote);
   tooLong("filesNote", filesNote, LIMITS.filesNote, "This");
 
@@ -226,6 +244,8 @@ export function parseEntry(raw: unknown, opts: { draft?: boolean } = {}): Parsed
       units,
       cadLink: cadLink ?? "",
       filesNote,
+      videoLink,
+      presentation,
     },
   };
 }
@@ -289,6 +309,8 @@ export interface EntryRecord extends EntryInput {
   measure?: Measure | null;
   /** Organizers' decisions on originality checks: check id -> review. */
   reviews?: Record<string, CheckReview>;
+  /** Last check of the video link (opened without signing in). */
+  videoCheck?: VideoCheck | null;
 }
 
 /** A check with its review, as judges see it. */
@@ -322,6 +344,11 @@ export interface PublicEntry {
   model: FileView | null;
   images: FileView[];
   thumb: FileView | null;
+  /** An uploaded video, or a linked one (with an embeddable player URL when the host allows). */
+  video: FileView | null;
+  videoLink: { url: string; host: string; embed: string | null } | null;
+  /** The model's measurements, for the public page's readout. */
+  hasModel: boolean;
 }
 
 /** The team's own view while editing. */
@@ -334,6 +361,8 @@ export interface OwnEntry extends EntryInput {
   locked: boolean;
   /** Neutral notes from the originality checks the team can answer in filesNote. */
   notices: string[];
+  /** Whether the video link opened without signing in, last time we checked. */
+  videoCheck: VideoCheck | null;
 }
 
 export interface Score {
@@ -362,6 +391,8 @@ export interface JudgeEntry extends EntryInput {
   checks: CheckView[];
   /** Model file metadata (generator, created), for the process panel. */
   modelMeta: FileMeta | null;
+  /** What the server found when it opened the video link without signing in. */
+  videoCheck: VideoCheck | null;
 }
 
 /** A dashboard card. */

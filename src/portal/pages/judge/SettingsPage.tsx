@@ -15,6 +15,7 @@ interface Settings {
   judges: string[];
   revealAt: string;
   spec: Spec | null;
+  publicListing: "off" | "all" | "selected";
   open: boolean;
   graceSeconds: number;
   storage: string;
@@ -123,6 +124,41 @@ export default function SettingsPage() {
                   {saved}
                 </p>
               )}
+            </section>
+
+            <section className="border-t border-bone/10 py-7">
+              <h2 className="p-block-title">Public submissions page</h2>
+              <p className="p-hint mt-1 max-w-[38rem]">
+                What <span className="p-mono">macdesigncup.ca/submissions</span> shows: each entry's video, 3D model and description. Scores, notes and contact details are never
+                public. Entries whose team turned off public viewing, or that you hid, never appear.
+              </p>
+              <div className="mt-4 flex flex-col gap-2 font-body text-[15px] text-foreground/90">
+                {(
+                  [
+                    ["off", "Off", "The page says submissions aren't public yet."],
+                    ["all", "Every submitted entry", "Good once judging is done."],
+                    ["selected", "Only the ones I pick", "Tick \"Pick for the public page\" on an entry to add it."],
+                  ] as const
+                ).map(([value, label, hint]) => (
+                  <label key={value} className="flex cursor-pointer items-start gap-3">
+                    <input
+                      type="radio"
+                      name="publicListing"
+                      className="mt-1 h-4 w-4 accent-[hsl(24_100%_54%)]"
+                      checked={s.publicListing === value}
+                      disabled={busy}
+                      onChange={() => put({ publicListing: value }, "Public page updated.")}
+                    />
+                    <span>
+                      {label}
+                      <span className="p-hint block">{hint}</span>
+                    </span>
+                  </label>
+                ))}
+              </div>
+              <a href="/submissions" target="_blank" rel="noopener" className="p-link focus-ember mt-4 inline-block font-body text-sm">
+                Open the public page
+              </a>
             </section>
 
             <SpecSection settings={s} busy={busy} onSave={put} />

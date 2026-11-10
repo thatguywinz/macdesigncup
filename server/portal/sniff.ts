@@ -31,6 +31,13 @@ function looksLikeMarkup(b: Uint8Array): boolean {
  */
 export function sniff(ext: string, head: Uint8Array, size: number): string | null {
   switch (ext) {
+    case "mp4":
+    case "mov":
+    case "m4v":
+      // ISO base media: a box size, then "ftyp".
+      return ascii(head, 4, 8) === "ftyp" ? null : "not an MP4/MOV video";
+    case "webm":
+      return startsWith(head, [0x1a, 0x45, 0xdf, 0xa3]) ? null : "not a WebM video";
     case "glb":
       return ascii(head, 0, 4) === "glTF" ? null : "not a binary glTF (.glb) file";
     case "stl": {

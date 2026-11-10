@@ -135,7 +135,7 @@ export default function JudgeList() {
                   {c.thumb ? (
                     <img src={c.thumb} alt="" loading="lazy" />
                   ) : (
-                    <div className="grid h-full place-items-center p-mono text-[11px] uppercase text-concrete">{c.modelExt ?? "no model"}</div>
+                    <div className="grid h-full place-items-center p-mono text-[11px] uppercase text-concrete">{c.modelExt ?? "video"}</div>
                   )}
                   <span className="absolute right-2 top-2">
                     {c.myTotal !== null ? (

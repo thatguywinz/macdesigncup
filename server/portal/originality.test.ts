@@ -60,6 +60,7 @@ const entry = (over: Record<string, unknown> = {}) => ({
   shareable: true,
   original: true,
   upAxis: "y",
+  videoLink: "https://youtu.be/abcdefghijk",
   units: "mm",
   cadLink: "",
   filesNote: "",
@@ -93,6 +94,7 @@ let admin = "";
 const judgeEntry = async (id: string) => (await call(`/judge/entries/${id}`, { cookie: admin })).json.entry;
 
 beforeAll(async () => {
+  process.env.PORTAL_SKIP_VIDEO_CHECK = "1";
   dir = fs.mkdtempSync(path.join(os.tmpdir(), "portal-orig-"));
   delete process.env.VERCEL;
   ctx = createContext({ localRoot: dir, now: () => clock });
@@ -164,6 +166,28 @@ describe("originality checks", () => {
     expect((await call(`/entries/${e.id}`, { key: e.key })).json.entry.notices).toEqual([]);
     const judge = (await call("/judge/login", { body: { name: "Judge Z", passcode: "judge-demo" } })).headers.get("set-cookie")!.split(";")[0];
     expect((await call(`/judge/entries/${e.id}/checks/${check.id}`, { method: "PUT", body: { status: "cleared" }, cookie: judge })).status).toBe(403);
+  });
+});
+
+describe("public submissions page", () => {
+  it("is off by default, lists every shareable entry on 'all', only picked ones on 'selected', never scores", async () => {
+    expect((await call("/submissions")).json).toEqual({ mode: "off", entries: [] });
+    const a = await submit({ title: "Listed A" }, { name: "a.stl", bytes: stl("x", 2) });
+    await submit({ title: "Private B", shareable: false }, { name: "b.stl", bytes: stl("y", 3) });
+    await call("/judge/settings", { method: "PUT", cookie: admin, body: { publicListing: "all" } });
+    const all = await call("/submissions");
+    const titles = all.json.entries.map((e: { title: string }) => e.title);
+    expect(titles).toContain("Listed A");
+    expect(titles).not.toContain("Private B");
+    const listed = all.json.entries.find((e: { title: string }) => e.title === "Listed A");
+    expect(listed.videoLink.embed).toBe("https://www.youtube-nocookie.com/embed/abcdefghijk");
+    expect(listed.thumb.url).toBe("https://i.ytimg.com/vi/abcdefghijk/hqdefault.jpg");
+    expect(JSON.stringify(all.json)).not.toMatch(/marks|notes|contactEmail|presentation/);
+    await call("/judge/settings", { method: "PUT", cookie: admin, body: { publicListing: "selected" } });
+    expect((await call("/submissions")).json.entries.some((e: { id: string }) => e.id === a.id)).toBe(false);
+    await call(`/judge/entries/${a.id}`, { method: "PATCH", cookie: admin, body: { gallery: true } });
+    expect((await call("/submissions")).json.entries.map((e: { id: string }) => e.id)).toEqual([a.id]);
+    await call("/judge/settings", { method: "PUT", cookie: admin, body: { publicListing: "off" } });
   });
 });
 

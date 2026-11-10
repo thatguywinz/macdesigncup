@@ -9,7 +9,7 @@ import { componentTagger } from "lovable-tagger";
 // routes from portal.html and runs the API (server/portal) in-process, loaded
 // through Vite so edits to the server reload without a restart. Production
 // uses vercel.json rewrites and the api/portal.ts function instead.
-const PORTAL_PAGES = /^\/(submit|judge|entry|gallery)(\/|$|\?)/;
+const PORTAL_PAGES = /^\/(submit|submissions|judge|entry|gallery)(\/|$|\?)/;
 
 function portalDev(): Plugin {
   return {

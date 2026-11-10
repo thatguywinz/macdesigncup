@@ -46,6 +46,11 @@ export interface SettingsDoc {
   revealAt?: string;
   /** Optional size spec for the theme. */
   spec?: Spec | null;
+  /**
+   * The public /submissions page: "off" (default), "all" submitted entries
+   * that allow sharing, or only the ones organizers "selected" (gallery).
+   */
+  publicListing?: "off" | "all" | "selected";
   /** Replaces the configured deadline (an organizer extended or moved it). */
   deadlineOverride: string | null;
   /** Organizer closed submissions early, whatever the clock says. */

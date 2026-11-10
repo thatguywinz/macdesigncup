@@ -15,6 +15,8 @@ import type { FileSlot } from "../../src/portal/shared/formats.js";
 import { SLOTS, checkFile, contentTypeFor, extOf } from "../../src/portal/shared/formats.js";
 import { AWARDS, CRITERIA, MAX_TOTAL, cleanMarks, totalOf } from "../../src/portal/shared/judging.js";
 import { hasSpec, specCheck, type Measure, type Spec } from "../../src/portal/shared/checks.js";
+import { parseVideoLink } from "../../src/portal/shared/video.js";
+import { checkVideoLink } from "./videocheck.js";
 import { DEFAULT_REVEAL, originalityChecks } from "./originality.js";
 import { inspectModel, sha256Of } from "./inspect.js";
 import type {
@@ -126,6 +128,12 @@ function cleanMeasure(raw: unknown): Measure | null {
 
 const firstOf = (e: EntryRecord, slot: FileSlot) => e.files.find((f) => f.slot === slot) ?? null;
 
+/** A video link as pages show it: the link, its host, and an embeddable player URL. */
+function linkView(url: string | undefined) {
+  const v = url ? parseVideoLink(url) : null;
+  return v ? { url: v.url, host: v.host, embed: v.embed } : null;
+}
+
 async function publicView(ctx: PortalContext, e: EntryRecord): Promise<PublicEntry> {
   const model = firstOf(e, "model");
   const thumb = firstOf(e, "thumb");
@@ -142,6 +150,9 @@ async function publicView(ctx: PortalContext, e: EntryRecord): Promise<PublicEnt
     model: model ? await fileView(ctx, model, { publicName: "model" }) : null,
     images: await Promise.all(e.files.filter((f) => f.slot === "image").map((f, i) => fileView(ctx, f, { publicName: `render-${i + 1}` }))),
     thumb: thumb ? await fileView(ctx, thumb, { publicName: "preview" }) : null,
+    video: firstOf(e, "video") ? await fileView(ctx, firstOf(e, "video")!, { publicName: "video" }) : null,
+    videoLink: linkView(e.videoLink),
+    hasModel: !!model,
   };
 }
 
@@ -161,6 +172,7 @@ async function ownView(ctx: PortalContext, w: Window, e: EntryRecord): Promise<O
     files: await Promise.all(e.files.map((f) => fileView(ctx, f))),
     locked: !canChange(w, e),
     notices,
+    videoCheck: e.videoCheck ?? null,
   };
 }
 
@@ -185,6 +197,8 @@ function inputOf(e: EntryRecord) {
     units: e.units ?? "mm",
     cadLink: e.cadLink ?? "",
     filesNote: e.filesNote ?? "",
+    videoLink: e.videoLink ?? "",
+    presentation: e.presentation ?? "",
   };
 }
 
@@ -210,6 +224,7 @@ async function judgeView(ctx: PortalContext, e: EntryRecord, s: Session): Promis
     measure: e.measure ?? null,
     checks: checksFor(e, Object.values(doc.entries), settings),
     modelMeta: firstOf(e, "model")?.meta ?? null,
+    videoCheck: e.videoCheck ?? null,
   };
 }
 
@@ -261,7 +276,10 @@ function stopwatch(label: string) {
   };
 }
 
-const SLOT_NAMES: readonly FileSlot[] = ["model", "image", "progress", "source", "thumb"];
+const SLOT_NAMES: readonly FileSlot[] = ["video", "model", "image", "progress", "source", "thumb"];
+
+/** Bytes the portal may keep in the store (default 900 MB of the free plan's 1 GB). */
+const storageBudget = () => Math.max(50, Number(process.env.PORTAL_STORAGE_BUDGET_MB) || 900) * 1024 * 1024;
 
 /** Keys of the organizers' judges list, or null when there is no list. */
 function rosterKeys(settings: SettingsDoc): Set<string> | null {
@@ -317,6 +335,37 @@ on("GET", "/status", async (ctx, _req, res) => {
   sendJson(res, 200, body);
 });
 
+// "Check link" on the form: is the video viewable without signing in?
+on("POST", "/video-check", async (ctx, req, res) => {
+  rateLimit(`vcheck:${clientIp(req)}`, 60, 10 * 60 * 1000);
+  const body = await readJson(req);
+  const url = String(body.url ?? "").slice(0, 500);
+  if (!parseVideoLink(url)) fail(422, "Use a share link from YouTube, Google Drive, Vimeo, Loom, OneDrive or Dropbox.", { field: "videoLink" });
+  sendJson(res, 200, await checkVideoLink(url));
+});
+
+// The public submissions page, when organizers switch it on in Settings.
+on("GET", "/submissions", async (ctx, _req, res) => {
+  const [doc, settings] = await Promise.all([ctx.db.read("entries"), ctx.db.read("settings")]);
+  const mode = settings.publicListing ?? "off";
+  if (mode === "off") return sendJson(res, 200, { mode, entries: [] });
+  const list = Object.values(doc.entries)
+    .filter((e) => e.status === "submitted" && e.shareable && !e.hidden && (mode === "all" || e.gallery))
+    .sort((a, b) => awardRank(a.award) - awardRank(b.award) || String(a.submittedAt).localeCompare(String(b.submittedAt)));
+  const entries = await Promise.all(
+    list.map(async (e) => {
+      const v = await publicView(ctx, e);
+      // Cards: a YouTube poster when there's no captured thumbnail.
+      if (!v.thumb && v.videoLink?.host === "youtube") {
+        const thumb = parseVideoLink(v.videoLink.url)?.thumb;
+        if (thumb) v.thumb = { id: "yt", slot: "thumb", name: "preview.jpg", ext: "jpg", size: 0, url: thumb };
+      }
+      return v;
+    }),
+  );
+  sendJson(res, 200, { mode, entries });
+});
+
 on("GET", "/entry/:id", async (ctx, req, res, { id }) => {
   const doc = await ctx.db.read("entries");
   const e = doc.entries[id];
@@ -360,6 +409,7 @@ on("POST", "/entries", async (ctx, req, res) => {
   if (!parsed.ok) fail(422, "Some fields need another look.", { errors: parsed.errors });
   const value = parsed.value;
   const measure = cleanMeasure(body.measure);
+  const videoCheck = value.videoLink ? await checkVideoLink(value.videoLink) : null;
   const editKey = randomSecret();
   const now = iso(w.now);
   const record = await ctx.db.mutate("entries", (doc) => {
@@ -383,6 +433,7 @@ on("POST", "/entries", async (ctx, req, res) => {
       unlocked: false,
       measure,
       reviews: {},
+      videoCheck,
     };
     doc.entries[id] = e;
     return e;
@@ -403,12 +454,16 @@ on("PUT", "/entries/:id", async (ctx, req, res, { id }) => {
   if (!parsed.ok) fail(422, "Some fields need another look.", { errors: parsed.errors });
   const value = parsed.value;
   const measure = "measure" in body ? cleanMeasure(body.measure) : undefined;
+  // A new or changed video link is opened once, like a judge would.
+  const videoCheck = value.videoLink && value.videoLink !== current.videoLink ? await checkVideoLink(value.videoLink) : undefined;
   const w = await windowOf(ctx);
   const e = await ctx.db.mutate("entries", (doc) => {
     const e = ownedIn(doc.entries, id, req);
     if (!canChange(w, e)) fail(409, "Submissions are closed. This entry can't be changed now.");
     Object.assign(e, value, { updatedAt: iso(w.now) });
     if (measure !== undefined) e.measure = measure;
+    if (!value.videoLink) e.videoCheck = null;
+    else if (videoCheck) e.videoCheck = videoCheck;
     return e;
   });
   sendJson(res, 200, { entry: await ownView(ctx, w, e) });
@@ -440,6 +495,15 @@ on("POST", "/entries/:id/files", async (ctx, req, res, { id }) => {
       if (used >= rule.maxCount) fail(409, `Up to ${rule.maxCount} files here. Remove one first.`);
     }
     if (Object.keys(e.pending).length >= 8) fail(429, "Too many uploads in progress. Wait for them to finish.");
+    // The free Blob store is small: refuse an upload that would overfill it,
+    // and point video uploads at a link instead.
+    const used = Object.values(doc.entries).reduce(
+      (sum, x) => sum + x.files.reduce((a, f) => a + f.size, 0) + Object.values(x.pending).reduce((a, f) => a + f.size, 0),
+      0,
+    );
+    if (used + size > storageBudget()) {
+      fail(507, slot === "video" ? "Upload space is full. Put your video on YouTube (Unlisted) or Google Drive and paste the link instead." : "Upload space is full. Find an organizer.", { field: slot });
+    }
     e.pending[fileId] = { id: fileId, slot, name, ext, size, path, uploadedAt: "", signedAt: iso(w.now) };
   });
   if (stale.length) await ctx.db.storage.delete(stale).catch(() => {});
@@ -536,14 +600,16 @@ on("DELETE", "/entries/:id/files/:fileId", async (ctx, req, res, { id, fileId })
 });
 
 on("POST", "/entries/:id/submit", async (ctx, req, res, { id }) => {
-  await loadOwned(ctx, req, id);
+  const before = await loadOwned(ctx, req, id);
+  const recheck = before.videoLink && before.videoCheck?.status !== "public" ? await checkVideoLink(before.videoLink) : null;
   const w = await windowOf(ctx);
   const e = await ctx.db.mutate("entries", (doc) => {
     const e = ownedIn(doc.entries, id, req);
+    if (recheck && e.videoLink === before.videoLink) e.videoCheck = recheck;
     if (!canChange(w, e)) fail(409, "Submissions are closed.");
     const parsed = parseEntry(e);
     if (!parsed.ok) fail(422, "Some fields need another look.", { errors: parsed.errors });
-    if (!e.files.some((f) => f.slot === "model")) fail(422, "Upload your 3D model before submitting.", { field: "model" });
+    if (!e.files.some((f) => f.slot === "video") && !e.videoLink) fail(422, "Add your video: upload it or paste a link.", { field: "video" });
     if (e.status !== "submitted") {
       e.status = "submitted";
       e.submittedAt = iso(w.now);
@@ -669,7 +735,7 @@ on("GET", "/judge/entries", async (ctx, req, res) => {
           hidden: e.hidden,
           award: e.award,
           modelExt: firstOf(e, "model")?.ext ?? null,
-          thumb: thumb ? await ctx.db.storage.signedGetUrl(thumb.path, DOWNLOAD_TTL) : null,
+          thumb: thumb ? await ctx.db.storage.signedGetUrl(thumb.path, DOWNLOAD_TTL) : (e.videoLink ? parseVideoLink(e.videoLink)?.thumb ?? null : null),
           myTotal: totalOf(mine[e.id]?.marks),
           scoreCount: counted.filter(([, j]) => totalOf(j.scores[e.id]?.marks) !== null).length,
           openReviews: openReviews(checksFor(e, all, w.settings)),
@@ -866,6 +932,7 @@ function settingsView(ctx: PortalContext, w: Window) {
     judges: w.settings.judges ?? [],
     revealAt: w.settings.revealAt ?? new Date(Date.parse(DEFAULT_REVEAL)).toISOString(),
     spec: w.settings.spec ?? null,
+    publicListing: w.settings.publicListing ?? "off",
     open: w.open,
     graceSeconds: GRACE_SECONDS,
     storage: ctx.cfg.storage,
@@ -898,6 +965,7 @@ on("PUT", "/judge/settings", async (ctx, req, res) => {
       else fail(422, "That reveal time isn't a valid date.");
     }
     if ("spec" in body) st.spec = cleanSpec(body.spec);
+    if (body.publicListing === "off" || body.publicListing === "all" || body.publicListing === "selected") st.publicListing = body.publicListing;
   });
   sendJson(res, 200, settingsView(ctx, await windowOf(ctx)));
 });

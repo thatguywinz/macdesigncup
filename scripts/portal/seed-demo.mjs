@@ -147,8 +147,19 @@ export async function submitViaForm(page, e, sketchPage) {
   const sketches = e.sketches && sketchPage ? await makeSketches(sketchPage, e) : [];
   await page.goto(`${BASE}/submit`);
   await page.getByLabel("Entry code").fill("MDC-DEMO");
-  await page.getByLabel("Title").fill(e.title);
+  await page.getByLabel("Title of your design").fill(e.title);
+  // Step 2: the video. Samples upload a turntable recorded with the site's viewer.
+  const slug = e.title.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+  const video = path.join(models, "videos", `${slug}.webm`);
+  if (fs.existsSync(video)) {
+    await page.getByText("Upload the file", { exact: true }).click();
+    await page.getByLabel("Choose video file").setInputFiles(video);
+  }
   await page.getByLabel("How it answers the theme").fill(e.summary);
+  await page.getByLabel("Your presentation").fill(e.presentation ?? `1. What ${e.title} is and the problem it solves
+2. How it answers the theme
+3. A walk around the model and its key parts
+4. What we'd change with more time`);
   if (e.process) await page.getByLabel("What to look for").fill(e.process);
   await page.getByLabel("Choose 3d model").setInputFiles(path.join(models, e.file));
   for (let i = 0; i < e.members.length; i++) {
@@ -232,7 +243,7 @@ async function main() {
   await fetch(`${BASE}/api/portal/judge/settings`, {
     method: "PUT",
     headers: { ...h, Cookie: cookie },
-    body: JSON.stringify({ spec: { maxW: 300, maxD: 300, maxH: 300, volume: null, note: "Fits in a 300 mm cube (demo spec)" } }),
+    body: JSON.stringify({ publicListing: "all", spec: { maxW: 300, maxD: 300, maxH: 300, volume: null, note: "Fits in a 300 mm cube (demo spec)" } }),
   });
   await browser.close();
   // The teams' links, so a demo can open a team's own edit page (local only, git-ignored).

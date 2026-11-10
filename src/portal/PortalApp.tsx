@@ -4,7 +4,7 @@
 //   /submit                 the entry form (needs the day's entry code)
 //   /submit/edit/:id#k=…    the team's private edit link
 //   /entry/:id              the share page: the model in 3D
-//   /gallery                entries organizers chose to show
+//   /submissions            the public page of entries (organizers switch it on)
 //   /judge                  judges' sign-in and dashboard
 //   /judge/entry/:id        one entry, full details, marking
 //   /judge/results          organizers: ranking, CSV
@@ -40,6 +40,7 @@ export default function PortalApp() {
         <Route path="/submit" element={<SubmitPage />} />
         <Route path="/submit/edit/:id" element={<SubmitPage />} />
         <Route path="/entry/:id" element={<EntryPage />} />
+        <Route path="/submissions" element={<GalleryPage />} />
         <Route path="/gallery" element={<GalleryPage />} />
         <Route path="/judge/*" element={<JudgeApp />} />
         <Route path="*" element={<NotFoundPage />} />

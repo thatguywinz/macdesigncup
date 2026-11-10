@@ -4,7 +4,7 @@
 // actually arrived). One table, so the two can never disagree on a limit.
 // ─────────────────────────────────────────────
 
-export type FileSlot = "model" | "image" | "progress" | "source" | "thumb";
+export type FileSlot = "video" | "model" | "image" | "progress" | "source" | "thumb";
 
 /** Formats the in-browser viewer can open. */
 export const VIEWABLE_EXTS = ["glb", "stl", "obj", "3mf", "ply"] as const;
@@ -23,6 +23,15 @@ export interface SlotRule {
 const MB = 1024 * 1024;
 
 export const SLOTS: Record<FileSlot, SlotRule> = {
+  // The presentation video, when a team uploads it instead of linking it.
+  // Small on purpose: the free Blob store holds about 1 GB in total, so a
+  // YouTube or Drive link is the main path for longer or bigger videos.
+  video: {
+    exts: ["mp4", "mov", "m4v", "webm"],
+    maxBytes: 150 * MB,
+    maxCount: 1,
+    accept: "video/mp4,video/quicktime,video/webm,.mp4,.mov,.m4v,.webm",
+  },
   // The one file judges and the share page open in the 3D viewer.
   model: {
     exts: VIEWABLE_EXTS,
@@ -63,6 +72,10 @@ export const SLOTS: Record<FileSlot, SlotRule> = {
 };
 
 export const CONTENT_TYPES: Record<string, string> = {
+  mp4: "video/mp4",
+  mov: "video/quicktime",
+  m4v: "video/x-m4v",
+  webm: "video/webm",
   glb: "model/gltf-binary",
   stl: "model/stl",
   obj: "model/obj",

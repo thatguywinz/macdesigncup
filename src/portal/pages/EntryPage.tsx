@@ -10,6 +10,7 @@ import { ApiError, api } from "../api";
 import { isViewable, type ViewableExt } from "../shared/formats";
 import type { PublicEntry } from "../shared/schema";
 import ModelViewer from "../viewer/ModelViewer";
+import VideoPlayer from "../components/VideoPlayer";
 
 export default function EntryPage() {
   const { id = "" } = useParams();
@@ -45,16 +46,22 @@ export default function EntryPage() {
 
   return (
     <Shell section="Design" wide right={entry ? <CopyLink /> : null}>
-      <div className="grid gap-8 pt-6 md:pt-8 lg:grid-cols-[minmax(0,1fr)_24rem] lg:gap-12 xl:grid-cols-[minmax(0,1fr)_27rem]">
-        <ModelViewer
-          source={model ? { kind: "url", url: model.url, ext: model.ext as ViewableExt } : null}
-          upAxis={entry?.upAxis ?? "y"}
-          label={entry ? `${entry.title}, 3D model` : "3D model"}
-          className="h-[62vh] min-h-[340px] w-full lg:h-[calc(100dvh-7.5rem)]"
-          empty={<span className="font-body text-sm text-concrete">{entry ? "No model to show." : ""}</span>}
-        />
+      <div className="grid items-start gap-8 pt-6 md:pt-8 lg:grid-cols-[minmax(0,1fr)_24rem] lg:gap-12 xl:grid-cols-[minmax(0,1fr)_27rem]">
+        <div className="flex min-w-0 flex-col gap-6">
+          {/* The video leads; the 3D model (if the team added one) follows. */}
+          {entry && (entry.video || entry.videoLink) && <VideoPlayer title={entry.title} file={entry.video} link={entry.videoLink} poster={entry.thumb?.url} />}
+          {(!entry || model) && (
+            <ModelViewer
+              source={model ? { kind: "url", url: model.url, ext: model.ext as ViewableExt } : null}
+              upAxis={entry?.upAxis ?? "y"}
+              label={entry ? `${entry.title}, 3D model` : "3D model"}
+              className={entry && (entry.video || entry.videoLink) ? "aspect-[16/10] w-full" : "h-[62vh] min-h-[340px] w-full lg:h-[calc(100dvh-7.5rem)]"}
+              empty={<span className="font-body text-sm text-concrete">{entry ? "No model to show." : ""}</span>}
+            />
+          )}
+        </div>
 
-        <article className="min-w-0 pb-6 lg:max-h-[calc(100dvh-7.5rem)] lg:overflow-y-auto lg:pr-1">
+        <article className="min-w-0 pb-6 lg:sticky lg:top-20">
           {!entry ? (
             <p className="font-body text-concrete" role="status">
               Loading…

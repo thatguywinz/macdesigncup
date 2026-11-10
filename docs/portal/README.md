@@ -11,8 +11,8 @@ response says `noindex`.
 | --- | --- | --- |
 | `/submit` | teams | The entry form. Needs the day's **entry code**. |
 | `/submit/edit/<id>#k=<key>` | that team | Private edit link, shown after submitting. Works until the deadline. |
-| `/entry/<id>` | anyone with the link | Share page: the model in 3D, title, first names, description, renders. |
-| `/gallery` | anyone | Entries organizers tick "Show in the gallery" (after the event). |
+| `/entry/<id>` | anyone with the link | The entry's page: video, 3D model (if any), title, first names, description, renders. |
+| `/submissions` | anyone | Public page of entries. Organizers switch it on in Settings: off, every entry, or only picked ones. |
 | `/judge` | judges | Sign in (name + judge passcode), every submitted entry, marking. |
 | `/judge/results` | organizers | Ranking by average total, per-criterion averages, notes, CSV. |
 | `/judge/settings` | organizers | Entry code, deadline (move or extend), "close submissions now". |
@@ -37,7 +37,27 @@ The local preview uses fixed passcodes and saves everything under `.data/portal`
 To try the production build instead: `npm run build && npm run preview`
 (http://localhost:4173). Same API, same local storage.
 
-## What a team submits
+## What a team submits (video first)
+
+The video is the centre of an entry, because most CAD tools' materials and
+rendering don't survive export to a web 3D format. The form walks teams
+through it in numbered steps:
+
+1. **Entry code** (from the slide).
+2. **Your video** (required): a written guide (what to show, in order; how
+   to record on Windows, Mac and in Blender/Fusion/Onshape; how to share), then
+   either a **link** (YouTube Unlisted, Google Drive, Vimeo, Loom, OneDrive,
+   Dropbox) with a **Check link** button that opens it like a signed-out judge
+   would, or a small **upload** (MP4/MOV/WebM, up to 150 MB). Uploads stop
+   before the free 1 GB store fills (`PORTAL_STORAGE_BUDGET_MB`, default 900),
+   pointing teams to a link instead.
+3. **For the judges**: how it answers the theme, their presentation outline
+   (judges only), what to look for.
+4. **Design files**: CAD share link, optional 3D model (viewer with sizes),
+   sketches and progress shots, renders, project file.
+5. **Team**, 6. **How you made it**, 7. **Sharing**, 8. **Confirm**.
+
+## Earlier notes: what a team submits
 
 - **Entry code**: shown at the front of the room after the theme reveal, so
   nobody can submit from home before the theme is out.

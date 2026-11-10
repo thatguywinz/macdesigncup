@@ -9,7 +9,10 @@
 // pressing the button again picks up where it stopped.
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
-import { Check, Copy, ExternalLink, FileBox, ImagePlus, PenTool, Plus, Trash2, Upload, X } from "lucide-react";
+import { Check, Copy, ExternalLink, FileBox, ImagePlus, PenTool, Plus, Trash2, Upload, Video, X } from "lucide-react";
+import VideoPlayer, { captureVideoFrame } from "../components/VideoPlayer";
+import { VideoChoice, VideoGuide } from "../components/VideoStep";
+import { parseVideoLink, type VideoCheck } from "../shared/video";
 import Shell from "../components/Shell";
 import { Block, Field, Progress } from "../components/fields";
 import { ApiError, api, clock, closesLabel } from "../api";
@@ -36,7 +39,7 @@ type Item = { kind: "existing"; view: FileView } | { kind: "new"; key: string; f
 
 type Files = Record<Exclude<FileSlot, "thumb">, Item[]>;
 
-const noFiles = (): Files => ({ model: [], image: [], progress: [], source: [] });
+const noFiles = (): Files => ({ video: [], model: [], image: [], progress: [], source: [] });
 
 function filesFrom(entry: OwnEntry): Files {
   const f = noFiles();
@@ -76,6 +79,7 @@ export default function SubmitPage() {
   const [done, setDone] = useState(false);
   const [draftSaved, setDraftSaved] = useState("");
   const [measure, setMeasure] = useState<Measure | null>(null);
+  const [videoMode, setVideoMode] = useState<"link" | "upload">("link");
   const captureRef = useRef<CaptureFn | null>(null);
   const savedAxis = useRef<"y" | "z">("y");
 
@@ -102,6 +106,7 @@ export default function SubmitPage() {
         const { id, status: _s, submittedAt: _a, late: _l, files: _f, locked: _k, notices: _n, ...input } = entry;
         setForm(input);
         setFiles(filesFrom(entry));
+        if (entry.files.some((f) => f.slot === "video") && !entry.videoLink) setVideoMode("upload");
         setSaved(entry);
         savedAxis.current = entry.upAxis;
         rememberEntry({ id, key, title: entry.title, at: new Date().toISOString() });
@@ -159,6 +164,20 @@ export default function SubmitPage() {
   };
 
   const modelItem = files.model[0];
+  const videoItem = files.video[0];
+  const [videoLocalUrl, setVideoLocalUrl] = useState<string | null>(null);
+  useEffect(() => {
+    if (videoMode !== "upload" || !videoItem) return setVideoLocalUrl(null);
+    if (videoItem.kind === "existing") return setVideoLocalUrl(videoItem.view.url);
+    const url = URL.createObjectURL(videoItem.file);
+    setVideoLocalUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [videoItem, videoMode]);
+  const linkedPreview = useMemo(() => {
+    if (videoMode !== "link") return null;
+    const v = parseVideoLink(form.videoLink);
+    return v ? { url: v.url, host: v.host, embed: v.embed } : null;
+  }, [form.videoLink, videoMode]);
   const modelSource: ModelSource | null = useMemo(() => {
     if (!modelItem) return null;
     if (modelItem.kind === "new") {
@@ -191,13 +210,18 @@ export default function SubmitPage() {
     const parsed = parseEntry(form, { draft });
     const errs: FieldErrors = "errors" in parsed ? { ...parsed.errors } : {};
     if (!isEdit && !code.trim()) errs.code = "Enter the code from the screen at the front of the room.";
-    if (!modelItem && !draft) errs.model = "Add your 3D model.";
+    const hasVideo = videoMode === "link" ? !!form.videoLink.trim() : files.video.length > 0;
+    if (!hasVideo && !draft) errs.video = videoMode === "link" ? "Paste your video link, or switch to Upload the file." : "Add your video file, or switch to Paste a link.";
     if (Object.keys(errs).length || !("value" in parsed)) {
       setErrors(errs);
       setFormError("Some fields need another look.");
       requestAnimationFrame(() => document.querySelector("[data-field-error]")?.scrollIntoView({ block: "center", behavior: "smooth" }));
       return;
     }
+
+    // Only the chosen kind of video goes: a link replaces an upload and vice versa.
+    if (videoMode === "upload") parsed.value.videoLink = "";
+    const dropVideoFile = videoMode === "link" ? files.video.filter((x) => x.kind === "existing").map((x) => (x as Extract<Item, { kind: "existing" }>).view.id) : [];
 
     let id = entryId;
     let key = editKey;
@@ -222,7 +246,7 @@ export default function SubmitPage() {
       }
 
       // 2. Removed files.
-      for (const fileId of removed) {
+      for (const fileId of [...removed, ...dropVideoFile]) {
         if (files.model.some((x) => x.kind === "existing" && x.view.id === fileId)) continue;
         await api(`/entries/${id}/files/${fileId}`, { method: "DELETE", editKey: key }).catch((e: ApiError) => {
           if (e.status !== 404 && e.status !== 409) throw e;
@@ -232,7 +256,8 @@ export default function SubmitPage() {
 
       // 3. New files, model first.
       const queue: [keyof Files, Extract<Item, { kind: "new" }>][] = [];
-      for (const slot of ["model", "progress", "image", "source"] as const) {
+      for (const slot of ["video", "model", "progress", "image", "source"] as const) {
+        if (slot === "video" && videoMode !== "upload") continue;
         for (const item of files[slot]) if (item.kind === "new") queue.push([slot, item]);
       }
       const modelIsNew = files.model.some((x) => x.kind === "new");
@@ -263,9 +288,12 @@ export default function SubmitPage() {
 
       // 4. The card thumbnail: what the preview shows right now.
       const hasThumb = (latest ?? saved)?.files.some((f) => f.slot === "thumb");
-      if (captureRef.current && (modelIsNew || !hasThumb || savedAxis.current !== parsed.value.upAxis)) {
+      const newVideo = files.video.find((x) => x.kind === "new") as Extract<Item, { kind: "new" }> | undefined;
+      const fromModel = captureRef.current && modelItem && (modelIsNew || !hasThumb || savedAxis.current !== parsed.value.upAxis);
+      const fromVideo = !modelItem && videoMode === "upload" && newVideo;
+      if (fromModel || fromVideo) {
         setBusy("Saving a preview image…");
-        const blob = await captureRef.current().catch(() => null);
+        const blob = fromModel ? await captureRef.current!().catch(() => null) : await captureVideoFrame(newVideo!.file);
         if (blob && blob.size < SLOTS.thumb.maxBytes) {
           await uploadFile({ entryId: id, editKey: key, slot: "thumb", file: blob, name: "preview.png" }).catch((e) => console.warn("thumbnail", e));
         }
@@ -366,7 +394,7 @@ export default function SubmitPage() {
               ? saved?.status === "submitted"
                 ? `Submitted at ${clock(saved.submittedAt)}. Change anything below and save until submissions close${deadline ? ` at ${clock(status?.deadline)}` : ""}.`
                 : "Not submitted yet. Finish the form and press Submit entry."
-              : `One entry per team. Your model, a few words on how it answers the theme, and who made it. You can edit it until ${deadline ? clock(status?.deadline) : "submissions close"}.`}
+              : `One entry per team, in six steps: your video, a few words for the judges, your design files, and who made it. Save a draft any time; you can edit until ${deadline ? clock(status?.deadline) : "submissions close"}.`}
           </p>
           {!isEdit && <SavedList />}
           {locked && (
@@ -379,7 +407,7 @@ export default function SubmitPage() {
       <form onSubmit={onSubmit} noValidate className="mt-8 grid gap-x-12 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.85fr)]">
         <fieldset disabled={locked || !!busy} className="min-w-0">
           {!isEdit && (
-            <Block title="Entry code" note="On the screen at the front of the room, after the theme reveal.">
+            <Block title="1 · Entry code" note="On the screen at the front of the room, after the theme reveal.">
               <Field label="Entry code" error={errors.code}>
                 {(p) => (
                   <input
@@ -399,17 +427,54 @@ export default function SubmitPage() {
             </Block>
           )}
 
-          <Block title="Your design">
-            <Field label="Title" error={errors.title} counter={{ value: form.title.length, max: LIMITS.title }}>
+          <Block title="2 · Your video" note="This is what judges watch first and what the public page shows. Follow the guide; 1 to 3 minutes.">
+            <Field label="Title of your design" error={errors.title} counter={{ value: form.title.length, max: LIMITS.title }}>
               {(p) => <input {...p} className="p-input" value={form.title} maxLength={LIMITS.title + 20} onChange={(e) => set("title", e.target.value)} />}
             </Field>
+            <VideoGuide />
+            <VideoChoice
+              mode={videoMode}
+              onMode={(m) => {
+                setVideoMode(m);
+                setErrors((x) => ({ ...x, video: undefined, videoLink: undefined }));
+              }}
+              link={form.videoLink}
+              onLink={(v) => set("videoLink", v)}
+              error={errors.video ?? errors.videoLink}
+              savedCheck={saved && saved.videoLink === form.videoLink ? saved.videoCheck : null}
+              upload={
+                <FilePicker
+                  slot="video"
+                  label="Video file"
+                  hint="MP4, MOV or WebM, up to 150 MB. Longer or bigger? Use a YouTube or Drive link instead."
+                  items={files.video}
+                  error={errors.video}
+                  onAdd={(l) => addFiles("video", l)}
+                  onRemove={(it) => removeItem("video", it)}
+                  icon={<Video size={20} strokeWidth={1.4} />}
+                />
+              }
+            />
+            {!wide && (videoLocalUrl || linkedPreview) && <VideoPlayer title={form.title || "Your video"} link={linkedPreview} localUrl={videoLocalUrl} />}
+          </Block>
+
+          <Block title="3 · For the judges" note="Judges read this before you present.">
             <Field
               label="How it answers the theme"
-              hint="Two or three sentences. Judges read this before you present."
+              hint="Two or three sentences."
               error={errors.summary}
               counter={{ value: form.summary.length, max: LIMITS.summary }}
             >
               {(p) => <textarea {...p} className="p-textarea" value={form.summary} onChange={(e) => set("summary", e.target.value)} />}
+            </Field>
+            <Field
+              label="Your presentation"
+              optional
+              hint="What you'll walk the judges through: three to five short points, in order. Only judges see this."
+              error={errors.presentation}
+              counter={{ value: form.presentation.length, max: LIMITS.presentation }}
+            >
+              {(p) => <textarea {...p} className="p-textarea" placeholder={"1. The problem\n2. How the design works\n3. …"} value={form.presentation} onChange={(e) => set("presentation", e.target.value)} />}
             </Field>
             <Field
               label="What to look for"
@@ -422,10 +487,13 @@ export default function SubmitPage() {
             </Field>
           </Block>
 
-          <Block title="Files" note="Your 3D model is required. Add renders or screenshots, and your project file if you like.">
+          <Block title="4 · Design files" note="Your CAD link keeps your materials, sketches and history exactly as you made them. A 3D file adds a model anyone can turn around on the page.">
+            <Field label="Link to your CAD document" optional hint={`A view-only share link (${CAD_LINK_HINT}). Set it so anyone with the link can view.`} error={errors.cadLink}>
+              {(p) => <input {...p} type="url" inputMode="url" className="p-input" placeholder="https://cad.onshape.com/documents/…" value={form.cadLink} onChange={(e) => set("cadLink", e.target.value)} />}
+            </Field>
             {/* The preview sits here on phones and tablets; beside the form on wide screens.
                 Only one viewer is ever mounted, so the thumbnail capture has one canvas. */}
-            {!wide && (
+            {!wide && modelItem && (
               <ModelViewer
                 source={modelSource}
                 upAxis={form.upAxis}
@@ -442,14 +510,15 @@ export default function SubmitPage() {
             <FilePicker
               slot="model"
               label="3D model"
-              hint="GLB, STL, OBJ, 3MF or PLY, up to 80 MB. GLB keeps your colours and materials."
+              optional
+              hint="GLB, STL, OBJ, 3MF or PLY, up to 80 MB. GLB keeps your colours and materials; STL and OBJ show plain."
               items={files.model}
               error={errors.model}
               onAdd={(l) => addFiles("model", l)}
               onRemove={(it) => removeItem("model", it)}
               icon={<FileBox size={20} strokeWidth={1.4} />}
             />
-            <ModelChecks units={form.units} onUnits={(u) => set("units", u)} measure={measure} spec={status?.spec ?? null} hasModel={!!modelItem} />
+            {modelItem && <ModelChecks units={form.units} onUnits={(u) => set("units", u)} measure={measure} spec={status?.spec ?? null} hasModel={!!modelItem} />}
             <FilePicker
               slot="progress"
               label="Sketches and progress shots"
@@ -462,9 +531,6 @@ export default function SubmitPage() {
               icon={<PenTool size={20} strokeWidth={1.4} />}
               multiple
             />
-            <Field label="Link to your CAD document" optional hint={`A view-only share link (${CAD_LINK_HINT}), so judges can open your sketches and history.`} error={errors.cadLink}>
-              {(p) => <input {...p} type="url" inputMode="url" className="p-input" placeholder="https://cad.onshape.com/documents/…" value={form.cadLink} onChange={(e) => set("cadLink", e.target.value)} />}
-            </Field>
             <FilePicker
               slot="image"
               label="Renders or screenshots"
@@ -490,7 +556,7 @@ export default function SubmitPage() {
             />
           </Block>
 
-          <Block title="Team" note={`1 to ${TEAM_MAX} people. Everyone on the team, as registered.`}>
+          <Block title="5 · Team" note={`1 to ${TEAM_MAX} people. Everyone on the team, as registered.`}>
             {form.members.map((m, i) => (
               <div key={i} className="grid gap-4 border-l border-bone/10 pl-4 sm:grid-cols-[minmax(0,1.2fr)_minmax(0,1.3fr)_6.5rem_auto] sm:items-start">
                 <Field label={i === 0 ? "Full name" : `Member ${i + 1} full name`} error={errors[`members.${i}.name`]}>
@@ -546,7 +612,7 @@ export default function SubmitPage() {
             </div>
           </Block>
 
-          <Block title="How you made it">
+          <Block title="6 · How you made it">
             <fieldset>
               <legend className="p-label">Software</legend>
               <div className="mt-2 flex flex-wrap gap-2" data-field-error={errors.software ? "true" : undefined}>
@@ -591,7 +657,7 @@ export default function SubmitPage() {
             )}
           </Block>
 
-          <Block title="Sharing" note="Every entry gets a link that shows the model in 3D. Judges can always see your entry.">
+          <Block title="7 · Sharing" note="Every entry gets a page with your video, model and description. Judges can always see your entry; scores stay private.">
             <fieldset>
               <legend className="p-label">Credit on the share page</legend>
               <div className="p-seg mt-2" role="radiogroup">
@@ -617,7 +683,7 @@ export default function SubmitPage() {
             </label>
           </Block>
 
-          <Block title="Confirm">
+          <Block title="8 · Confirm">
             <label className="flex cursor-pointer items-start gap-3 font-body text-[15px] text-foreground/90" data-field-error={errors.original ? "true" : undefined}>
               <input type="checkbox" className="mt-1 h-4 w-4 accent-[hsl(24_100%_54%)]" checked={form.original} onChange={(e) => set("original", e.target.checked)} />
               <span>We modelled this at the event, after the theme reveal, and it's our own work.</span>
@@ -676,8 +742,16 @@ export default function SubmitPage() {
         </fieldset>
 
         {wide && (
-        <aside aria-label="Model preview">
-          <div className="sticky top-24 pt-8">
+        <aside aria-label="Preview">
+          <div className="sticky top-24 flex flex-col gap-4 pt-8">
+            {videoLocalUrl || linkedPreview ? (
+              <VideoPlayer title={form.title || "Your video"} link={linkedPreview} localUrl={videoLocalUrl} />
+            ) : (
+              <div className="grid aspect-video place-items-center border border-bone/10 bg-[#0d0e10] p-6 text-center font-body text-sm text-concrete">
+                Your video shows up here once you paste a link or pick a file.
+              </div>
+            )}
+            {modelItem && (
             <ModelViewer
               source={modelSource}
               upAxis={form.upAxis}
@@ -687,10 +761,11 @@ export default function SubmitPage() {
               spec={status?.spec ?? null}
               captureRef={captureRef}
               label="Preview of your model"
-              className="aspect-[4/5] w-full xl:aspect-square"
+              className="aspect-[4/3] w-full"
               empty={<PreviewEmpty />}
             />
-            <p className="p-hint mt-3">This is what judges see. Drag to turn it; the view when you submit becomes your entry's thumbnail.</p>
+            )}
+            <p className="p-hint">This is what judges and the public page show.{modelItem ? " Drag the model to turn it; the view when you submit becomes your entry's card image." : ""}</p>
           </div>
         </aside>
         )}
@@ -937,13 +1012,13 @@ function Done({ entry, editKey, onEdit }: { entry: OwnEntry; editKey: string; on
           </p>
           <h1 className="display-scene mt-3">{entry.title}</h1>
           <p className="mt-4 max-w-[36rem] font-body text-lg leading-relaxed text-foreground/75">
-            The judges have it. Keep both links: the first shows your model to anyone, the second lets your team edit until submissions close.
+            The judges have it. Keep both links: the first shows your video and design to anyone, the second lets your team edit until submissions close.
           </p>
 
           <div className="mt-10 flex flex-col gap-8">
             <LinkBox
               label={entry.shareable ? "Share link" : "Share link (team and judges only)"}
-              hint={entry.shareable ? "Your model in 3D. Send it to anyone." : "You turned off public viewing. Only judges can open it."}
+              hint={entry.shareable ? "Your video and design. Send it to anyone." : "You turned off public viewing. Only judges can open it."}
               url={share}
               open
             />
@@ -959,16 +1034,27 @@ function Done({ entry, editKey, onEdit }: { entry: OwnEntry; editKey: string; on
             </button>
           </div>
         </div>
-        <div>
-          <ModelViewer
-            source={(() => {
-              const m = entry.files.find((f) => f.slot === "model");
-              return m && isViewable(m.ext) ? { kind: "url", url: m.url, ext: m.ext } : null;
+        <div className="flex flex-col gap-4">
+          <VideoPlayer
+            title={entry.title}
+            file={entry.files.find((f) => f.slot === "video") ?? null}
+            link={(() => {
+              const v = entry.videoLink ? parseVideoLink(entry.videoLink) : null;
+              return v ? { url: v.url, host: v.host, embed: v.embed } : null;
             })()}
-            upAxis={entry.upAxis}
-            label={`${entry.title}, 3D model`}
-            className="aspect-square w-full"
           />
+          {entry.files.some((f) => f.slot === "model") && (
+            <ModelViewer
+              source={(() => {
+                const m = entry.files.find((f) => f.slot === "model");
+                return m && isViewable(m.ext) ? { kind: "url", url: m.url, ext: m.ext } : null;
+              })()}
+              upAxis={entry.upAxis}
+              units={entry.units}
+              label={`${entry.title}, 3D model`}
+              className="aspect-[4/3] w-full"
+            />
+          )}
         </div>
       </div>
     </Shell>
