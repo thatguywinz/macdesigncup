@@ -214,8 +214,10 @@ http
       fs.createReadStream(f).pipe(res);
     };
     if (file) return send(file, 200);
+    // A rewrite's destination resolves like a request would (cleanUrls: /portal -> portal.html).
     const rewritten = rewrite(p);
-    if (rewritten && isFile(path.join(root, rewritten))) return send(path.join(root, rewritten), 200);
+    const target = rewritten && [path.join(root, rewritten), path.join(root, `${rewritten}.html`)].find(isFile);
+    if (target) return send(target, 200);
     const notFound = path.join(root, "404.html");
     if (isFile(notFound)) return send(notFound, 404);
     res.writeHead(404);

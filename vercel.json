@@ -7,12 +7,12 @@
   "trailingSlash": false,
   "rewrites": [
     { "source": "/api/portal/:path*", "destination": "/api/portal?__path=:path*" },
-    { "source": "/submit", "destination": "/portal.html" },
-    { "source": "/submit/:path*", "destination": "/portal.html" },
-    { "source": "/entry/:path*", "destination": "/portal.html" },
-    { "source": "/gallery", "destination": "/portal.html" },
-    { "source": "/judge", "destination": "/portal.html" },
-    { "source": "/judge/:path*", "destination": "/portal.html" }
+    { "source": "/submit", "destination": "/portal" },
+    { "source": "/submit/:path*", "destination": "/portal" },
+    { "source": "/entry/:path*", "destination": "/portal" },
+    { "source": "/gallery", "destination": "/portal" },
+    { "source": "/judge", "destination": "/portal" },
+    { "source": "/judge/:path*", "destination": "/portal" }
   ],
   "headers": [
     {
