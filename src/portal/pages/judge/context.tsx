@@ -34,6 +34,9 @@ export function JudgeShell({ children, section = "Judging" }: { children: ReactN
             </NavLink>
             {me.role === "admin" && (
               <>
+                <NavLink to="/judge/live" className={tab}>
+                  Live
+                </NavLink>
                 <NavLink to="/judge/results" className={tab}>
                   Results
                 </NavLink>
@@ -58,6 +61,9 @@ export function JudgeShell({ children, section = "Judging" }: { children: ReactN
         <nav aria-label="Judging" className="-mx-1 flex gap-1 border-b border-bone/10 py-2 md:hidden">
           <NavLink to="/judge" end className={tab}>
             Entries
+          </NavLink>
+          <NavLink to="/judge/live" className={tab}>
+            Live
           </NavLink>
           <NavLink to="/judge/results" className={tab}>
             Results

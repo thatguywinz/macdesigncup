@@ -10,6 +10,7 @@ export function usePortalStatus() {
   const [offset, setOffset] = useState(0);
   useEffect(() => {
     let alive = true;
+    let retry = 0;
     const load = () =>
       api<Status>("/status")
         .then((s) => {
@@ -17,12 +18,16 @@ export function usePortalStatus() {
           setStatus(s);
           setOffset(Date.parse(s.now) - Date.now());
         })
-        .catch(() => {});
+        // A failed first load would leave the form waiting a minute: try again soon.
+        .catch(() => {
+          if (alive) retry = window.setTimeout(load, 3000);
+        });
     void load();
     const t = window.setInterval(load, 60_000);
     return () => {
       alive = false;
       window.clearInterval(t);
+      window.clearTimeout(retry);
     };
   }, []);
   return { status, serverOffset: offset };

@@ -16,6 +16,8 @@ interface Settings {
   revealAt: string;
   spec: Spec | null;
   publicListing: "off" | "all" | "selected";
+  entryCodeOn: boolean;
+  opensAt: string | null;
   open: boolean;
   graceSeconds: number;
   storage: string;
@@ -80,8 +82,41 @@ export default function SettingsPage() {
           <div className="mt-8 flex flex-col">
             <section className="border-t border-bone/10 py-7">
               <h2 className="p-block-title">Entry code</h2>
-              <p className="p-hint mt-1">Teams type this to submit. Put it on the slide after the theme reveal. It's set in the deployment's environment (PORTAL_ENTRY_CODE).</p>
-              <p className="mt-4 font-display text-[clamp(2.5rem,2rem+3vw,4.5rem)] uppercase leading-none tracking-[0.04em] text-bone">{s.entryCode}</p>
+              <p className="p-hint mt-1 max-w-[38rem]">
+                A code on the slide after the theme reveal keeps anyone outside the room from submitting. Without it, the form opens to anyone at the theme
+                reveal time (set below).
+              </p>
+              <div className="mt-4 flex flex-col gap-2 font-body text-[15px] text-foreground/90">
+                {(
+                  [
+                    [true, "Teams type the entry code", "Safer: only people in the room can start an entry."],
+                    [false, "No entry code", `Easier: the form opens to anyone at ${when(s.revealAt)}.`],
+                  ] as const
+                ).map(([value, label, hint]) => (
+                  <label key={label} className="flex cursor-pointer items-start gap-3">
+                    <input
+                      type="radio"
+                      name="entryCodeOn"
+                      className="mt-1 h-4 w-4 accent-[hsl(24_100%_54%)]"
+                      checked={s.entryCodeOn === value}
+                      disabled={busy}
+                      onChange={() => put({ entryCodeOn: value }, value ? "Teams need the entry code." : "No entry code needed.")}
+                    />
+                    <span>
+                      {label}
+                      <span className="p-hint block">{hint}</span>
+                    </span>
+                  </label>
+                ))}
+              </div>
+              {s.entryCodeOn ? (
+                <>
+                  <p className="mt-5 font-display text-[clamp(2.5rem,2rem+3vw,4.5rem)] uppercase leading-none tracking-[0.04em] text-bone">{s.entryCode}</p>
+                  <p className="p-hint mt-2">Set in the deployment's environment (PORTAL_ENTRY_CODE).</p>
+                </>
+              ) : (
+                s.opensAt && <p className="p-notice p-notice--calm mt-5 font-body text-sm">The form opens {when(s.opensAt)}. Move the theme reveal time to open it sooner.</p>
+              )}
             </section>
 
             <section className="border-t border-bone/10 py-7">

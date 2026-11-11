@@ -311,6 +311,28 @@
 .j-table tr:hover td { background: hsl(var(--bone) / 0.02); }
 .j-table .num { text-align: right; font-family: "Space Mono", ui-monospace, monospace; font-size: 0.8125rem; }
 
+/* Live board: one cell per judge per entry. */
+.j-cover td, .j-cover th { vertical-align: middle; }
+.j-cover th.num, .j-cover td.num { text-align: center; }
+.j-cover tr[data-unseen] td:first-child { box-shadow: inset 2px 0 0 hsl(var(--ember)); }
+.j-dot {
+  display: inline-grid;
+  place-items: center;
+  min-width: 1.9rem;
+  height: 1.6rem;
+  border: 1px dashed hsl(var(--bone) / 0.18);
+  border-radius: 2px;
+  font: 400 0.75rem/1 "Space Mono", ui-monospace, monospace;
+  color: hsl(var(--background));
+}
+.j-dot[data-on] { border: 1px solid hsl(var(--ember) / 0.6); background: hsl(var(--ember) / 0.85); font-weight: 700; }
+
+/* Presentation timer on the judge's entry page. */
+.j-timer { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 0.75rem; border: 1px solid hsl(var(--bone) / 0.1); padding: 0.75rem 1rem; background: hsl(220 7% 5.5%); }
+.j-timer-time { font: 400 1.75rem/1 "Space Mono", ui-monospace, monospace; letter-spacing: 0.02em; color: hsl(var(--bone)); min-width: 5.5ch; }
+.j-timer[data-state="low"] .j-timer-time { color: hsl(var(--ember)); }
+.j-timer[data-state="over"] .j-timer-time { color: hsl(6 90% 66%); }
+
 @media (prefers-reduced-motion: reduce) {
   .p-progress > span, .viewer-load-bar { transition: none; }
 }

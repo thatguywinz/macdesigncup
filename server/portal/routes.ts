@@ -71,6 +71,10 @@ interface Window {
   open: boolean;
   inGrace: boolean;
   settings: SettingsDoc;
+  /** Teams need the entry code. */
+  codeOn: boolean;
+  /** No entry code, and the reveal hasn't happened: when the form opens. */
+  notYet: number | null;
 }
 
 async function windowOf(ctx: PortalContext): Promise<Window> {
@@ -78,8 +82,9 @@ async function windowOf(ctx: PortalContext): Promise<Window> {
   const now = ctx.now?.() ?? Date.now();
   const deadline = Date.parse(settings.deadlineOverride ?? ctx.cfg.deadline);
   const open = !settings.closed && now < deadline;
+  const opensAt = settings.entryCodeOn === false ? Date.parse(settings.revealAt ?? DEFAULT_REVEAL) : null;
   const inGrace = !settings.closed && now >= deadline && now < deadline + GRACE_SECONDS * 1000;
-  return { deadline, now, open, inGrace, settings };
+  return { deadline, now, open, inGrace, settings, codeOn: settings.entryCodeOn !== false, notYet: opensAt !== null && now < opensAt ? opensAt : null };
 }
 
 /** May the team still change this entry? */
@@ -331,6 +336,8 @@ on("GET", "/status", async (ctx, _req, res) => {
     devDefaults: ctx.cfg.devDefaults,
     storage: ctx.cfg.storage,
     spec: hasSpec(w.settings.spec) ? w.settings.spec : null,
+    codeRequired: w.codeOn,
+    opensAt: w.notYet ? iso(w.notYet) : null,
   };
   sendJson(res, 200, body);
 });
@@ -395,14 +402,19 @@ on("POST", "/entries", async (ctx, req, res) => {
   const ip = clientIp(req);
   rateLimit(`create:${ip}`, 150, 10 * 60 * 1000);
   const body = await readJson(req);
-  const code = normalizeCode(String(body.code ?? ""));
-  // The right code always works; only wrong ones are counted, so a burst of
-  // typos (or a script) from the shared venue IP never locks out real teams.
-  if (!code || !safeEqual(code, normalizeCode(ctx.cfg.entryCode))) {
-    rateLimit(`code:${ip}`, 60, 10 * 60 * 1000);
-    fail(403, "That entry code isn't right. It's on the screen at the front of the room.", { field: "code" });
-  }
   const w = await windowOf(ctx);
+  if (w.codeOn) {
+    const code = normalizeCode(String(body.code ?? ""));
+    // The right code always works; only wrong ones are counted, so a burst of
+    // typos (or a script) from the shared venue IP never locks out real teams.
+    if (!code || !safeEqual(code, normalizeCode(ctx.cfg.entryCode))) {
+      rateLimit(`code:${ip}`, 60, 10 * 60 * 1000);
+      fail(403, "That entry code isn't right. It's on the screen at the front of the room.", { field: "code" });
+    }
+  } else if (w.notYet) {
+    // No code: nobody starts an entry before the theme is out.
+    fail(409, `Submissions open at the theme reveal, ${torontoTime(w.notYet)}.`, { opensAt: iso(w.notYet) });
+  }
   if (!w.open) fail(409, "Submissions are closed.");
   // A draft (Save draft) needs only a title; submitting checks everything.
   const parsed = parseEntry(body.entry, { draft: body.draft === true });
@@ -746,6 +758,7 @@ on("GET", "/judge/entries", async (ctx, req, res) => {
   sendJson(res, 200, {
     me: { role: s.role, name: s.name },
     cards,
+    nextToMark: nextToMark(all, scores, w.settings, s.key),
     drafts: s.role === "admin" ? all.length - submitted.length : undefined,
     deadline: iso(w.deadline),
     open: w.open,
@@ -762,11 +775,16 @@ on("GET", "/judge/entries/:id", async (ctx, req, res, { id }) => {
     .sort((a, b) => String(b.submittedAt).localeCompare(String(a.submittedAt)))
     .map((x) => x.id);
   const i = order.indexOf(id);
+  const [scores, settings] = await Promise.all([ctx.db.read("scores"), ctx.db.read("settings")]);
+  const mine = scores.judges[s.key]?.scores ?? {};
   sendJson(res, 200, {
     entry: await judgeView(ctx, e, s),
-    spec: hasSpec((await ctx.db.read("settings")).spec) ? (await ctx.db.read("settings")).spec : null,
+    spec: hasSpec(settings.spec) ? settings.spec : null,
     prev: i > 0 ? order[i - 1] : null,
     next: i >= 0 && i < order.length - 1 ? order[i + 1] : null,
+    nextToMark: nextToMark(Object.values(doc.entries), scores, settings, s.key, id),
+    toMark: order.filter((x) => totalOf(mine[x]?.marks) === null).length,
+    total: order.length,
   });
 });
 
@@ -787,6 +805,23 @@ on("PUT", "/judge/entries/:id/score", async (ctx, req, res, { id }) => {
   });
   sendJson(res, 200, { score, total: totalOf(score.marks) });
 });
+
+/**
+ * The entry this judge should mark next: one they haven't marked, with the
+ * fewest marks so far (so every entry gets judged before any gets a third
+ * look), oldest submission first.
+ */
+function nextToMark(all: EntryRecord[], scores: ScoresDoc, settings: SettingsDoc, judge: string, except?: string): string | null {
+  const counted = countedSheets(scores, settings);
+  const mine = scores.judges[judge]?.scores ?? {};
+  const pick = all
+    .filter((e) => e.status === "submitted" && e.id !== except && totalOf(mine[e.id]?.marks) === null)
+    .map((e) => ({ e, n: counted.filter(([, j]) => totalOf(j.scores[e.id]?.marks) !== null).length }))
+    .sort((a, b) => a.n - b.n || String(a.e.submittedAt).localeCompare(String(b.e.submittedAt)))[0];
+  return pick?.e.id ?? null;
+}
+
+const torontoTime = (ms: number) => new Date(ms).toLocaleTimeString("en-CA", { hour: "numeric", minute: "2-digit", timeZone: "America/Toronto" });
 
 // ── Organizers ────────────────────────────────
 
@@ -835,7 +870,17 @@ async function results(ctx: PortalContext) {
       };
     })
     .sort((a, b) => (b.average ?? -1) - (a.average ?? -1));
-  return { criteria: CRITERIA, maxTotal: MAX_TOTAL, judges, unlisted, rows };
+  // For the live board: every judge on the list (marked anything yet or not),
+  // how many entries each has marked and when they last saved.
+  const sheetFor = new Map(counted);
+  const keys = settings.judges?.length ? settings.judges.map((n) => [judgeKey(n), n] as const) : counted.map(([k, j]) => [k, j.name] as const);
+  const activity = keys.map(([key, name]) => {
+    const done = Object.entries(sheetFor.get(key)?.scores ?? {}).filter(([eid, x]) => totalOf(x.marks) !== null && doc.entries[eid]?.status === "submitted");
+    const lastAt = done.map(([, x]) => x.updatedAt).sort().at(-1) ?? null;
+    return { key, name, marked: done.length, lastAt };
+  });
+  const drafts = Object.values(doc.entries).filter((e) => e.status !== "submitted").length;
+  return { criteria: CRITERIA, maxTotal: MAX_TOTAL, judges, unlisted, rows, activity, drafts };
 }
 
 const csvCell = (v: unknown) => {
@@ -933,6 +978,8 @@ function settingsView(ctx: PortalContext, w: Window) {
     revealAt: w.settings.revealAt ?? new Date(Date.parse(DEFAULT_REVEAL)).toISOString(),
     spec: w.settings.spec ?? null,
     publicListing: w.settings.publicListing ?? "off",
+    entryCodeOn: w.codeOn,
+    opensAt: w.notYet ? iso(w.notYet) : null,
     open: w.open,
     graceSeconds: GRACE_SECONDS,
     storage: ctx.cfg.storage,
@@ -965,6 +1012,7 @@ on("PUT", "/judge/settings", async (ctx, req, res) => {
       else fail(422, "That reveal time isn't a valid date.");
     }
     if ("spec" in body) st.spec = cleanSpec(body.spec);
+    if (typeof body.entryCodeOn === "boolean") st.entryCodeOn = body.entryCodeOn;
     if (body.publicListing === "off" || body.publicListing === "all" || body.publicListing === "selected") st.publicListing = body.publicListing;
   });
   sendJson(res, 200, settingsView(ctx, await windowOf(ctx)));

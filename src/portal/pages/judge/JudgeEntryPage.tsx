@@ -15,11 +15,16 @@ import ModelViewer from "../../viewer/ModelViewer";
 import VideoPlayer from "../../components/VideoPlayer";
 import { parseVideoLink } from "../../shared/video";
 import { JudgeShell, useMe } from "./context";
+import PresentTimer from "./PresentTimer";
 
 interface EntryResponse {
   entry: JudgeEntry;
   prev: string | null;
   next: string | null;
+  /** This judge's next unmarked entry (fewest marks first). */
+  nextToMark: string | null;
+  toMark: number;
+  total: number;
   spec: Spec | null;
 }
 
@@ -68,7 +73,12 @@ export default function JudgeEntryPage() {
         <Link to="/judge" className="focus-ember inline-flex min-h-10 items-center gap-1.5 font-body text-sm text-concrete hover:text-foreground">
           <ArrowLeft size={15} strokeWidth={1.5} /> All entries
         </Link>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2">
+          {data && (
+            <span className="p-mono mr-1 hidden text-[12px] text-concrete sm:inline">
+              {data.total - data.toMark}/{data.total} marked
+            </span>
+          )}
           <button type="button" className="btn-ghost p-btn p-btn-sm" disabled={!data?.prev} onClick={() => data?.prev && navigate(`/judge/entry/${data.prev}`)}>
             <ArrowLeft size={15} strokeWidth={1.5} /> Newer
           </button>
@@ -112,7 +122,8 @@ export default function JudgeEntryPage() {
           </p>
         ) : (
           <div className="min-w-0 pb-10">
-            <div className="flex flex-wrap gap-1.5">
+            <PresentTimer />
+            <div className="mt-5 flex flex-wrap gap-1.5">
               {e.late && <span className="p-tag p-tag--bad">Submitted after the deadline</span>}
               {e.award && <span className="p-tag p-tag--solid">{e.award}</span>}
               {e.status !== "submitted" && <span className="p-tag">Draft</span>}
@@ -180,6 +191,9 @@ export default function JudgeEntryPage() {
               </div>
             </dl>
 
+            <ScoreForm key={e.id} entryId={e.id} initial={e.myScore} scoreCount={e.scoreCount} next={data?.nextToMark ?? null} />
+
+            <h2 className="mt-12 border-t border-bone/10 pt-6 font-body text-lg font-semibold tracking-[-0.01em] text-bone">Files and checks</h2>
             {images.length > 0 && (
               <ul className="mt-6 grid grid-cols-2 gap-2" aria-label="Renders">
                 {images.map((img, i) => (
@@ -213,7 +227,6 @@ export default function JudgeEntryPage() {
             <ProcessPanel entry={e} />
             <ChecksPanel entry={e} admin={me.role === "admin"} onChange={(entry) => setData((d) => (d ? { ...d, entry } : d))} />
 
-            <ScoreForm key={e.id} entryId={e.id} initial={e.myScore} scoreCount={e.scoreCount} next={data?.next ?? null} />
 
             {me.role === "admin" && <AdminPanel entry={e} onChange={(entry) => setData((d) => (d ? { ...d, entry } : d))} />}
           </div>
@@ -223,12 +236,36 @@ export default function JudgeEntryPage() {
   );
 }
 
+// Marks not saved yet, kept on this device per entry, so moving to another
+// entry (or a refresh) mid-presentation doesn't lose them.
+const unsavedKey = (id: string) => `mdc-marks-${id}`;
+function readUnsaved(id: string): { marks: Record<string, number>; notes: string } | null {
+  try {
+    const v = JSON.parse(sessionStorage.getItem(unsavedKey(id)) ?? "null");
+    return v && typeof v === "object" && v.marks ? v : null;
+  } catch {
+    return null;
+  }
+}
+function writeUnsaved(id: string, v: { marks: Record<string, number>; notes: string } | null) {
+  try {
+    if (v) sessionStorage.setItem(unsavedKey(id), JSON.stringify(v));
+    else sessionStorage.removeItem(unsavedKey(id));
+  } catch {
+    /* fine */
+  }
+}
+
 function ScoreForm({ entryId, initial, scoreCount, next }: { entryId: string; initial: Score | null; scoreCount: number; next: string | null }) {
   const navigate = useNavigate();
-  const [marks, setMarks] = useState<Record<string, number>>(initial?.marks ?? {});
-  const [notes, setNotes] = useState(initial?.notes ?? "");
+  const [unsaved] = useState(() => readUnsaved(entryId));
+  const [marks, setMarks] = useState<Record<string, number>>(unsaved?.marks ?? initial?.marks ?? {});
+  const [notes, setNotes] = useState(unsaved?.notes ?? initial?.notes ?? "");
   const [savedAt, setSavedAt] = useState(initial?.updatedAt ?? "");
-  const [dirty, setDirty] = useState(false);
+  const [dirty, setDirty] = useState(!!unsaved);
+  useEffect(() => {
+    if (dirty) writeUnsaved(entryId, { marks, notes });
+  }, [dirty, entryId, marks, notes]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const total = useMemo(() => totalOf(marks), [marks]);
@@ -240,6 +277,7 @@ function ScoreForm({ entryId, initial, scoreCount, next }: { entryId: string; in
       const r = await api<{ score: Score }>(`/judge/entries/${entryId}/score`, { method: "PUT", body: { marks, notes } });
       setSavedAt(r.score.updatedAt);
       setDirty(false);
+      writeUnsaved(entryId, null);
       if (goNext && next) navigate(`/judge/entry/${next}`);
     } catch (e) {
       setError((e as Error).message);
@@ -327,7 +365,7 @@ function ScoreForm({ entryId, initial, scoreCount, next }: { entryId: string; in
         {error && <p className="p-notice p-notice--bad font-body text-sm">{error}</p>}
         <div className="flex flex-wrap items-center gap-3">
           <button type="button" className="btn-portal p-btn" disabled={busy || total === null} onClick={() => save(true)}>
-            {next ? "Save and next" : "Save marks"}
+            {next ? "Save and judge next" : "Save marks"}
           </button>
           {next && (
             <button type="button" className="btn-ghost p-btn" disabled={busy || total === null} onClick={() => save(false)}>
@@ -335,7 +373,7 @@ function ScoreForm({ entryId, initial, scoreCount, next }: { entryId: string; in
             </button>
           )}
           <span className="font-body text-sm text-concrete" role="status">
-            {busy ? "Saving…" : dirty ? "Not saved yet" : savedAt ? `Saved ${clock(savedAt)}` : total === null ? "Mark every criterion to save" : ""}
+            {busy ? "Saving…" : dirty ? (unsaved ? "Not saved yet (kept from before)" : "Not saved yet") : savedAt ? `Saved ${clock(savedAt)}` : total === null ? "Mark every criterion to save" : ""}
           </span>
         </div>
       </div>

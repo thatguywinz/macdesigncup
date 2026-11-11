@@ -3,7 +3,7 @@
 // is visible, so entries appear as teams submit.
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { Search } from "lucide-react";
+import { ArrowRight, Search } from "lucide-react";
 import { ApiError, api, clock, closesLabel } from "../../api";
 import { countdown, useNow } from "../../hooks";
 import { MAX_TOTAL } from "../../shared/judging";
@@ -12,6 +12,8 @@ import { JudgeShell, useMe } from "./context";
 
 interface ListResponse {
   cards: JudgeCard[];
+  /** The unmarked entry with the fewest marks: where this judge goes next. */
+  nextToMark?: string | null;
   drafts?: number;
   deadline: string;
   open: boolean;
@@ -66,6 +68,7 @@ export default function JudgeList() {
   }, [data, filter, query]);
 
   const marked = data?.cards.filter((c) => c.myTotal !== null).length ?? 0;
+  const upNext = data?.nextToMark ? data.cards.find((c) => c.id === data.nextToMark) : undefined;
   const total = data?.cards.length ?? 0;
   const deadline = data ? Date.parse(data.deadline) : 0;
   const left = deadline ? countdown(deadline, now) : "";
@@ -91,6 +94,29 @@ export default function JudgeList() {
         <div className="mt-6 h-[3px] w-full bg-bone/10" role="progressbar" aria-label="Entries you've marked" aria-valuemin={0} aria-valuemax={total} aria-valuenow={marked}>
           <div className="h-full bg-ember transition-[width] duration-500" style={{ width: `${(marked / total) * 100}%` }} />
         </div>
+      )}
+
+      {upNext ? (
+        <div className="mt-6 flex flex-col gap-4 border border-bone/10 bg-[hsl(220_7%_5.5%)] p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex min-w-0 items-center gap-4">
+            {upNext.thumb && <img src={upNext.thumb} alt="" className="hidden h-14 w-24 shrink-0 rounded-[2px] object-cover sm:block" />}
+            <div className="min-w-0">
+              <p className="font-body text-[13px] text-ember">Up next for you</p>
+              <p className="truncate font-body text-[17px] font-semibold text-bone">{upNext.title}</p>
+              <p className="font-body text-[13px] text-concrete">
+                {upNext.creditLine} · {upNext.scoreCount === 0 ? "nobody has marked it yet" : `${upNext.scoreCount} ${upNext.scoreCount === 1 ? "mark" : "marks"} so far`}
+              </p>
+            </div>
+          </div>
+          <Link to={`/judge/entry/${upNext.id}`} className="btn-portal p-btn focus-ember shrink-0 self-start sm:self-auto">
+            Judge it <ArrowRight size={16} strokeWidth={1.8} />
+          </Link>
+        </div>
+      ) : (
+        total > 0 &&
+        marked === total && (
+          <p className="p-notice p-notice--calm mt-6 font-body text-[15px]">You've marked every entry. New ones show up here as teams submit.</p>
+        )
       )}
 
       <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

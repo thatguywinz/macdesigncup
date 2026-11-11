@@ -48,9 +48,9 @@ export function Field({
   );
 }
 
-export function Block({ title, note, children }: { title: string; note?: ReactNode; children: ReactNode }) {
+export function Block({ id, title, note, children }: { id?: string; title: string; note?: ReactNode; children: ReactNode }) {
   return (
-    <section className="p-block">
+    <section id={id} className="p-block scroll-mt-20">
       <div>
         <h2 className="p-block-title">{title}</h2>
         {note && <p className="p-hint mt-1.5 max-w-[22rem]">{note}</p>}

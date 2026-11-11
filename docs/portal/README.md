@@ -13,9 +13,10 @@ response says `noindex`.
 | `/submit/edit/<id>#k=<key>` | that team | Private edit link, shown after submitting. Works until the deadline. |
 | `/entry/<id>` | anyone with the link | The entry's page: video, 3D model (if any), title, first names, description, renders. |
 | `/submissions` | anyone | Public page of entries. Organizers switch it on in Settings: off, every entry, or only picked ones. |
-| `/judge` | judges | Sign in (name + judge passcode), every submitted entry, marking. |
+| `/judge` | judges | Sign in (name + judge passcode), "up next for you", every submitted entry, marking. |
+| `/judge/live` | organizers | The judging floor live: who has marked what, entries nobody has reached, each judge's pace, top five. |
 | `/judge/results` | organizers | Ranking by average total, per-criterion averages, notes, CSV. |
-| `/judge/settings` | organizers | Entry code, deadline (move or extend), "close submissions now". |
+| `/judge/settings` | organizers | Entry code on/off, deadline (move or extend), "close submissions now". |
 
 ## Try it locally
 
@@ -43,7 +44,7 @@ The video is the centre of an entry, because most CAD tools' materials and
 rendering don't survive export to a web 3D format. The form walks teams
 through it in numbered steps:
 
-1. **Entry code** (from the slide).
+1. **Entry code** (from the slide), only if organizers leave it on (see below).
 2. **Your video** (required): a written guide (what to show, in order; how
    to record on Windows, Mac and in Blender/Fusion/Onshape; how to share), then
    either a **link** (YouTube Unlisted, Google Drive, Vimeo, Loom, OneDrive,
@@ -56,6 +57,23 @@ through it in numbered steps:
 4. **Design files**: CAD share link, optional 3D model (viewer with sizes),
    sketches and progress shots, renders, project file.
 5. **Team**, 6. **How you made it**, 7. **Sharing**, 8. **Confirm**.
+
+Steps renumber when there's no code step. Sketches, renders and the project
+file sit behind one "optional" toggle. A **Needed to submit** checklist (beside
+the form on laptops, above the button on phones) ticks off the required parts
+using the same rules as the server, and each line jumps to its section. What a
+team types into a new entry is kept on that laptop until it's first saved, so
+a refresh or closed tab doesn't lose it (files are picked again).
+
+### Entry code: on or off
+
+In `/judge/settings`, organizers choose:
+
+- **Teams type the entry code** (default): safer, only people in the room can
+  start an entry.
+- **No entry code**: easier. The form opens to anyone at the **theme reveal
+  time** (also in Settings, default 9:10 AM Nov 16) and shows a "opens at"
+  screen before that. To test it before the day, move the reveal time earlier.
 
 ## Earlier notes: what a team submits
 
@@ -92,6 +110,17 @@ entries started on that laptop.
   Marks from anyone not on the list show on Results as "not counted".
 - Each judge sees only their own marks. The dashboard refreshes every 20
   seconds, so entries show up as teams submit (early judging from 1:30 PM).
+- **Up next for you**: each judge's dashboard and "Save and judge next" go to
+  the entry they haven't marked that has the fewest marks so far (oldest
+  first), so every entry gets a first look before any gets a third.
+- The entry page has a **presentation timer** (3, 5 or 7 minutes; orange in
+  the last 30 seconds, red overtime) and the marks right under the team's
+  write-up. Marks not saved yet are kept in that browser tab if the judge
+  moves to another entry and comes back.
+- **Live** (`/judge/live`, organizers): entries down the side, judges across
+  the top, a filled cell per mark, fewest-marked entries first; each judge's
+  count and last mark time (orange after 20 idle minutes); the running top
+  five. **Hide scores** keeps marks off a projected screen. Refreshes every 10 s.
 - The entry page doubles as the presentation screen: full screen, turntable,
   wireframe, dimensions, plus every file to download.
 - Organizers see the ranking (average of judges' totals), each judge's total,

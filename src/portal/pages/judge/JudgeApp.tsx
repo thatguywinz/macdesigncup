@@ -9,6 +9,7 @@ import { ApiError, api } from "../../api";
 import JudgeList from "./JudgeList";
 import JudgeEntryPage from "./JudgeEntryPage";
 import ResultsPage from "./ResultsPage";
+import LivePage from "./LivePage";
 import SettingsPage from "./SettingsPage";
 
 export default function JudgeApp() {
@@ -48,6 +49,7 @@ export default function JudgeApp() {
       <Routes>
         <Route index element={<JudgeList />} />
         <Route path="entry/:id" element={<JudgeEntryPage />} />
+        <Route path="live" element={me.role === "admin" ? <LivePage /> : <OrganizersOnly />} />
         <Route path="results" element={me.role === "admin" ? <ResultsPage /> : <OrganizersOnly />} />
         <Route path="settings" element={me.role === "admin" ? <SettingsPage /> : <OrganizersOnly />} />
         <Route path="*" element={<JudgeList />} />

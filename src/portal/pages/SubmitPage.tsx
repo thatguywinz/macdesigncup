@@ -9,13 +9,13 @@
 // pressing the button again picks up where it stopped.
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
-import { Check, Copy, ExternalLink, FileBox, ImagePlus, PenTool, Plus, Trash2, Upload, Video, X } from "lucide-react";
+import { Check, Circle, CircleCheck, Copy, ExternalLink, FileBox, ImagePlus, PenTool, Plus, Trash2, Upload, Video, X } from "lucide-react";
 import VideoPlayer, { captureVideoFrame } from "../components/VideoPlayer";
 import { VideoChoice, VideoGuide } from "../components/VideoStep";
 import { parseVideoLink, type VideoCheck } from "../shared/video";
 import Shell from "../components/Shell";
 import { Block, Field, Progress } from "../components/fields";
-import { ApiError, api, clock, closesLabel } from "../api";
+import { ApiError, api, clock, closesLabel, when } from "../api";
 import { countdown, forgetEntry, rememberEntry, savedEntries, useMediaQuery, useNow, usePortalStatus } from "../hooks";
 import { SLOTS, checkFile, extOf, formatBytes, isViewable, type FileSlot } from "../shared/formats";
 import {
@@ -48,6 +48,33 @@ function filesFrom(entry: OwnEntry): Files {
 }
 
 const newKey = () => Math.random().toString(36).slice(2);
+
+// What a team has typed into a new entry, kept on this device until the entry
+// is first saved, so a refresh or a closed tab doesn't lose it. Files can't be
+// kept this way; they're picked again.
+const TYPED_KEY = "mdc-portal-typed";
+interface Typed {
+  form: EntryInput;
+  code: string;
+  videoMode: "link" | "upload";
+}
+function readTyped(): Typed | null {
+  try {
+    const v = JSON.parse(localStorage.getItem(TYPED_KEY) ?? "null");
+    return v && typeof v === "object" && v.form && typeof v.form === "object" ? v : null;
+  } catch {
+    return null;
+  }
+}
+function writeTyped(t: Typed | null) {
+  try {
+    if (t) localStorage.setItem(TYPED_KEY, JSON.stringify(t));
+    else localStorage.removeItem(TYPED_KEY);
+  } catch {
+    /* private mode: nothing kept */
+  }
+}
+const typedIsEmpty = (f: EntryInput) => !f.title && !f.summary && !f.videoLink && !f.contactEmail && f.members.every((m) => !m.name && !m.school);
 
 /** Reads the edit key from the URL fragment (#k=...), else from this device. */
 function editKeyFor(id: string | undefined, hash: string): string {
@@ -85,6 +112,32 @@ export default function SubmitPage() {
 
   const isEdit = !!entryId;
   const wide = useMediaQuery("(min-width: 1024px)");
+
+  // A new entry picks up what was typed here before (until it's first saved).
+  const [restored, setRestored] = useState(false);
+  useEffect(() => {
+    if (routeId) return;
+    const t = readTyped();
+    if (!t || typedIsEmpty({ ...emptyEntry(), ...t.form })) return;
+    setForm({ ...emptyEntry(), ...t.form });
+    setCode(t.code ?? "");
+    setVideoMode(t.videoMode === "upload" ? "upload" : "link");
+    setRestored(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once, on a fresh form
+  }, []);
+  useEffect(() => {
+    if (entryId) return;
+    const t = window.setTimeout(() => writeTyped(typedIsEmpty(form) && !code ? null : { form, code, videoMode }), 400);
+    return () => window.clearTimeout(t);
+  }, [form, code, videoMode, entryId]);
+  const startOver = () => {
+    writeTyped(null);
+    setForm(emptyEntry());
+    setCode("");
+    setFiles(noFiles());
+    setErrors({});
+    setRestored(false);
+  };
 
   // Open an existing entry. Skipped when this page just created it: the URL
   // moves to the edit link mid-submit, and reloading then would swap the
@@ -190,7 +243,27 @@ export default function SubmitPage() {
   // ── Submit ────────────────────────────────
   const deadline = status ? Date.parse(status.deadline) : null;
   const closedForNew = status ? !status.open : false;
+  const codeRequired = status?.codeRequired ?? true;
   const locked = saved?.locked ?? false;
+
+  // What's still needed to submit, from the same rules the server applies.
+  const liveErrors = useMemo(() => {
+    const p = parseEntry(form);
+    return "errors" in p ? p.errors : {};
+  }, [form]);
+  const hasVideoNow = videoMode === "link" ? !!parseVideoLink(form.videoLink) : files.video.length > 0;
+  const ready: ReadyItem[] = [
+    ...(!isEdit && codeRequired ? [{ label: "Entry code", done: !!code.trim(), target: "blk-code" }] : []),
+    { label: "Title", done: !liveErrors.title, target: "blk-video" },
+    { label: "Video", done: hasVideoNow, target: "blk-video" },
+    { label: "How it answers the theme", done: !liveErrors.summary, target: "blk-judges" },
+    { label: "Team names, schools, grades", done: !Object.keys(liveErrors).some((k) => k.startsWith("members")), target: "blk-team" },
+    { label: "Contact email", done: !liveErrors.contactEmail, target: "blk-team" },
+    { label: "Software", done: !liveErrors.software && !liveErrors.softwareOther && !liveErrors.aiNote, target: "blk-made" },
+    { label: "Confirm it's your own work", done: !liveErrors.original && !liveErrors.teamName, target: "blk-confirm" },
+  ];
+  let stepNo = 0;
+  const step = (title: string) => `${++stepNo} · ${title}`;
 
   function onSubmit(ev: FormEvent) {
     ev.preventDefault();
@@ -209,7 +282,7 @@ export default function SubmitPage() {
     setDraftSaved("");
     const parsed = parseEntry(form, { draft });
     const errs: FieldErrors = "errors" in parsed ? { ...parsed.errors } : {};
-    if (!isEdit && !code.trim()) errs.code = "Enter the code from the screen at the front of the room.";
+    if (!isEdit && codeRequired && !code.trim()) errs.code = "Enter the code from the screen at the front of the room.";
     const hasVideo = videoMode === "link" ? !!form.videoLink.trim() : files.video.length > 0;
     if (!hasVideo && !draft) errs.video = videoMode === "link" ? "Paste your video link, or switch to Upload the file." : "Add your video file, or switch to Paste a link.";
     if (Object.keys(errs).length || !("value" in parsed)) {
@@ -230,6 +303,7 @@ export default function SubmitPage() {
       setBusy("Saving your details…");
       if (!id) {
         const created = await api<{ id: string; editKey: string; entry: OwnEntry }>("/entries", { body: { code, entry: parsed.value, draft, measure } });
+        writeTyped(null);
         id = created.id;
         key = created.editKey;
         createdHere.current = id;
@@ -357,6 +431,37 @@ export default function SubmitPage() {
   const left = deadline ? countdown(deadline, now) : "";
   const soon = deadline ? deadline - now < 60 * 60 * 1000 : false;
 
+  // A new entry waits for the status: whether there's a code step, or the form isn't open yet.
+  if (!isEdit && !status) {
+    return (
+      <Shell section="Submit your design">
+        <p className="py-24 font-body text-concrete" role="status">
+          Opening the form…
+        </p>
+      </Shell>
+    );
+  }
+
+  if (!isEdit && status?.opensAt && Date.parse(status.opensAt) > now) {
+    return (
+      <Shell section="Submit your design">
+        <div className="max-w-[40rem] py-20">
+          <h1 className="display-scene">Opens at the theme reveal</h1>
+          <p className="mt-4 font-body text-lg text-foreground/75">
+            The form opens {Date.parse(status.opensAt) - now < 12 * 3600e3 ? `at ${clock(status.opensAt)}` : when(status.opensAt)}, once the theme is out. Keep this page open; it
+            unlocks by itself.
+          </p>
+          {Date.parse(status.opensAt) - now < 12 * 3600e3 && (
+            <p className="p-mono mt-6 text-2xl text-ember" aria-live="off">
+              {countdown(Date.parse(status.opensAt), now)}
+            </p>
+          )}
+          <SavedList />
+        </div>
+      </Shell>
+    );
+  }
+
   if (!isEdit && closedForNew && status) {
     return (
       <Shell section="Submit your design">
@@ -382,7 +487,7 @@ export default function SubmitPage() {
     >
       {status?.devDefaults && (
         <p className="p-notice p-notice--calm mt-6 font-body text-sm">
-          Local preview. Entry code <span className="p-mono text-ember">MDC-DEMO</span>. Files are saved on this computer only.
+          Local preview.{codeRequired ? <> Entry code <span className="p-mono text-ember">MDC-DEMO</span>.</> : " No entry code needed."} Files are saved on this computer only.
         </p>
       )}
 
@@ -394,8 +499,16 @@ export default function SubmitPage() {
               ? saved?.status === "submitted"
                 ? `Submitted at ${clock(saved.submittedAt)}. Change anything below and save until submissions close${deadline ? ` at ${clock(status?.deadline)}` : ""}.`
                 : "Not submitted yet. Finish the form and press Submit entry."
-              : `One entry per team, in six steps: your video, a few words for the judges, your design files, and who made it. Save a draft any time; you can edit until ${deadline ? clock(status?.deadline) : "submissions close"}.`}
+              : `One entry per team. You need a title, your video, two sentences on the theme, and who's on the team; everything else is optional. Save a draft any time and edit until ${deadline ? clock(status?.deadline) : "submissions close"}.`}
           </p>
+          {restored && !isEdit && (
+            <p className="p-notice p-notice--calm mt-6 max-w-[38rem] font-body text-sm">
+              We kept what you typed on this laptop. Pick your files again if you'd added any.{" "}
+              <button type="button" className="p-link focus-ember" onClick={startOver}>
+                Start a fresh entry
+              </button>
+            </p>
+          )}
           {!isEdit && <SavedList />}
           {locked && (
             <p className="p-notice mt-6 font-body">Submissions are closed, so this entry can't be changed. Judges can see it as it is.</p>
@@ -406,8 +519,8 @@ export default function SubmitPage() {
 
       <form onSubmit={onSubmit} noValidate className="mt-8 grid gap-x-12 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.85fr)]">
         <fieldset disabled={locked || !!busy} className="min-w-0">
-          {!isEdit && (
-            <Block title="1 · Entry code" note="On the screen at the front of the room, after the theme reveal.">
+          {!isEdit && codeRequired && (
+            <Block id="blk-code" title={step("Entry code")} note="On the screen at the front of the room, after the theme reveal.">
               <Field label="Entry code" error={errors.code}>
                 {(p) => (
                   <input
@@ -427,7 +540,7 @@ export default function SubmitPage() {
             </Block>
           )}
 
-          <Block title="2 · Your video" note="This is what judges watch first and what the public page shows. Follow the guide; 1 to 3 minutes.">
+          <Block id="blk-video" title={step("Your video")} note="This is what judges watch first and what the public page shows. Follow the guide; 1 to 3 minutes.">
             <Field label="Title of your design" error={errors.title} counter={{ value: form.title.length, max: LIMITS.title }}>
               {(p) => <input {...p} className="p-input" value={form.title} maxLength={LIMITS.title + 20} onChange={(e) => set("title", e.target.value)} />}
             </Field>
@@ -458,7 +571,7 @@ export default function SubmitPage() {
             {!wide && (videoLocalUrl || linkedPreview) && <VideoPlayer title={form.title || "Your video"} link={linkedPreview} localUrl={videoLocalUrl} />}
           </Block>
 
-          <Block title="3 · For the judges" note="Judges read this before you present.">
+          <Block id="blk-judges" title={step("For the judges")} note="Judges read this before you present.">
             <Field
               label="How it answers the theme"
               hint="Two or three sentences."
@@ -487,7 +600,7 @@ export default function SubmitPage() {
             </Field>
           </Block>
 
-          <Block title="4 · Design files" note="Your CAD link keeps your materials, sketches and history exactly as you made them. A 3D file adds a model anyone can turn around on the page.">
+          <Block id="blk-files" title={step("Design files")} note="Your CAD link keeps your materials, sketches and history exactly as you made them. A 3D file adds a model anyone can turn around on the page.">
             <Field label="Link to your CAD document" optional hint={`A view-only share link (${CAD_LINK_HINT}). Set it so anyone with the link can view.`} error={errors.cadLink}>
               {(p) => <input {...p} type="url" inputMode="url" className="p-input" placeholder="https://cad.onshape.com/documents/…" value={form.cadLink} onChange={(e) => set("cadLink", e.target.value)} />}
             </Field>
@@ -519,6 +632,13 @@ export default function SubmitPage() {
               icon={<FileBox size={20} strokeWidth={1.4} />}
             />
             {modelItem && <ModelChecks units={form.units} onUnits={(u) => set("units", u)} measure={measure} spec={status?.spec ?? null} hasModel={!!modelItem} />}
+            <details className="group" open={files.progress.length + files.image.length + files.source.length > 0 || !!(errors.progress || errors.image || errors.source) || undefined}>
+              <summary className="focus-ember flex cursor-pointer list-none items-center gap-2 font-body text-[15px] text-foreground/90 marker:hidden">
+                <Plus size={15} strokeWidth={1.6} className="text-ember transition-transform group-open:rotate-45" aria-hidden="true" />
+                Sketches, renders or your project file
+                <span className="text-concrete">optional</span>
+              </summary>
+              <div className="mt-5 flex flex-col gap-6">
             <FilePicker
               slot="progress"
               label="Sketches and progress shots"
@@ -554,9 +674,11 @@ export default function SubmitPage() {
               onRemove={(it) => removeItem("source", it)}
               icon={<Upload size={20} strokeWidth={1.4} />}
             />
+              </div>
+            </details>
           </Block>
 
-          <Block title="5 · Team" note={`1 to ${TEAM_MAX} people. Everyone on the team, as registered.`}>
+          <Block id="blk-team" title={step("Team")} note={`1 to ${TEAM_MAX} people. Everyone on the team, as registered.`}>
             {form.members.map((m, i) => (
               <div key={i} className="grid gap-4 border-l border-bone/10 pl-4 sm:grid-cols-[minmax(0,1.2fr)_minmax(0,1.3fr)_6.5rem_auto] sm:items-start">
                 <Field label={i === 0 ? "Full name" : `Member ${i + 1} full name`} error={errors[`members.${i}.name`]}>
@@ -612,7 +734,7 @@ export default function SubmitPage() {
             </div>
           </Block>
 
-          <Block title="6 · How you made it">
+          <Block id="blk-made" title={step("How you made it")}>
             <fieldset>
               <legend className="p-label">Software</legend>
               <div className="mt-2 flex flex-wrap gap-2" data-field-error={errors.software ? "true" : undefined}>
@@ -657,7 +779,7 @@ export default function SubmitPage() {
             )}
           </Block>
 
-          <Block title="7 · Sharing" note="Every entry gets a page with your video, model and description. Judges can always see your entry; scores stay private.">
+          <Block id="blk-share" title={step("Sharing")} note="Every entry gets a page with your video, model and description. Judges can always see your entry; scores stay private.">
             <fieldset>
               <legend className="p-label">Credit on the share page</legend>
               <div className="p-seg mt-2" role="radiogroup">
@@ -683,7 +805,7 @@ export default function SubmitPage() {
             </label>
           </Block>
 
-          <Block title="8 · Confirm">
+          <Block id="blk-confirm" title={step("Confirm and submit")}>
             <label className="flex cursor-pointer items-start gap-3 font-body text-[15px] text-foreground/90" data-field-error={errors.original ? "true" : undefined}>
               <input type="checkbox" className="mt-1 h-4 w-4 accent-[hsl(24_100%_54%)]" checked={form.original} onChange={(e) => set("original", e.target.checked)} />
               <span>We modelled this at the event, after the theme reveal, and it's our own work.</span>
@@ -713,6 +835,7 @@ export default function SubmitPage() {
               {(p) => <textarea {...p} className="p-textarea min-h-[5rem]" value={form.filesNote} onChange={(e) => set("filesNote", e.target.value)} />}
             </Field>
 
+            {!wide && <ReadyList items={ready} />}
             {draftSaved && (
               <p className="p-notice p-notice--calm font-body text-[15px]" role="status">
                 {draftSaved}
@@ -744,6 +867,7 @@ export default function SubmitPage() {
         {wide && (
         <aside aria-label="Preview">
           <div className="sticky top-24 flex flex-col gap-4 pt-8">
+            {!locked && <ReadyList items={ready} />}
             {videoLocalUrl || linkedPreview ? (
               <VideoPlayer title={form.title || "Your video"} link={linkedPreview} localUrl={videoLocalUrl} />
             ) : (
@@ -842,6 +966,52 @@ function ModelChecks({
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+interface ReadyItem {
+  label: string;
+  done: boolean;
+  /** The form section to jump to. */
+  target: string;
+}
+
+/** What's needed to submit, ticking off as the team fills the form. Each line jumps to its section. */
+function ReadyList({ items }: { items: ReadyItem[] }) {
+  const left = items.filter((i) => !i.done).length;
+  return (
+    <div className="border border-bone/10 bg-[hsl(220_7%_5.5%)] p-4">
+      <p className="flex items-baseline justify-between gap-3 font-body text-[15px] font-medium text-foreground">
+        {left ? "Needed to submit" : "Ready to submit"}
+        <span className={`p-mono text-[12px] ${left ? "text-concrete" : "text-[#9fd59a]"}`}>
+          {items.length - left}/{items.length}
+        </span>
+      </p>
+      <ul className="mt-3 grid gap-1.5 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+        {items.map((i) => (
+          <li key={i.label}>
+            <a
+              href={`#${i.target}`}
+              className={`focus-ember flex items-center gap-2 font-body text-sm ${i.done ? "text-foreground/60" : "text-foreground hover:text-ember"}`}
+              onClick={(e) => {
+                e.preventDefault();
+                document.getElementById(i.target)?.scrollIntoView({ behavior: "smooth", block: "start" });
+              }}
+            >
+              {i.done ? (
+                <CircleCheck size={15} strokeWidth={1.8} className="shrink-0 text-[#9fd59a]" aria-hidden="true" />
+              ) : (
+                <Circle size={15} strokeWidth={1.6} className="shrink-0 text-concrete" aria-hidden="true" />
+              )}
+              <span>
+                {i.label}
+                <span className="sr-only">{i.done ? ", done" : ", still needed"}</span>
+              </span>
+            </a>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

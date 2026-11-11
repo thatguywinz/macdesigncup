@@ -459,3 +459,68 @@ describe("security review fixes", () => {
     await call("/judge/settings", { method: "PUT", body: { judges: [] }, cookie: admin.cookie });
   });
 });
+
+describe("day-of switches", () => {
+  it("with the entry code off, anyone can start an entry, but only after the reveal", async () => {
+    const admin = await login("admin-demo", "Organizer");
+    let st = await call("/judge/settings", { method: "PUT", body: { entryCodeOn: false, revealAt: "2026-11-16T09:10:00-05:00" }, cookie: admin.cookie });
+    expect(st.json.entryCodeOn).toBe(false);
+    let status = await call("/status");
+    expect(status.json.codeRequired).toBe(false);
+    expect(status.json.opensAt).toBeNull();
+    expect((await call("/entries", { body: { entry: entry({ title: "No Code" }) } })).status).toBe(201);
+
+    clock = Date.parse("2026-11-16T08:00:00-05:00");
+    status = await call("/status");
+    expect(status.json.opensAt).toBe(new Date("2026-11-16T09:10:00-05:00").toISOString());
+    const early = await call("/entries", { body: { entry: entry() } });
+    expect(early.status).toBe(409);
+    expect(early.json.error).toMatch(/theme reveal/);
+
+    st = await call("/judge/settings", { method: "PUT", body: { entryCodeOn: true }, cookie: admin.cookie });
+    expect(st.json.entryCodeOn).toBe(true);
+    expect((await call("/status")).json.codeRequired).toBe(true);
+    expect((await call("/entries", { body: { entry: entry() } })).status).toBe(403);
+  });
+
+  it("sends each judge to the unmarked entry with the fewest marks", async () => {
+    const ids: string[] = [];
+    for (const t of ["Queue A", "Queue B"]) {
+      const { id, key } = await create({ title: t });
+      await call(`/entries/${id}/submit`, { body: {}, key });
+      ids.push(id);
+    }
+    const a = await login("judge-demo", "Queue Judge A");
+    const c = await login("judge-demo", "Queue Judge C");
+    const full = { theme: 5, creativity: 5, technical: 5, presentation: 5 };
+    await call(`/judge/entries/${ids[0]}/score`, { method: "PUT", body: { marks: full }, cookie: a.cookie });
+
+    const list = await call("/judge/entries", { cookie: c.cookie });
+    const cards = list.json.cards as { id: string; scoreCount: number; myTotal: number | null }[];
+    const pick = cards.find((x) => x.id === list.json.nextToMark)!;
+    expect(pick.myTotal).toBeNull();
+    expect(pick.scoreCount).toBe(Math.min(...cards.filter((x) => x.myTotal === null).map((x) => x.scoreCount)));
+    expect(list.json.nextToMark).not.toBe(ids[0]); // the marked one waits
+
+    const detail = await call(`/judge/entries/${ids[1]}`, { cookie: a.cookie });
+    expect(detail.json.nextToMark).not.toBe(ids[0]); // never one you've marked
+    expect(detail.json.nextToMark).not.toBe(ids[1]); // nor the one you're on
+    expect(detail.json.total).toBeGreaterThanOrEqual(detail.json.toMark);
+  });
+
+  it("shows organizers each listed judge's progress, even before they mark", async () => {
+    const admin = await login("admin-demo", "Organizer");
+    await call("/judge/settings", { method: "PUT", body: { judges: ["Live Judge", "Idle Judge"] }, cookie: admin.cookie });
+    const { id, key } = await create({ title: "Live Entry" });
+    await call(`/entries/${id}/submit`, { body: {}, key });
+    const j = await login("judge-demo", "Live Judge");
+    await call(`/judge/entries/${id}/score`, { method: "PUT", body: { marks: { theme: 7, creativity: 7, technical: 7, presentation: 7 } }, cookie: j.cookie });
+    const res = await call("/judge/results", { cookie: admin.cookie });
+    const byName = Object.fromEntries(res.json.activity.map((x: { name: string }) => [x.name, x]));
+    expect(byName["Live Judge"].marked).toBe(1);
+    expect(byName["Live Judge"].lastAt).toBeTruthy();
+    expect(byName["Idle Judge"].marked).toBe(0);
+    expect(typeof res.json.drafts).toBe("number");
+    await call("/judge/settings", { method: "PUT", body: { judges: [] }, cookie: admin.cookie });
+  });
+});

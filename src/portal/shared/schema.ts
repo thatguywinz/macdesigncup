@@ -425,4 +425,8 @@ export interface PortalStatus {
   now: string;
   /** The size spec teams design to, if organizers set one. */
   spec: Spec | null;
+  /** Teams type the day's entry code to start an entry. */
+  codeRequired: boolean;
+  /** No entry code and the theme isn't revealed yet: when the form opens. */
+  opensAt: string | null;
 }

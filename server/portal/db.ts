@@ -51,6 +51,11 @@ export interface SettingsDoc {
    * that allow sharing, or only the ones organizers "selected" (gallery).
    */
   publicListing?: "off" | "all" | "selected";
+  /**
+   * Teams need the day's entry code to start an entry (default on). Off: the
+   * form opens to anyone at the theme reveal time instead.
+   */
+  entryCodeOn?: boolean;
   /** Replaces the configured deadline (an organizer extended or moved it). */
   deadlineOverride: string | null;
   /** Organizer closed submissions early, whatever the clock says. */
