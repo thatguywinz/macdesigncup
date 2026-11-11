@@ -4,8 +4,8 @@
 import { useEffect, useState } from "react";
 import { Pause, Play, RotateCcw } from "lucide-react";
 
-const LENGTHS = [1, 2, 3, 5] as const;
-const KEY = "mdc-present-minutes";
+const LENGTHS = [1, 2, 3] as const;
+const KEY = "mdc-pitch-minutes";
 
 function fmt(ms: number): string {
   const neg = ms < 0;
@@ -17,9 +17,9 @@ export default function PresentTimer() {
   const [minutes, setMinutes] = useState<number>(() => {
     try {
       const v = Number(localStorage.getItem(KEY));
-      return (LENGTHS as readonly number[]).includes(v) ? v : 3;
+      return (LENGTHS as readonly number[]).includes(v) ? v : 1;
     } catch {
-      return 3;
+      return 1;
     }
   });
   // Elapsed time is kept as "banked" ms plus the running stretch since startedAt.

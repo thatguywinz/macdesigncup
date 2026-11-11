@@ -8,6 +8,7 @@ import { when } from "../../api";
 export interface RoomsSettings {
   names: string[];
   start: string;
+  end: string;
   slotMinutes: number;
   judgeRooms: Record<string, string>;
 }
@@ -32,6 +33,7 @@ export default function RoomsSection({
   rooms,
   judges,
   scheduled,
+  scheduleEnds,
   open,
   busy,
   onSave,
@@ -40,6 +42,7 @@ export default function RoomsSection({
   rooms: RoomsSettings;
   judges: string[];
   scheduled: number;
+  scheduleEnds: string | null;
   open: boolean;
   busy: boolean;
   onSave: (body: Record<string, unknown>, msg: string) => void;
@@ -47,11 +50,13 @@ export default function RoomsSection({
 }) {
   const [names, setNames] = useState(rooms.names.join(", "));
   const [start, setStart] = useState(localInput(rooms.start));
+  const [end, setEnd] = useState(localInput(rooms.end));
   const [minutes, setMinutes] = useState(String(rooms.slotMinutes));
   const [seats, setSeats] = useState<Record<string, string>>({});
   useEffect(() => {
     setNames(rooms.names.join(", "));
     setStart(localInput(rooms.start));
+    setEnd(localInput(rooms.end));
     setMinutes(String(rooms.slotMinutes));
     setSeats(Object.fromEntries(judges.map((j) => [j, rooms.judgeRooms[keyOf(j)] ?? ""])));
   }, [rooms, judges]);
@@ -69,7 +74,7 @@ export default function RoomsSection({
         room in order. Entries already given a time keep it if you make it again.
       </p>
 
-      <div className="mt-5 grid max-w-[38rem] gap-4 sm:grid-cols-[minmax(0,1fr)_auto_auto]">
+      <div className="mt-5 grid max-w-[46rem] gap-4 sm:grid-cols-[minmax(0,1fr)_auto_auto_auto]">
         <label className="block">
           <span className="p-label">Rooms</span>
           <input className="p-input mt-2" value={names} onChange={(e) => setNames(e.target.value)} aria-describedby="rooms-hint" />
@@ -80,6 +85,10 @@ export default function RoomsSection({
         <label className="block">
           <span className="p-label">Judging starts</span>
           <input type="datetime-local" className="p-input mt-2 w-auto" value={start} onChange={(e) => setStart(e.target.value)} />
+        </label>
+        <label className="block">
+          <span className="p-label">Judging ends</span>
+          <input type="datetime-local" className="p-input mt-2 w-auto" value={end} onChange={(e) => setEnd(e.target.value)} />
         </label>
         <label className="block">
           <span className="p-label">Minutes per team</span>
@@ -111,10 +120,10 @@ export default function RoomsSection({
       <button
         type="button"
         className="btn-ghost p-btn mt-4"
-        disabled={busy || !roomList.length || !start}
+        disabled={busy || !roomList.length || !start || !end}
         onClick={() =>
           onSave(
-            { rooms: { names: roomList, start: new Date(start).toISOString(), slotMinutes: Number(minutes), judgeRooms: Object.fromEntries(Object.entries(seats).filter(([, r]) => r)) } },
+            { rooms: { names: roomList, start: new Date(start).toISOString(), end: new Date(end).toISOString(), slotMinutes: Number(minutes), judgeRooms: Object.fromEntries(Object.entries(seats).filter(([, r]) => r)) } },
             "Rooms saved.",
           )
         }
@@ -136,6 +145,13 @@ export default function RoomsSection({
           {open && !scheduled ? " Submissions are still open; make it after they close." : ""}
         </span>
       </div>
+      {scheduleEnds && (
+        <p className={`mt-3 max-w-[38rem] font-body text-sm ${Date.parse(scheduleEnds) > Date.parse(rooms.end) ? "p-notice p-notice--bad" : "text-foreground/80"}`}>
+          {Date.parse(scheduleEnds) > Date.parse(rooms.end)
+            ? `The last team finishes at ${when(scheduleEnds)}, after judging ends (${when(rooms.end)}). Shorten the minutes per team or add a room, then clear and make it again.`
+            : `The last team finishes at ${when(scheduleEnds)}.`}
+        </p>
+      )}
     </section>
   );
 }

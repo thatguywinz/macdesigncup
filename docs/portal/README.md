@@ -56,7 +56,7 @@ entry needs one thing to look at: a picture, a video or a model.
 
 The form and the "Submitted" page both show **"Then you present: be ready"**:
 judging 2:10 to 3:20 PM in WFL632/634/637, present from your own laptop
-(HDMI or USB-C), about 2 to 3 minutes, and the rubric's four categories with
+(HDMI or USB-C), a 1-minute pitch, and the rubric's four categories with
 what top marks look like. A **Needed to submit** checklist ticks off as they
 go. What a team types is kept on that laptop until the entry is first saved.
 
@@ -104,7 +104,8 @@ entries started on that laptop.
   wording is the rubric's general version: the theme-specific one is revealed
   at the opening ceremony and must not go in the code (it's public).
 - **Rooms and schedule** (`/judge/settings`): name the rooms, set the start
-  time and minutes per team, put each judge in a room, then press **Make the
+  time, end time and minutes per team (default 3: a 1-minute pitch plus
+  scoring while the next team sets up), put each judge in a room, then press **Make the
   schedule** after submissions close. Every team sees "Your judging: room
   WFL634 at 2:22 PM" on its entry page; each judge's dashboard opens on their
   room in time order, and "Save and judge next" follows it. Making it again

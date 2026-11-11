@@ -38,6 +38,8 @@ export interface ScoresDoc {
 export interface RoomsSetup {
   names: string[];
   start: string;
+  /** When judging should be over: the schedule warns if teams run past it. */
+  end: string;
   slotMinutes: number;
   /** judge key -> room name */
   judgeRooms: Record<string, string>;
@@ -46,7 +48,9 @@ export interface RoomsSetup {
 export const DEFAULT_ROOMS: RoomsSetup = {
   names: ["WFL632", "WFL634", "WFL637"],
   start: "2026-11-16T14:10:00-05:00",
-  slotMinutes: 4,
+  end: "2026-11-16T15:20:00-05:00",
+  // A 1-minute pitch, then 1 to 2 minutes of scoring while the next team sets up.
+  slotMinutes: 3,
   judgeRooms: {},
 };
 

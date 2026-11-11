@@ -1023,9 +1023,14 @@ function settingsView(ctx: PortalContext, w: Window) {
     opensAt: w.notYet ? iso(w.notYet) : null,
     rooms: (() => {
       const r = roomsOf(w.settings);
-      return { ...r, start: new Date(Date.parse(r.start)).toISOString() };
+      return { ...r, start: new Date(Date.parse(r.start)).toISOString(), end: new Date(Date.parse(r.end)).toISOString() };
     })(),
     scheduled: Object.keys(w.settings.schedule ?? {}).length,
+    // When the last team's slot ends: organizers see if the schedule runs past the end time.
+    scheduleEnds: (() => {
+      const ats = Object.values(w.settings.schedule ?? {}).map((s) => Date.parse(s.at));
+      return ats.length ? iso(Math.max(...ats) + roomsOf(w.settings).slotMinutes * 60_000) : null;
+    })(),
     open: w.open,
     graceSeconds: GRACE_SECONDS,
     storage: ctx.cfg.storage,
@@ -1076,6 +1081,11 @@ function cleanRooms(raw: Record<string, unknown>, cur: RoomsSetup): RoomsSetup {
     if (typeof raw.start !== "string" || Number.isNaN(Date.parse(raw.start))) fail(422, "That start time isn't a valid date.");
     start = new Date(Date.parse(raw.start)).toISOString();
   }
+  let end = cur.end;
+  if (raw.end !== undefined) {
+    if (typeof raw.end !== "string" || Number.isNaN(Date.parse(raw.end))) fail(422, "That end time isn't a valid date.");
+    end = new Date(Date.parse(raw.end)).toISOString();
+  }
   const slotMinutes = raw.slotMinutes === undefined ? cur.slotMinutes : Math.round(Number(raw.slotMinutes));
   if (!Number.isFinite(slotMinutes) || slotMinutes < 1 || slotMinutes > 30) fail(422, "Minutes per team must be 1 to 30.");
   const judgeRooms: Record<string, string> = {};
@@ -1084,7 +1094,7 @@ function cleanRooms(raw: Record<string, unknown>, cur: RoomsSetup): RoomsSetup {
     const key = judgeKey(name) || name;
     if (typeof room === "string" && names.includes(room)) judgeRooms[key] = room;
   }
-  return { names, start, slotMinutes, judgeRooms };
+  return { names, start, end, slotMinutes, judgeRooms };
 }
 
 // The judging schedule. "make" gives every submitted entry without a slot the

@@ -21,6 +21,7 @@ interface Settings {
   opensAt: string | null;
   rooms: RoomsSettings;
   scheduled: number;
+  scheduleEnds: string | null;
   open: boolean;
   graceSeconds: number;
   storage: string;
@@ -257,7 +258,7 @@ export default function SettingsPage() {
               <p className="p-hint mt-3">{s.judges.length ? `${s.judges.length} on the list.` : "No list: anyone with the judge passcode can sign in."}</p>
             </section>
 
-            <RoomsSection rooms={s.rooms} judges={s.judges} scheduled={s.scheduled} open={s.open} busy={busy} onSave={put} onSchedule={schedule} />
+            <RoomsSection rooms={s.rooms} judges={s.judges} scheduled={s.scheduled} scheduleEnds={s.scheduleEnds} open={s.open} busy={busy} onSave={put} onSchedule={schedule} />
 
 
             <section className="border-t border-bone/10 py-7">

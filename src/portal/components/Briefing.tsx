@@ -29,8 +29,8 @@ export function JudgingBriefing({ className = "", open = false }: { className?: 
         <li className="flex gap-3">
           <MessageSquare size={18} strokeWidth={1.5} className="mt-0.5 shrink-0 text-ember" aria-hidden="true" />
           <span>
-            About <span className="text-foreground">2 to 3 minutes</span>: what you made, how it fits the theme, and the detail you're proudest of. Then the
-            judges score you while the next team sets up.
+            A <span className="text-foreground">1-minute pitch</span>: what you made, how it fits the theme, and the detail you're proudest of. The judges
+            then take a minute or two to score you while the next team sets up. Be at your room on time.
           </span>
         </li>
       </ul>

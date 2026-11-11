@@ -561,6 +561,7 @@ describe("judging schedule", () => {
     const r2times = slots.filter((s: { room: string }) => s.room === "R2").map((s: { at: string }) => Date.parse(s.at)).sort();
     expect(r2times[0]).toBe(Date.parse("2026-11-16T14:10:00-05:00"));
     expect(r2times[1] - r2times[0]).toBe(5 * 60_000);
+    expect(Date.parse(st.json.scheduleEnds)).toBeGreaterThan(Date.parse("2026-11-16T14:10:00-05:00"));
 
     // A new entry is added after the others; nobody already scheduled moves.
     const before = JSON.stringify(slots);
