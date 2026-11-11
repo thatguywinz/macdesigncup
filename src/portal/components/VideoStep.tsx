@@ -9,48 +9,20 @@ import { parseVideoLink, VIDEO_LINK_HINT, type VideoCheck } from "../shared/vide
 
 export function VideoGuide() {
   return (
-    <details className="group border border-bone/10 bg-[hsl(220_7%_5.5%)] p-4" open>
-      <summary className="cursor-pointer list-none font-body text-[15px] font-medium text-foreground marker:hidden">
-        <span className="text-ember">How to make your video</span>
-        <span className="ml-2 text-concrete group-open:hidden">(show)</span>
-      </summary>
-      <div className="mt-3 grid gap-5 font-body text-sm leading-relaxed text-foreground/85">
-        <div>
-          <p className="font-medium text-foreground">Show these, in this order (1 to 3 minutes)</p>
-          <ol className="mt-2 list-decimal space-y-1.5 pl-5">
-            <li>The idea: what you made and how it answers the theme (about 15 seconds).</li>
-            <li>The whole design: turn it all the way around, with your materials and colours on.</li>
-            <li>Up close: the key parts and how they work (moving parts, assemblies, sizes).</li>
-            <li>How you built it: a quick tour of your sketches and feature tree or timeline.</li>
-            <li>What you'd change with more time.</li>
-          </ol>
-          <p className="mt-2 text-concrete">Talk over it, or add captions. Landscape, 1080p if you can.</p>
-        </div>
-        <div>
-          <p className="font-medium text-foreground">How to record it</p>
-          <ul className="mt-2 space-y-1.5">
-            <li>
-              <span className="text-foreground">Windows:</span> <kbd className="p-mono">Win</kbd>+<kbd className="p-mono">Alt</kbd>+<kbd className="p-mono">R</kbd> (Game Bar), or the Snipping Tool's record button.
-            </li>
-            <li>
-              <span className="text-foreground">Mac:</span> <kbd className="p-mono">Cmd</kbd>+<kbd className="p-mono">Shift</kbd>+<kbd className="p-mono">5</kbd>, then Record.
-            </li>
-            <li>
-              <span className="text-foreground">Renders:</span> Blender turntable animation, Fusion's Render workspace, Onshape Render Studio.
-            </li>
-          </ul>
-          <p className="mt-3 font-medium text-foreground">Then share it</p>
-          <ul className="mt-2 space-y-1.5">
-            <li>
-              <span className="text-foreground">YouTube:</span> upload as <b>Unlisted</b> (not Private), copy the link.
-            </li>
-            <li>
-              <span className="text-foreground">Google Drive:</span> Share → General access → <b>Anyone with the link</b> → Viewer, copy the link.
-            </li>
-            <li>Or upload the file here if it's small (MP4, MOV or WebM, up to 150 MB).</li>
-          </ul>
-        </div>
-      </div>
+    <details className="group">
+      <summary className="focus-ember cursor-pointer list-none font-body text-sm text-ember marker:hidden">How to record and share a video</summary>
+      <ul className="mt-3 flex flex-col gap-1.5 font-body text-sm leading-relaxed text-foreground/85">
+        <li>
+          <span className="text-foreground">Record:</span> Windows <kbd className="p-mono">Win</kbd>+<kbd className="p-mono">Alt</kbd>+<kbd className="p-mono">R</kbd>, Mac{" "}
+          <kbd className="p-mono">Cmd</kbd>+<kbd className="p-mono">Shift</kbd>+<kbd className="p-mono">5</kbd>, or a turntable render from your CAD app. 30 seconds to 2 minutes is plenty.
+        </li>
+        <li>
+          <span className="text-foreground">YouTube:</span> upload as <b>Unlisted</b> (not Private) and copy the link.
+        </li>
+        <li>
+          <span className="text-foreground">Google Drive:</span> Share → General access → <b>Anyone with the link</b>, copy the link.
+        </li>
+      </ul>
     </details>
   );
 }

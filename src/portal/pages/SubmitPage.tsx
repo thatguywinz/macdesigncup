@@ -12,6 +12,7 @@ import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { Check, Circle, CircleCheck, Copy, ExternalLink, FileBox, ImagePlus, PenTool, Plus, Trash2, Upload, Video, X } from "lucide-react";
 import VideoPlayer, { captureVideoFrame } from "../components/VideoPlayer";
 import { VideoChoice, VideoGuide } from "../components/VideoStep";
+import { JudgingBriefing, SlotNotice } from "../components/Briefing";
 import { parseVideoLink, type VideoCheck } from "../shared/video";
 import Shell from "../components/Shell";
 import { Block, Field, Progress } from "../components/fields";
@@ -23,7 +24,9 @@ import {
   LIMITS,
   SOFTWARE,
   TEAM_MAX,
+  WORDS,
   emptyEntry,
+  wordCount,
   parseEntry,
   publicCredit,
   type EntryInput,
@@ -252,18 +255,34 @@ export default function SubmitPage() {
     return "errors" in p ? p.errors : {};
   }, [form]);
   const hasVideoNow = videoMode === "link" ? !!parseVideoLink(form.videoLink) : files.video.length > 0;
+  const hasVisual = files.image.length > 0 || hasVideoNow || files.model.length > 0;
   const ready: ReadyItem[] = [
-    ...(!isEdit && codeRequired ? [{ label: "Entry code", done: !!code.trim(), target: "blk-code" }] : []),
-    { label: "Title", done: !liveErrors.title, target: "blk-video" },
-    { label: "Video", done: hasVideoNow, target: "blk-video" },
-    { label: "How it answers the theme", done: !liveErrors.summary, target: "blk-judges" },
-    { label: "Team names, schools, grades", done: !Object.keys(liveErrors).some((k) => k.startsWith("members")), target: "blk-team" },
+    ...(!isEdit && codeRequired ? [{ label: "Entry code", done: !!code.trim(), target: "blk-design" }] : []),
+    { label: "Title", done: !liveErrors.title, target: "blk-design" },
+    { label: "A few words on it", done: !liveErrors.summary, target: "blk-design" },
+    { label: "A picture, video or model", done: hasVisual, target: "blk-design" },
+    { label: "Your team", done: !Object.keys(liveErrors).some((k) => k.startsWith("members")) && !liveErrors.teamName, target: "blk-team" },
     { label: "Contact email", done: !liveErrors.contactEmail, target: "blk-team" },
-    { label: "Software", done: !liveErrors.software && !liveErrors.softwareOther && !liveErrors.aiNote, target: "blk-made" },
-    { label: "Confirm it's your own work", done: !liveErrors.original && !liveErrors.teamName, target: "blk-confirm" },
+    { label: "Software", done: !liveErrors.software && !liveErrors.softwareOther && !liveErrors.aiNote, target: "blk-confirm" },
+    { label: "Confirm it's your work", done: !liveErrors.original, target: "blk-confirm" },
   ];
-  let stepNo = 0;
-  const step = (title: string) => `${++stepNo} · ${title}`;
+  // The extras open by themselves once they hold something.
+  const hasExtras =
+    files.video.length + files.model.length + files.progress.length + files.source.length > 0 ||
+    !!form.videoLink ||
+    !!form.cadLink ||
+    !!form.process ||
+    !!(errors.video || errors.videoLink || errors.model || errors.cadLink || errors.progress || errors.source || errors.process);
+  // The first picture, shown beside the form as the entry's cover.
+  const firstImage = files.image[0];
+  const [coverUrl, setCoverUrl] = useState<string | null>(null);
+  useEffect(() => {
+    if (!firstImage) return setCoverUrl(null);
+    if (firstImage.kind === "existing") return setCoverUrl(firstImage.view.url);
+    const url = URL.createObjectURL(firstImage.file);
+    setCoverUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [firstImage]);
 
   function onSubmit(ev: FormEvent) {
     ev.preventDefault();
@@ -283,8 +302,7 @@ export default function SubmitPage() {
     const parsed = parseEntry(form, { draft });
     const errs: FieldErrors = "errors" in parsed ? { ...parsed.errors } : {};
     if (!isEdit && codeRequired && !code.trim()) errs.code = "Enter the code from the screen at the front of the room.";
-    const hasVideo = videoMode === "link" ? !!form.videoLink.trim() : files.video.length > 0;
-    if (!hasVideo && !draft) errs.video = videoMode === "link" ? "Paste your video link, or switch to Upload the file." : "Add your video file, or switch to Paste a link.";
+    if (!hasVisual && !draft) errs.visuals = "Add at least one picture of your design (a render or screenshot), or a video or your 3D model.";
     if (Object.keys(errs).length || !("value" in parsed)) {
       setErrors(errs);
       setFormError("Some fields need another look.");
@@ -363,8 +381,10 @@ export default function SubmitPage() {
       // 4. The card thumbnail: what the preview shows right now.
       const hasThumb = (latest ?? saved)?.files.some((f) => f.slot === "thumb");
       const newVideo = files.video.find((x) => x.kind === "new") as Extract<Item, { kind: "new" }> | undefined;
-      const fromModel = captureRef.current && modelItem && (modelIsNew || !hasThumb || savedAxis.current !== parsed.value.upAxis);
-      const fromVideo = !modelItem && videoMode === "upload" && newVideo;
+      // A team's own picture is the cover; a still of the model or video only stands in when there's none.
+      const noPicture = files.image.length === 0;
+      const fromModel = noPicture && captureRef.current && modelItem && (modelIsNew || !hasThumb || savedAxis.current !== parsed.value.upAxis);
+      const fromVideo = noPicture && !modelItem && videoMode === "upload" && newVideo;
       if (fromModel || fromVideo) {
         setBusy("Saving a preview image…");
         const blob = fromModel ? await captureRef.current!().catch(() => null) : await captureVideoFrame(newVideo!.file);
@@ -499,8 +519,9 @@ export default function SubmitPage() {
               ? saved?.status === "submitted"
                 ? `Submitted at ${clock(saved.submittedAt)}. Change anything below and save until submissions close${deadline ? ` at ${clock(status?.deadline)}` : ""}.`
                 : "Not submitted yet. Finish the form and press Submit entry."
-              : `One entry per team. You need a title, your video, two sentences on the theme, and who's on the team; everything else is optional. Save a draft any time and edit until ${deadline ? clock(status?.deadline) : "submissions close"}.`}
+              : `Three quick steps: your design, your team, then submit. Keep it short; the judges hear the rest when you present. Edit until ${deadline ? clock(status?.deadline) : "submissions close"}.`}
           </p>
+          {saved?.slot && <SlotNotice slot={saved.slot} />}
           {restored && !isEdit && (
             <p className="p-notice p-notice--calm mt-6 max-w-[38rem] font-body text-sm">
               We kept what you typed on this laptop. Pick your files again if you'd added any.{" "}
@@ -510,175 +531,165 @@ export default function SubmitPage() {
             </p>
           )}
           {!isEdit && <SavedList />}
-          {locked && (
-            <p className="p-notice mt-6 font-body">Submissions are closed, so this entry can't be changed. Judges can see it as it is.</p>
-          )}
+          {locked && <p className="p-notice mt-6 font-body">Submissions are closed, so this entry can't be changed. Judges can see it as it is.</p>}
+          <JudgingBriefing className="mt-8" />
         </div>
         <div className="hidden lg:block" />
       </div>
 
-      <form onSubmit={onSubmit} noValidate className="mt-8 grid gap-x-12 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.85fr)]">
+      <form onSubmit={onSubmit} noValidate className="mt-4 grid gap-x-12 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.85fr)]">
         <fieldset disabled={locked || !!busy} className="min-w-0">
-          {!isEdit && codeRequired && (
-            <Block id="blk-code" title={step("Entry code")} note="On the screen at the front of the room, after the theme reveal.">
-              <Field label="Entry code" error={errors.code}>
-                {(p) => (
-                  <input
-                    {...p}
-                    className="p-input p-mono max-w-[16rem] uppercase tracking-[0.08em]"
-                    autoComplete="off"
-                    autoCapitalize="characters"
-                    spellCheck={false}
-                    value={code}
-                    onChange={(e) => {
-                      setCode(e.target.value);
-                      setErrors((x) => ({ ...x, code: undefined }));
-                    }}
-                  />
-                )}
-              </Field>
-            </Block>
-          )}
-
-          <Block id="blk-video" title={step("Your video")} note="This is what judges watch first and what the public page shows. Follow the guide; 1 to 3 minutes.">
-            <Field label="Title of your design" error={errors.title} counter={{ value: form.title.length, max: LIMITS.title }}>
+          <Block id="blk-design" title="1 · Your design" note="What judges look at before you present, and what your entry's page shows.">
+            {!isEdit && codeRequired && (
+              <div id="blk-code" className="scroll-mt-24">
+                <Field label="Entry code" hint="On the screen at the front of the room." error={errors.code}>
+                  {(p) => (
+                    <input
+                      {...p}
+                      className="p-input p-mono max-w-[16rem] uppercase tracking-[0.08em]"
+                      autoComplete="off"
+                      autoCapitalize="characters"
+                      spellCheck={false}
+                      value={code}
+                      onChange={(e) => {
+                        setCode(e.target.value);
+                        setErrors((x) => ({ ...x, code: undefined }));
+                      }}
+                    />
+                  )}
+                </Field>
+              </div>
+            )}
+            <Field label="Title" error={errors.title} counter={{ value: form.title.length, max: LIMITS.title }}>
               {(p) => <input {...p} className="p-input" value={form.title} maxLength={LIMITS.title + 20} onChange={(e) => set("title", e.target.value)} />}
             </Field>
-            <VideoGuide />
-            <VideoChoice
-              mode={videoMode}
-              onMode={(m) => {
-                setVideoMode(m);
-                setErrors((x) => ({ ...x, video: undefined, videoLink: undefined }));
-              }}
-              link={form.videoLink}
-              onLink={(v) => set("videoLink", v)}
-              error={errors.video ?? errors.videoLink}
-              savedCheck={saved && saved.videoLink === form.videoLink ? saved.videoCheck : null}
-              upload={
-                <FilePicker
-                  slot="video"
-                  label="Video file"
-                  hint="MP4, MOV or WebM, up to 150 MB. Longer or bigger? Use a YouTube or Drive link instead."
-                  items={files.video}
-                  error={errors.video}
-                  onAdd={(l) => addFiles("video", l)}
-                  onRemove={(it) => removeItem("video", it)}
-                  icon={<Video size={20} strokeWidth={1.4} />}
-                />
-              }
-            />
-            {!wide && (videoLocalUrl || linkedPreview) && <VideoPlayer title={form.title || "Your video"} link={linkedPreview} localUrl={videoLocalUrl} />}
-          </Block>
-
-          <Block id="blk-judges" title={step("For the judges")} note="Judges read this before you present.">
             <Field
-              label="How it answers the theme"
-              hint="Two or three sentences."
+              label="What you made and how it fits the theme"
+              hint={`Keep it quick: two or three sentences, up to ${WORDS.summary} words.`}
               error={errors.summary}
-              counter={{ value: form.summary.length, max: LIMITS.summary }}
+              counter={{ value: wordCount(form.summary), max: WORDS.summary, unit: "words" }}
             >
-              {(p) => <textarea {...p} className="p-textarea" value={form.summary} onChange={(e) => set("summary", e.target.value)} />}
+              {(p) => <textarea {...p} className="p-textarea min-h-[6rem]" value={form.summary} onChange={(e) => set("summary", e.target.value)} />}
             </Field>
-            <Field
-              label="Your presentation"
-              optional
-              hint="What you'll walk the judges through: three to five short points, in order. Only judges see this."
-              error={errors.presentation}
-              counter={{ value: form.presentation.length, max: LIMITS.presentation }}
-            >
-              {(p) => <textarea {...p} className="p-textarea" placeholder={"1. The problem\n2. How the design works\n3. …"} value={form.presentation} onChange={(e) => set("presentation", e.target.value)} />}
-            </Field>
-            <Field
-              label="What to look for"
-              optional
-              hint="Your process, a tricky part you're proud of, how it would be made."
-              error={errors.process}
-              counter={{ value: form.process.length, max: LIMITS.process }}
-            >
-              {(p) => <textarea {...p} className="p-textarea" value={form.process} onChange={(e) => set("process", e.target.value)} />}
-            </Field>
-          </Block>
-
-          <Block id="blk-files" title={step("Design files")} note="Your CAD link keeps your materials, sketches and history exactly as you made them. A 3D file adds a model anyone can turn around on the page.">
-            <Field label="Link to your CAD document" optional hint={`A view-only share link (${CAD_LINK_HINT}). Set it so anyone with the link can view.`} error={errors.cadLink}>
-              {(p) => <input {...p} type="url" inputMode="url" className="p-input" placeholder="https://cad.onshape.com/documents/…" value={form.cadLink} onChange={(e) => set("cadLink", e.target.value)} />}
-            </Field>
-            {/* The preview sits here on phones and tablets; beside the form on wide screens.
-                Only one viewer is ever mounted, so the thumbnail capture has one canvas. */}
-            {!wide && modelItem && (
-              <ModelViewer
-                source={modelSource}
-                upAxis={form.upAxis}
-                onUpAxisChange={(a) => set("upAxis", a)}
-                onMeasure={setMeasure}
-                units={form.units}
-                spec={status?.spec ?? null}
-                captureRef={captureRef}
-                label="Preview of your model"
-                className="aspect-[4/3] w-full"
-                empty={<PreviewEmpty />}
-              />
-            )}
-            <FilePicker
-              slot="model"
-              label="3D model"
-              optional
-              hint="GLB, STL, OBJ, 3MF or PLY, up to 80 MB. GLB keeps your colours and materials; STL and OBJ show plain."
-              items={files.model}
-              error={errors.model}
-              onAdd={(l) => addFiles("model", l)}
-              onRemove={(it) => removeItem("model", it)}
-              icon={<FileBox size={20} strokeWidth={1.4} />}
-            />
-            {modelItem && <ModelChecks units={form.units} onUnits={(u) => set("units", u)} measure={measure} spec={status?.spec ?? null} hasModel={!!modelItem} />}
-            <details className="group" open={files.progress.length + files.image.length + files.source.length > 0 || !!(errors.progress || errors.image || errors.source) || undefined}>
-              <summary className="focus-ember flex cursor-pointer list-none items-center gap-2 font-body text-[15px] text-foreground/90 marker:hidden">
-                <Plus size={15} strokeWidth={1.6} className="text-ember transition-transform group-open:rotate-45" aria-hidden="true" />
-                Sketches, renders or your project file
-                <span className="text-concrete">optional</span>
-              </summary>
-              <div className="mt-5 flex flex-col gap-6">
-            <FilePicker
-              slot="progress"
-              label="Sketches and progress shots"
-              optional
-              hint="Screenshots of your sketches, feature tree or timeline, as you go. Press Save draft to upload them during the day: each one is timestamped, and judges see them in order."
-              items={files.progress}
-              error={errors.progress}
-              onAdd={(l) => addFiles("progress", l)}
-              onRemove={(it) => removeItem("progress", it)}
-              icon={<PenTool size={20} strokeWidth={1.4} />}
-              multiple
-            />
             <FilePicker
               slot="image"
-              label="Renders or screenshots"
-              optional
-              hint="Up to 4 images (PNG, JPG or WebP), 12 MB each."
+              label="Pictures of your design"
+              hint="Up to 4 renders or screenshots (PNG, JPG or WebP). The first one is your entry's cover. No picture? Add a video or your 3D model below instead."
               items={files.image}
-              error={errors.image}
+              error={errors.image ?? errors.visuals}
               onAdd={(l) => addFiles("image", l)}
               onRemove={(it) => removeItem("image", it)}
               icon={<ImagePlus size={20} strokeWidth={1.4} />}
               multiple
             />
-            <FilePicker
-              slot="source"
-              label="Project file"
-              optional
-              hint="The file you modelled in (.f3d, .blend, .step, ...). Only judges can download it."
-              items={files.source}
-              error={errors.source}
-              onAdd={(l) => addFiles("source", l)}
-              onRemove={(it) => removeItem("source", it)}
-              icon={<Upload size={20} strokeWidth={1.4} />}
-            />
+
+            <details className="group" open={hasExtras || undefined}>
+              <summary className="focus-ember flex cursor-pointer list-none items-center gap-2 font-body text-[15px] text-foreground/90 marker:hidden">
+                <Plus size={15} strokeWidth={1.6} className="text-ember transition-transform group-open:rotate-45" aria-hidden="true" />
+                Add more: a video, your 3D model, a CAD link
+                <span className="text-concrete">optional</span>
+              </summary>
+              <div className="mt-6 flex flex-col gap-7 border-l border-bone/10 pl-4">
+                <div className="flex flex-col gap-4">
+                  <p className="p-label">
+                    Video <span className="ml-1.5 font-normal text-concrete">optional</span>
+                  </p>
+                  <p className="p-hint -mt-3">A short screen recording or turntable of your design. Shown on your entry's page.</p>
+                  <VideoChoice
+                    mode={videoMode}
+                    onMode={(m) => {
+                      setVideoMode(m);
+                      setErrors((x) => ({ ...x, video: undefined, videoLink: undefined }));
+                    }}
+                    link={form.videoLink}
+                    onLink={(v) => set("videoLink", v)}
+                    error={errors.video ?? errors.videoLink}
+                    savedCheck={saved && saved.videoLink === form.videoLink ? saved.videoCheck : null}
+                    upload={
+                      <FilePicker
+                        slot="video"
+                        label="Video file"
+                        hint="MP4, MOV or WebM, up to 150 MB. Bigger? Use a YouTube (Unlisted) or Drive link."
+                        items={files.video}
+                        error={errors.video}
+                        onAdd={(l) => addFiles("video", l)}
+                        onRemove={(it) => removeItem("video", it)}
+                        icon={<Video size={20} strokeWidth={1.4} />}
+                      />
+                    }
+                  />
+                  <VideoGuide />
+                  {!wide && (videoLocalUrl || linkedPreview) && <VideoPlayer title={form.title || "Your video"} link={linkedPreview} localUrl={videoLocalUrl} />}
+                </div>
+
+                {/* The model preview sits here on phones and tablets; beside the form on wide screens.
+                    Only one viewer is ever mounted, so the thumbnail capture has one canvas. */}
+                {!wide && modelItem && (
+                  <ModelViewer
+                    source={modelSource}
+                    upAxis={form.upAxis}
+                    onUpAxisChange={(a) => set("upAxis", a)}
+                    onMeasure={setMeasure}
+                    units={form.units}
+                    spec={status?.spec ?? null}
+                    captureRef={captureRef}
+                    label="Preview of your model"
+                    className="aspect-[4/3] w-full"
+                    empty={<PreviewEmpty />}
+                  />
+                )}
+                <FilePicker
+                  slot="model"
+                  label="3D model"
+                  optional
+                  hint="GLB, STL, OBJ, 3MF or PLY, up to 80 MB. Anyone can turn it around on your entry's page. GLB keeps colours and materials."
+                  items={files.model}
+                  error={errors.model}
+                  onAdd={(l) => addFiles("model", l)}
+                  onRemove={(it) => removeItem("model", it)}
+                  icon={<FileBox size={20} strokeWidth={1.4} />}
+                />
+                {modelItem && <ModelChecks units={form.units} onUnits={(u) => set("units", u)} measure={measure} spec={status?.spec ?? null} hasModel={!!modelItem} />}
+                <Field label="Link to your CAD document" optional hint={`View-only share link (${CAD_LINK_HINT}).`} error={errors.cadLink}>
+                  {(p) => <input {...p} type="url" inputMode="url" className="p-input" placeholder="https://cad.onshape.com/documents/…" value={form.cadLink} onChange={(e) => set("cadLink", e.target.value)} />}
+                </Field>
+                <FilePicker
+                  slot="progress"
+                  label="Sketches and progress shots"
+                  optional
+                  hint="Screenshots of sketches or your feature tree. Each is timestamped when it uploads (press Save draft during the day)."
+                  items={files.progress}
+                  error={errors.progress}
+                  onAdd={(l) => addFiles("progress", l)}
+                  onRemove={(it) => removeItem("progress", it)}
+                  icon={<PenTool size={20} strokeWidth={1.4} />}
+                  multiple
+                />
+                <FilePicker
+                  slot="source"
+                  label="Project file"
+                  optional
+                  hint="The file you modelled in (.f3d, .blend, .step, ...). Only judges can download it."
+                  items={files.source}
+                  error={errors.source}
+                  onAdd={(l) => addFiles("source", l)}
+                  onRemove={(it) => removeItem("source", it)}
+                  icon={<Upload size={20} strokeWidth={1.4} />}
+                />
+                <Field
+                  label="Anything else for the judges"
+                  optional
+                  hint={`A detail you're proud of, how it would be made. Up to ${WORDS.process} words.`}
+                  error={errors.process}
+                  counter={{ value: wordCount(form.process), max: WORDS.process, unit: "words" }}
+                >
+                  {(p) => <textarea {...p} className="p-textarea min-h-[5rem]" value={form.process} onChange={(e) => set("process", e.target.value)} />}
+                </Field>
               </div>
             </details>
           </Block>
 
-          <Block id="blk-team" title={step("Team")} note={`1 to ${TEAM_MAX} people. Everyone on the team, as registered.`}>
+          <Block id="blk-team" title="2 · Your team" note={`1 to ${TEAM_MAX} people, as registered.`}>
             {form.members.map((m, i) => (
               <div key={i} className="grid gap-4 border-l border-bone/10 pl-4 sm:grid-cols-[minmax(0,1.2fr)_minmax(0,1.3fr)_6.5rem_auto] sm:items-start">
                 <Field label={i === 0 ? "Full name" : `Member ${i + 1} full name`} error={errors[`members.${i}.name`]}>
@@ -723,20 +734,41 @@ export default function SubmitPage() {
               </button>
             )}
             <div className="grid gap-6 sm:grid-cols-2">
+              <Field label="Contact email" hint="For prizes. Never shown publicly." error={errors.contactEmail}>
+                {(p) => <input {...p} type="email" className="p-input" autoComplete="email" inputMode="email" value={form.contactEmail} onChange={(e) => set("contactEmail", e.target.value)} />}
+              </Field>
               <Field label="Team name" optional error={errors.teamName}>
                 {(p) => <input {...p} className="p-input" value={form.teamName} onChange={(e) => set("teamName", e.target.value)} />}
               </Field>
-              <Field label="Contact email" hint="For prize follow-up. Never shown publicly." error={errors.contactEmail}>
-                {(p) => (
-                  <input {...p} type="email" className="p-input" autoComplete="email" inputMode="email" value={form.contactEmail} onChange={(e) => set("contactEmail", e.target.value)} />
-                )}
-              </Field>
             </div>
+            <fieldset>
+              <legend className="p-label">On your entry's public page, credit</legend>
+              <div className="p-seg mt-2" role="radiogroup">
+                <label>
+                  <input type="radio" name="credit" className="sr-only" checked={form.credit === "names"} onChange={() => set("credit", "names")} />
+                  First names
+                </label>
+                <label>
+                  <input type="radio" name="credit" className="sr-only" checked={form.credit === "team"} onChange={() => set("credit", "team")} />
+                  Team name
+                </label>
+              </div>
+              <p className="p-hint mt-2">
+                Shown as <span className="text-foreground">{publicCredit(form) || "your first names"}</span>. Never surnames, schools or emails.
+              </p>
+            </fieldset>
+            <label className="flex cursor-pointer items-start gap-3 font-body text-[15px] text-foreground/85">
+              <input type="checkbox" className="mt-1 h-4 w-4 accent-[hsl(24_100%_54%)]" checked={form.shareable} onChange={(e) => set("shareable", e.target.checked)} />
+              <span>
+                Anyone with the link can see our entry
+                <span className="p-hint block">Untick to keep it between your team and the judges. Scores are always private.</span>
+              </span>
+            </label>
           </Block>
 
-          <Block id="blk-made" title={step("How you made it")}>
+          <Block id="blk-confirm" title="3 · Submit">
             <fieldset>
-              <legend className="p-label">Software</legend>
+              <legend className="p-label">Software you used</legend>
               <div className="mt-2 flex flex-wrap gap-2" data-field-error={errors.software ? "true" : undefined}>
                 {SOFTWARE.map((s) => (
                   <label key={s} className="p-chip">
@@ -760,7 +792,7 @@ export default function SubmitPage() {
             )}
             <fieldset>
               <legend className="p-label">AI tools</legend>
-              <p className="p-hint mt-1">Allowed. Minimal use is encouraged, and judges like to know where it helped.</p>
+              <p className="p-hint mt-1">Allowed as a helper; keep it minimal. Pure prompt-to-3D generation isn't allowed.</p>
               <div className="p-seg mt-2" role="radiogroup">
                 <label>
                   <input type="radio" name="ai" className="sr-only" checked={form.aiUse === "none"} onChange={() => set("aiUse", "none")} />
@@ -773,42 +805,14 @@ export default function SubmitPage() {
               </div>
             </fieldset>
             {form.aiUse === "some" && (
-              <Field label="What did AI help with?" error={errors.aiNote} counter={{ value: form.aiNote.length, max: LIMITS.aiNote }}>
-                {(p) => <textarea {...p} className="p-textarea min-h-[5rem]" value={form.aiNote} onChange={(e) => set("aiNote", e.target.value)} />}
+              <Field label="What did AI help with?" hint={`Up to ${WORDS.aiNote} words.`} error={errors.aiNote} counter={{ value: wordCount(form.aiNote), max: WORDS.aiNote, unit: "words" }}>
+                {(p) => <textarea {...p} className="p-textarea min-h-[4.5rem]" value={form.aiNote} onChange={(e) => set("aiNote", e.target.value)} />}
               </Field>
             )}
-          </Block>
 
-          <Block id="blk-share" title={step("Sharing")} note="Every entry gets a page with your video, model and description. Judges can always see your entry; scores stay private.">
-            <fieldset>
-              <legend className="p-label">Credit on the share page</legend>
-              <div className="p-seg mt-2" role="radiogroup">
-                <label>
-                  <input type="radio" name="credit" className="sr-only" checked={form.credit === "names"} onChange={() => set("credit", "names")} />
-                  First names
-                </label>
-                <label>
-                  <input type="radio" name="credit" className="sr-only" checked={form.credit === "team"} onChange={() => set("credit", "team")} />
-                  Team name
-                </label>
-              </div>
-              <p className="p-hint mt-2">
-                Shown as <span className="text-foreground">{publicCredit(form) || "your names"}</span>. No surnames, schools or emails.
-              </p>
-            </fieldset>
-            <label className="flex cursor-pointer items-start gap-3 font-body text-[15px] text-foreground/85">
-              <input type="checkbox" className="mt-1 h-4 w-4 accent-[hsl(24_100%_54%)]" checked={form.shareable} onChange={(e) => set("shareable", e.target.checked)} />
-              <span>
-                Anyone with the link can view it
-                <span className="p-hint block">Turn off to keep it between your team and the judges.</span>
-              </span>
-            </label>
-          </Block>
-
-          <Block id="blk-confirm" title={step("Confirm and submit")}>
             <label className="flex cursor-pointer items-start gap-3 font-body text-[15px] text-foreground/90" data-field-error={errors.original ? "true" : undefined}>
               <input type="checkbox" className="mt-1 h-4 w-4 accent-[hsl(24_100%_54%)]" checked={form.original} onChange={(e) => set("original", e.target.checked)} />
-              <span>We modelled this at the event, after the theme reveal, and it's our own work.</span>
+              <span>We modelled this today, after the theme reveal, and it's our own work.</span>
             </label>
             {errors.original && <p className="p-error -mt-4">{errors.original}</p>}
 
@@ -820,22 +824,22 @@ export default function SubmitPage() {
                     <li key={n}>{n}</li>
                   ))}
                 </ul>
-                <p className="mt-2 text-sm text-foreground/70">
-                  That's not a judgement: files can carry odd metadata. An organizer looks at it either way. If there's an explanation, add it below.
-                </p>
+                <p className="mt-2 text-sm text-foreground/70">That's not a judgement: files can carry odd metadata. If there's an explanation, add it below.</p>
               </div>
             )}
-            <Field
-              label="Anything judges should know about your files?"
-              optional
-              hint="For example: you started from a template, converted the file, or used a part from a library."
-              error={errors.filesNote}
-              counter={{ value: form.filesNote.length, max: LIMITS.filesNote }}
-            >
-              {(p) => <textarea {...p} className="p-textarea min-h-[5rem]" value={form.filesNote} onChange={(e) => set("filesNote", e.target.value)} />}
-            </Field>
+            {(saved?.notices.length || form.filesNote) ? (
+              <Field
+                label="Anything judges should know about your files?"
+                optional
+                hint={`For example: you converted the file or used a part from a library. Up to ${WORDS.filesNote} words.`}
+                error={errors.filesNote}
+                counter={{ value: wordCount(form.filesNote), max: WORDS.filesNote, unit: "words" }}
+              >
+                {(p) => <textarea {...p} className="p-textarea min-h-[4.5rem]" value={form.filesNote} onChange={(e) => set("filesNote", e.target.value)} />}
+              </Field>
+            ) : null}
 
-            {!wide && <ReadyList items={ready} />}
+            {!wide && !locked && <ReadyList items={ready} />}
             {draftSaved && (
               <p className="p-notice p-notice--calm font-body text-[15px]" role="status">
                 {draftSaved}
@@ -865,33 +869,37 @@ export default function SubmitPage() {
         </fieldset>
 
         {wide && (
-        <aside aria-label="Preview">
-          <div className="sticky top-24 flex flex-col gap-4 pt-8">
-            {!locked && <ReadyList items={ready} />}
-            {videoLocalUrl || linkedPreview ? (
-              <VideoPlayer title={form.title || "Your video"} link={linkedPreview} localUrl={videoLocalUrl} />
-            ) : (
-              <div className="grid aspect-video place-items-center border border-bone/10 bg-[#0d0e10] p-6 text-center font-body text-sm text-concrete">
-                Your video shows up here once you paste a link or pick a file.
-              </div>
-            )}
-            {modelItem && (
-            <ModelViewer
-              source={modelSource}
-              upAxis={form.upAxis}
-              onUpAxisChange={(a) => set("upAxis", a)}
-              onMeasure={setMeasure}
-              units={form.units}
-              spec={status?.spec ?? null}
-              captureRef={captureRef}
-              label="Preview of your model"
-              className="aspect-[4/3] w-full"
-              empty={<PreviewEmpty />}
-            />
-            )}
-            <p className="p-hint">This is what judges and the public page show.{modelItem ? " Drag the model to turn it; the view when you submit becomes your entry's card image." : ""}</p>
-          </div>
-        </aside>
+          <aside aria-label="Preview">
+            <div className="sticky top-24 flex flex-col gap-4 pt-8">
+              {!locked && <ReadyList items={ready} />}
+              {coverUrl ? (
+                <img src={coverUrl} alt="Your cover picture" className="aspect-video w-full rounded-[2px] border border-bone/10 bg-[#0d0e10] object-contain" />
+              ) : (
+                !(videoLocalUrl || linkedPreview) &&
+                !modelItem && (
+                  <div className="grid aspect-video place-items-center border border-bone/10 bg-[#0d0e10] p-6 text-center font-body text-sm text-concrete">
+                    Your pictures show up here.
+                  </div>
+                )
+              )}
+              {(videoLocalUrl || linkedPreview) && <VideoPlayer title={form.title || "Your video"} link={linkedPreview} localUrl={videoLocalUrl} />}
+              {modelItem && (
+                <ModelViewer
+                  source={modelSource}
+                  upAxis={form.upAxis}
+                  onUpAxisChange={(a) => set("upAxis", a)}
+                  onMeasure={setMeasure}
+                  units={form.units}
+                  spec={status?.spec ?? null}
+                  captureRef={captureRef}
+                  label="Preview of your model"
+                  className="aspect-[4/3] w-full"
+                  empty={<PreviewEmpty />}
+                />
+              )}
+              <p className="p-hint">What judges and your entry's page show.</p>
+            </div>
+          </aside>
         )}
       </form>
     </Shell>
@@ -1170,7 +1178,7 @@ function Done({ entry, editKey, onEdit }: { entry: OwnEntry; editKey: string; on
   const share = `${origin}/entry/${entry.id}`;
   const edit = `${origin}/submit/edit/${entry.id}#k=${editKey}`;
   const mail = `mailto:${encodeURIComponent(entry.contactEmail)}?subject=${encodeURIComponent(`Mackenzie Design Cup entry: ${entry.title}`)}&body=${encodeURIComponent(
-    `Share link (shows the model in 3D):\n${share}\n\nPrivate edit link (don't share):\n${edit}\n`,
+    `Share link (your entry's page):\n${share}\n\nPrivate edit link (don't share):\n${edit}\n`,
   )}`;
   return (
     <Shell section="Submitted">
@@ -1182,8 +1190,10 @@ function Done({ entry, editKey, onEdit }: { entry: OwnEntry; editKey: string; on
           </p>
           <h1 className="display-scene mt-3">{entry.title}</h1>
           <p className="mt-4 max-w-[36rem] font-body text-lg leading-relaxed text-foreground/75">
-            The judges have it. Keep both links: the first shows your video and design to anyone, the second lets your team edit until submissions close.
+            The judges have it. Keep both links: the first shows your design to anyone, the second lets your team edit until submissions close.
           </p>
+          {entry.slot && <SlotNotice slot={entry.slot} />}
+          <JudgingBriefing className="mt-8" open />
 
           <div className="mt-10 flex flex-col gap-8">
             <LinkBox
@@ -1205,6 +1215,9 @@ function Done({ entry, editKey, onEdit }: { entry: OwnEntry; editKey: string; on
           </div>
         </div>
         <div className="flex flex-col gap-4">
+          {entry.files.find((f) => f.slot === "image") && (
+            <img src={entry.files.find((f) => f.slot === "image")!.url} alt={`${entry.title}, cover`} className="aspect-video w-full rounded-[2px] border border-bone/10 object-contain" />
+          )}
           <VideoPlayer
             title={entry.title}
             file={entry.files.find((f) => f.slot === "video") ?? null}

@@ -13,7 +13,7 @@ export function Field({
   hint?: ReactNode;
   error?: string;
   optional?: boolean;
-  counter?: { value: number; max: number };
+  counter?: { value: number; max: number; unit?: string };
   children: (props: { id: string; "aria-describedby"?: string; "aria-invalid"?: boolean }) => ReactNode;
 }) {
   const id = useId();
@@ -30,6 +30,7 @@ export function Field({
         {counter && (
           <span className={`p-mono text-[11px] ${counter.value > counter.max ? "text-[hsl(6_90%_66%)]" : "text-concrete"}`} aria-hidden="true">
             {counter.value}/{counter.max}
+            {counter.unit ? ` ${counter.unit}` : ""}
           </span>
         )}
       </div>

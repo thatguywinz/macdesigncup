@@ -38,32 +38,27 @@ The local preview uses fixed passcodes and saves everything under `.data/portal`
 To try the production build instead: `npm run build && npm run preview`
 (http://localhost:4173). Same API, same local storage.
 
-## What a team submits (video first)
+## What a team submits (three steps)
 
-The video is the centre of an entry, because most CAD tools' materials and
-rendering don't survive export to a web 3D format. The form walks teams
-through it in numbered steps:
+1. **Your design**: entry code (if on), title, a few words on what it is and
+   how it fits the theme (up to 80 words), and at least one picture (render or
+   screenshot). The first picture is the entry's cover. A video, 3D model, CAD
+   link, sketches, project file and a note for judges are optional, folded
+   under "Add more".
+2. **Your team**: names, schools, grades, contact email, team name, and how the
+   public page credits them.
+3. **Submit**: software, AI use (pure prompt-to-3D isn't allowed), the
+   own-work confirmation.
 
-1. **Entry code** (from the slide), only if organizers leave it on (see below).
-2. **Your video** (required): a written guide (what to show, in order; how
-   to record on Windows, Mac and in Blender/Fusion/Onshape; how to share), then
-   either a **link** (YouTube Unlisted, Google Drive, Vimeo, Loom, OneDrive,
-   Dropbox) with a **Check link** button that opens it like a signed-out judge
-   would, or a small **upload** (MP4/MOV/WebM, up to 150 MB). Uploads stop
-   before the free 1 GB store fills (`PORTAL_STORAGE_BUDGET_MB`, default 900),
-   pointing teams to a link instead.
-3. **For the judges**: how it answers the theme, their presentation outline
-   (judges only), what to look for.
-4. **Design files**: CAD share link, optional 3D model (viewer with sizes),
-   sketches and progress shots, renders, project file.
-5. **Team**, 6. **How you made it**, 7. **Sharing**, 8. **Confirm**.
+Text boxes are limited by words, not characters (summary 80, extra note 120,
+AI note 40, files note 60), with a live "12/80 words" counter. To submit, an
+entry needs one thing to look at: a picture, a video or a model.
 
-Steps renumber when there's no code step. Sketches, renders and the project
-file sit behind one "optional" toggle. A **Needed to submit** checklist (beside
-the form on laptops, above the button on phones) ticks off the required parts
-using the same rules as the server, and each line jumps to its section. What a
-team types into a new entry is kept on that laptop until it's first saved, so
-a refresh or closed tab doesn't lose it (files are picked again).
+The form and the "Submitted" page both show **"Then you present: be ready"**:
+judging 2:10 to 3:20 PM in WFL632/634/637, present from your own laptop
+(HDMI or USB-C), about 2 to 3 minutes, and the rubric's four categories with
+what top marks look like. A **Needed to submit** checklist ticks off as they
+go. What a team types is kept on that laptop until the entry is first saved.
 
 ### Entry code: on or off
 
@@ -102,8 +97,19 @@ entries started on that laptop.
 
 ## Judging
 
-- Four criteria, 1 to 10 each, total out of 40. **The criteria are a starting
-  point: confirm or change them in `src/portal/shared/judging.ts` before Nov 16.**
+- The organizers' rubric (`src/portal/shared/judging.ts`): Innovation &
+  Originality, Technicality, Relevance to Theme, Communication & Presentation,
+  each 0 to 25 in four levels (0-6, 7-12, 13-19, 20-25), total out of 100. A
+  judge taps the level whose description fits, then the exact points. The
+  wording is the rubric's general version: the theme-specific one is revealed
+  at the opening ceremony and must not go in the code (it's public).
+- **Rooms and schedule** (`/judge/settings`): name the rooms, set the start
+  time and minutes per team, put each judge in a room, then press **Make the
+  schedule** after submissions close. Every team sees "Your judging: room
+  WFL634 at 2:22 PM" on its entry page; each judge's dashboard opens on their
+  room in time order, and "Save and judge next" follows it. Making it again
+  only adds new entries; nobody's time moves. The Live board shows the
+  schedule per room.
 - **Judges list**: in `/judge/settings`, organizers enter each judge's name. Once
   the list has names, only those people can sign in as judges and only their
   marks count, so someone who overhears the passcode can't add made-up judges.

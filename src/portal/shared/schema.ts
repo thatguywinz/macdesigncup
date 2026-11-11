@@ -49,7 +49,7 @@ export const LIMITS = {
   name: 60,
   school: 90,
   email: 120,
-  summary: 700,
+  summary: 1000,
   process: 1500,
   aiNote: 500,
   softwareOther: 60,
@@ -57,6 +57,15 @@ export const LIMITS = {
   presentation: 1200,
   videoLink: 500,
 } as const;
+
+/**
+ * Word limits on the free-text boxes (what teams see). The character limits
+ * above stay as a backstop against pasted walls of text.
+ */
+export const WORDS = { summary: 80, process: 120, aiNote: 40, filesNote: 60 } as const;
+
+/** Words in a piece of text, the way a person would count them. */
+export const wordCount = (s: string) => (String(s ?? "").trim().match(/\S+/g) ?? []).length;
 
 export interface MemberInput {
   name: string;
@@ -147,6 +156,10 @@ export function parseEntry(raw: unknown, opts: { draft?: boolean } = {}): Parsed
   const tooLong = (field: string, value: string, max: number, label: string) => {
     if (value.length > max) errors[field] = `${label} can be at most ${max} characters.`;
   };
+  const tooManyWords = (field: keyof typeof WORDS, value: string) => {
+    const n = wordCount(value);
+    if (n > WORDS[field]) errors[field] = `Keep it to ${WORDS[field]} words (this is ${n}).`;
+  };
   /** A required-field error: skipped for drafts. */
   const need = (field: string, message: string) => {
     if (!draft) errors[field] = message;
@@ -187,16 +200,19 @@ export function parseEntry(raw: unknown, opts: { draft?: boolean } = {}): Parsed
   if (software.includes("Other") && !softwareOther) need("softwareOther", "Which other software?");
 
   const summary = str(r.summary, LIMITS.summary);
-  if (summary.length < 20) need("summary", "A sentence or two on how your design answers the theme.");
+  if (wordCount(summary) < 5) need("summary", "A sentence or two: what you made and how it fits the theme.");
   tooLong("summary", summary, LIMITS.summary, "This");
+  tooManyWords("summary", summary);
 
   const process = str(r.process, LIMITS.process);
   tooLong("process", process, LIMITS.process, "This");
+  tooManyWords("process", process);
 
   const aiUse = r.aiUse === "some" ? "some" : "none";
   const aiNote = aiUse === "some" ? str(r.aiNote, LIMITS.aiNote) : "";
   if (aiUse === "some" && !aiNote) need("aiNote", "Say briefly what you used it for.");
   tooLong("aiNote", aiNote, LIMITS.aiNote, "This");
+  tooManyWords("aiNote", aiNote);
 
   const credit = r.credit === "team" ? "team" : "names";
   if (credit === "team" && !teamName) need("teamName", "Add a team name, or credit your names instead.");
@@ -222,6 +238,7 @@ export function parseEntry(raw: unknown, opts: { draft?: boolean } = {}): Parsed
 
   const filesNote = str(r.filesNote, LIMITS.filesNote);
   tooLong("filesNote", filesNote, LIMITS.filesNote, "This");
+  tooManyWords("filesNote", filesNote);
 
   if (Object.keys(errors).length) return { ok: false, errors };
   return {
@@ -363,10 +380,18 @@ export interface OwnEntry extends EntryInput {
   notices: string[];
   /** Whether the video link opened without signing in, last time we checked. */
   videoCheck: VideoCheck | null;
+  /** The team's judging room and time, once organizers make the schedule. */
+  slot: Slot | null;
+}
+
+/** A judging slot: which room, and when the team presents. */
+export interface Slot {
+  room: string;
+  at: string;
 }
 
 export interface Score {
-  /** criterion id -> 1..10 */
+  /** criterion id -> 0..25 */
   marks: Record<string, number>;
   notes: string;
   updatedAt: string;
@@ -393,6 +418,7 @@ export interface JudgeEntry extends EntryInput {
   modelMeta: FileMeta | null;
   /** What the server found when it opened the video link without signing in. */
   videoCheck: VideoCheck | null;
+  slot: Slot | null;
 }
 
 /** A dashboard card. */
@@ -415,6 +441,7 @@ export interface JudgeCard {
   openReviews: number;
   /** Spec lines failed (null: no spec or not measured). */
   specFails: number | null;
+  slot: Slot | null;
 }
 
 export interface PortalStatus {

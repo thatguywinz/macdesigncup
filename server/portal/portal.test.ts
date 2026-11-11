@@ -210,18 +210,34 @@ describe("teams", () => {
     expect(r.json.entry.files.filter((f: { slot: string }) => f.slot === "model").map((f: { name: string }) => f.name)).toEqual(["b.stl"]);
   });
 
-  it("won't submit without a video, but a link or an upload is enough", async () => {
+  it("needs one thing to look at: an image, a video or a model, any of them", async () => {
     const { id, key } = await create({ videoLink: "" });
     const r = await call(`/entries/${id}/submit`, { body: {}, key });
     expect(r.status).toBe(422);
-    expect(r.json.field).toBe("video");
-    // An uploaded MP4 counts (no 3D model needed).
-    const mp4 = Buffer.concat([Buffer.from([0, 0, 0, 0x18]), Buffer.from("ftypmp42"), Buffer.alloc(64)]);
-    expect((await upload(id, key, "video", "pitch.mp4", mp4)).status).toBe(200);
+    expect(r.json.field).toBe("visuals");
+    // A single render is enough.
+    expect((await upload(id, key, "image", "render.png", PNG)).status).toBe(200);
     expect((await call(`/entries/${id}/submit`, { body: {}, key })).status).toBe(200);
+    // ...and can't then be removed, leaving nothing.
+    const own = await call(`/entries/${id}`, { key });
+    const img = own.json.entry.files.find((f: { slot: string }) => f.slot === "image");
+    expect((await call(`/entries/${id}/files/${img.id}`, { method: "DELETE", key })).status).toBe(409);
+    // An uploaded MP4 counts too.
+    const v = await create({ videoLink: "" });
+    const mp4 = Buffer.concat([Buffer.from([0, 0, 0, 0x18]), Buffer.from("ftypmp42"), Buffer.alloc(64)]);
+    expect((await upload(v.id, v.key, "video", "pitch.mp4", mp4)).status).toBe(200);
+    expect((await call(`/entries/${v.id}/submit`, { body: {}, key: v.key })).status).toBe(200);
     // A fake MP4 is rejected.
     const other = await create({ videoLink: "" });
     expect((await upload(other.id, other.key, "video", "x.mp4", Buffer.from("<html>nope</html>"))).status).toBe(422);
+  });
+
+  it("limits the text boxes by words, not characters", async () => {
+    const long = Array.from({ length: 81 }, (_, i) => `w${i}`).join(" ");
+    const r = await call("/entries", { body: { code: "MDC-DEMO", entry: entry({ summary: long }) } });
+    expect(r.status).toBe(422);
+    expect(r.json.errors.summary).toMatch(/80 words/);
+    expect((await call("/entries", { body: { code: "mdc demo", entry: entry({ summary: long.split(" ").slice(0, 80).join(" ") }) } })).status).toBe(201);
   });
 
   it("accepts known video links and turns them into embeds; refuses others", async () => {
@@ -322,14 +338,14 @@ describe("judges", () => {
     const card = list.json.cards.find((c: { id: string }) => c.id === id);
     expect(card.myTotal).toBeNull();
 
-    const marks = { theme: 8, creativity: 9, technical: 7, presentation: 12 }; // 12 clamps to 10
+    const marks = { originality: 20, technical: 18, theme: 22, communication: 30 }; // 30 clamps to 25
     const s = await call(`/judge/entries/${id}/score`, { method: "PUT", body: { marks, notes: "Lovely fold." }, cookie: a.cookie });
     expect(s.status).toBe(200);
-    expect(s.json.total).toBe(34);
-    await call(`/judge/entries/${id}/score`, { method: "PUT", body: { marks: { theme: 6, creativity: 6, technical: 6, presentation: 6 } }, cookie: b.cookie });
+    expect(s.json.total).toBe(85);
+    await call(`/judge/entries/${id}/score`, { method: "PUT", body: { marks: { originality: 6, technical: 6, theme: 6, communication: 6 } }, cookie: b.cookie });
 
     const detail = await call(`/judge/entries/${id}`, { cookie: a.cookie });
-    expect(detail.json.entry.myScore.marks.presentation).toBe(10);
+    expect(detail.json.entry.myScore.marks.communication).toBe(25);
     expect(detail.json.entry.scoreCount).toBe(2);
     expect(detail.json.entry.members[1].name).toBe("Sam Okafor"); // judges see full names
 
@@ -338,7 +354,7 @@ describe("judges", () => {
     const admin = await login("admin-demo", "Organizer");
     const res = await call("/judge/results", { cookie: admin.cookie });
     const row = res.json.rows.find((r: { id: string }) => r.id === id);
-    expect(row.average).toBe(29);
+    expect(row.average).toBe((85 + 24) / 2);
     expect(row.judgeCount).toBe(2);
   });
 
@@ -444,14 +460,14 @@ describe("security review fixes", () => {
     const admin = await login("admin-demo", "Organizer");
     // A phantom judge marks before the list exists...
     const phantom = await login("judge-demo", "Judge Phantom");
-    await call(`/judge/entries/${id}/score`, { method: "PUT", body: { marks: { theme: 10, creativity: 10, technical: 10, presentation: 10 } }, cookie: phantom.cookie });
+    await call(`/judge/entries/${id}/score`, { method: "PUT", body: { marks: { originality: 10, technical: 10, theme: 10, communication: 10 } }, cookie: phantom.cookie });
     await call("/judge/settings", { method: "PUT", body: { judges: ["Judge Real", " judge real ", "x"] }, cookie: admin.cookie });
     const st = await call("/judge/settings", { cookie: admin.cookie });
     expect(st.json.judges).toEqual(["Judge Real"]);
     expect((await login("judge-demo", "Judge Phantom 2")).status).toBe(403);
     const real = await login("judge-demo", "judge  REAL");
     expect(real.status).toBe(200);
-    await call(`/judge/entries/${id}/score`, { method: "PUT", body: { marks: { theme: 5, creativity: 5, technical: 5, presentation: 5 } }, cookie: real.cookie });
+    await call(`/judge/entries/${id}/score`, { method: "PUT", body: { marks: { originality: 5, technical: 5, theme: 5, communication: 5 } }, cookie: real.cookie });
     const res = await call("/judge/results", { cookie: admin.cookie });
     const row = res.json.rows.find((r: { id: string }) => r.id === id);
     expect(row.average).toBe(20); // the phantom's 40 doesn't count
@@ -492,7 +508,7 @@ describe("day-of switches", () => {
     }
     const a = await login("judge-demo", "Queue Judge A");
     const c = await login("judge-demo", "Queue Judge C");
-    const full = { theme: 5, creativity: 5, technical: 5, presentation: 5 };
+    const full = { originality: 5, technical: 5, theme: 5, communication: 5 };
     await call(`/judge/entries/${ids[0]}/score`, { method: "PUT", body: { marks: full }, cookie: a.cookie });
 
     const list = await call("/judge/entries", { cookie: c.cookie });
@@ -514,7 +530,7 @@ describe("day-of switches", () => {
     const { id, key } = await create({ title: "Live Entry" });
     await call(`/entries/${id}/submit`, { body: {}, key });
     const j = await login("judge-demo", "Live Judge");
-    await call(`/judge/entries/${id}/score`, { method: "PUT", body: { marks: { theme: 7, creativity: 7, technical: 7, presentation: 7 } }, cookie: j.cookie });
+    await call(`/judge/entries/${id}/score`, { method: "PUT", body: { marks: { originality: 7, technical: 7, theme: 7, communication: 7 } }, cookie: j.cookie });
     const res = await call("/judge/results", { cookie: admin.cookie });
     const byName = Object.fromEntries(res.json.activity.map((x: { name: string }) => [x.name, x]));
     expect(byName["Live Judge"].marked).toBe(1);
@@ -522,5 +538,53 @@ describe("day-of switches", () => {
     expect(byName["Idle Judge"].marked).toBe(0);
     expect(typeof res.json.drafts).toBe("number");
     await call("/judge/settings", { method: "PUT", body: { judges: [] }, cookie: admin.cookie });
+  });
+});
+
+describe("judging schedule", () => {
+  it("spreads entries over the rooms, keeps given slots, and sends each judge through their room in order", async () => {
+    const admin = await login("admin-demo", "Organizer");
+    await call("/judge/schedule", { body: { action: "clear" }, cookie: admin.cookie });
+    await call("/judge/settings", {
+      method: "PUT",
+      body: { judges: ["Room Judge"], rooms: { names: ["R1", "R2"], start: "2026-11-16T14:10:00-05:00", slotMinutes: 5, judgeRooms: { "Room Judge": "R2" } } },
+      cookie: admin.cookie,
+    });
+    let st = await call("/judge/schedule", { body: { action: "make" }, cookie: admin.cookie });
+    expect(st.status).toBe(200);
+    const res = await call("/judge/results", { cookie: admin.cookie });
+    const slots = res.json.rows.map((r: { slot: { room: string; at: string } | null }) => r.slot);
+    expect(slots.every(Boolean)).toBe(true);
+    const r1 = slots.filter((s: { room: string }) => s.room === "R1").length;
+    const r2 = slots.filter((s: { room: string }) => s.room === "R2").length;
+    expect(Math.abs(r1 - r2)).toBeLessThanOrEqual(1); // balanced
+    const r2times = slots.filter((s: { room: string }) => s.room === "R2").map((s: { at: string }) => Date.parse(s.at)).sort();
+    expect(r2times[0]).toBe(Date.parse("2026-11-16T14:10:00-05:00"));
+    expect(r2times[1] - r2times[0]).toBe(5 * 60_000);
+
+    // A new entry is added after the others; nobody already scheduled moves.
+    const before = JSON.stringify(slots);
+    const { id, key } = await create({ title: "Late Addition" });
+    await call(`/entries/${id}/submit`, { body: {}, key });
+    st = await call("/judge/schedule", { body: { action: "make" }, cookie: admin.cookie });
+    const after = (await call("/judge/results", { cookie: admin.cookie })).json.rows;
+    const kept = after.filter((r: { id: string }) => r.id !== id).map((r: { slot: unknown }) => r.slot);
+    expect(JSON.stringify(kept.sort())).toBe(JSON.stringify(JSON.parse(before).sort()));
+    expect(after.find((r: { id: string }) => r.id === id).slot).toBeTruthy();
+
+    // The team sees its room and time.
+    expect((await call(`/entries/${id}`, { key })).json.entry.slot.room).toMatch(/^R[12]$/);
+
+    // The judge in R2 is sent to R2's earliest entry.
+    const j = await login("judge-demo", "Room Judge");
+    const list = await call("/judge/entries", { cookie: j.cookie });
+    expect(list.json.myRoom).toBe("R2");
+    const first = list.json.cards
+      .filter((c: { slot: { room: string } | null }) => c.slot?.room === "R2")
+      .sort((a: { slot: { at: string } }, b: { slot: { at: string } }) => a.slot.at.localeCompare(b.slot.at))[0];
+    expect(list.json.nextToMark).toBe(first.id);
+
+    await call("/judge/schedule", { body: { action: "clear" }, cookie: admin.cookie });
+    await call("/judge/settings", { method: "PUT", body: { judges: [], rooms: { names: ["WFL632", "WFL634", "WFL637"], judgeRooms: {} } }, cookie: admin.cookie });
   });
 });

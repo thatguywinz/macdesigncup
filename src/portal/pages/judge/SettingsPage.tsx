@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { ApiError, api, when } from "../../api";
 import { JudgeShell, useMe } from "./context";
 import { RevealInput, SpecSection } from "./specSettings";
+import RoomsSection, { type RoomsSettings } from "./RoomsSection";
 import type { Spec } from "../../shared/checks";
 
 interface Settings {
@@ -18,6 +19,8 @@ interface Settings {
   publicListing: "off" | "all" | "selected";
   entryCodeOn: boolean;
   opensAt: string | null;
+  rooms: RoomsSettings;
+  scheduled: number;
   open: boolean;
   graceSeconds: number;
   storage: string;
@@ -69,8 +72,35 @@ export default function SettingsPage() {
     }
   }
 
+  useEffect(() => {
+    if (!saved) return;
+    const t = window.setTimeout(() => setSaved(""), 3500);
+    return () => window.clearTimeout(t);
+  }, [saved]);
+
+  async function schedule(action: "make" | "clear") {
+    setBusy(true);
+    setError("");
+    setSaved("");
+    try {
+      const r = await api<Settings>("/judge/schedule", { body: { action } });
+      setS(r);
+      setSaved(action === "make" ? `Schedule ready: ${r.scheduled} ${r.scheduled === 1 ? "entry" : "entries"}.` : "Schedule cleared.");
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <JudgeShell section="Settings">
+      <p
+        role="status"
+        className={`fixed bottom-5 left-1/2 z-40 -translate-x-1/2 border border-ember/60 bg-background px-4 py-2.5 font-body text-sm text-foreground shadow-lg transition-opacity ${saved ? "opacity-100" : "pointer-events-none opacity-0"}`}
+      >
+        {saved}
+      </p>
       <div className="max-w-[46rem] pt-10 md:pt-12">
         <h1 className="display-scene">Settings</h1>
         {error && <p className="p-notice p-notice--bad mt-6 font-body">{error}</p>}
@@ -154,11 +184,6 @@ export default function SettingsPage() {
                   <span className="p-hint block">Stops new entries and edits right away, whatever the clock says.</span>
                 </span>
               </label>
-              {saved && (
-                <p className="mt-4 font-body text-sm text-ember" role="status">
-                  {saved}
-                </p>
-              )}
             </section>
 
             <section className="border-t border-bone/10 py-7">
@@ -231,6 +256,9 @@ export default function SettingsPage() {
               </div>
               <p className="p-hint mt-3">{s.judges.length ? `${s.judges.length} on the list.` : "No list: anyone with the judge passcode can sign in."}</p>
             </section>
+
+            <RoomsSection rooms={s.rooms} judges={s.judges} scheduled={s.scheduled} open={s.open} busy={busy} onSave={put} onSchedule={schedule} />
+
 
             <section className="border-t border-bone/10 py-7">
               <h2 className="p-block-title">Storage</h2>

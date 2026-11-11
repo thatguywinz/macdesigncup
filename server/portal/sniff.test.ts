@@ -46,7 +46,8 @@ describe("shared form rules", () => {
   });
   it("totals marks only when complete", () => {
     expect(totalOf({ theme: 5 })).toBeNull();
-    expect(totalOf(cleanMarks({ theme: 5, creativity: 5, technical: 5, presentation: "5", junk: 9 }))).toBe(20);
-    expect(cleanMarks({ theme: 0, creativity: 99 })).toEqual({ theme: 1, creativity: 10 });
+    expect(totalOf(cleanMarks({ originality: 5, technical: 5, theme: 5, communication: "5", junk: 9 }))).toBe(20);
+    expect(cleanMarks({ theme: -3, originality: 99, technical: 0, communication: null })).toEqual({ theme: 0, originality: 25, technical: 0 });
+    expect(totalOf({ originality: 0, technical: 0, theme: 0, communication: 0 })).toBe(0); // zero is a mark
   });
 });

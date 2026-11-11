@@ -21,12 +21,14 @@ interface Row {
   judgeCount: number;
   openReviews: number;
   submittedAt: string | null;
+  slot: { room: string; at: string } | null;
 }
 
 interface Live {
   maxTotal: number;
   rows: Row[];
-  activity: { key: string; name: string; marked: number; lastAt: string | null }[];
+  activity: { key: string; name: string; marked: number; lastAt: string | null; room: string | null }[];
+  rooms: string[];
   unlisted: { key: string; name: string; marked: number }[];
   drafts: number;
 }
@@ -158,6 +160,8 @@ export default function LivePage() {
             ))}
           </dl>
 
+          {data.rows.some((r) => r.slot) && <Schedule rows={data.rows} rooms={data.rooms} />}
+
           <div className="mt-10 grid gap-10 xl:grid-cols-[minmax(0,1fr)_22rem]">
             <section aria-labelledby="cov-h" className="min-w-0">
               <h2 id="cov-h" className="p-block-title">
@@ -198,6 +202,11 @@ export default function LivePage() {
                               {r.title}
                             </Link>
                             <span className="ml-2 text-[13px] text-concrete">{r.creditLine}</span>
+                            {r.slot && (
+                              <span className="p-mono ml-2 text-[11px] text-concrete">
+                                {r.slot.room} {clock(r.slot.at)}
+                              </span>
+                            )}
                             {r.late && <span className="p-tag p-tag--bad ml-2">Late</span>}
                             {r.openReviews > 0 && <span className="p-tag p-tag--ember ml-2">Needs review</span>}
                           </td>
@@ -233,7 +242,10 @@ export default function LivePage() {
                     return (
                       <li key={j.key}>
                         <div className="flex items-baseline justify-between gap-3 font-body text-[15px]">
-                          <span className="truncate text-foreground">{j.name}</span>
+                          <span className="truncate text-foreground">
+                            {j.name}
+                            {j.room && <span className="p-mono ml-2 text-[11px] text-concrete">{j.room}</span>}
+                          </span>
                           <span className="p-mono shrink-0 text-[12px] text-foreground/80">
                             {j.marked}/{entries}
                           </span>
@@ -285,5 +297,37 @@ export default function LivePage() {
         </>
       )}
     </JudgeShell>
+  );
+}
+
+/** The judging schedule, one column per room, for the screen or to read out. Nothing private: title and credit only. */
+function Schedule({ rows, rooms }: { rows: Row[]; rooms: string[] }) {
+  return (
+    <section aria-labelledby="sched-h" className="mt-10">
+      <h2 id="sched-h" className="p-block-title">
+        Schedule
+      </h2>
+      <div className="mt-4 grid gap-6 md:grid-cols-3">
+        {rooms.map((room) => {
+          const list = rows.filter((r) => r.slot?.room === room).sort((a, b) => a.slot!.at.localeCompare(b.slot!.at));
+          return (
+            <div key={room}>
+              <p className="p-mono border-b border-bone/15 pb-2 text-sm text-ember">{room}</p>
+              <ol className="mt-2 flex flex-col">
+                {list.map((r) => (
+                  <li key={r.id} className="flex items-baseline gap-3 border-b border-bone/[0.07] py-1.5 font-body text-sm">
+                    <span className="p-mono w-16 shrink-0 text-concrete">{clock(r.slot!.at)}</span>
+                    <span className="min-w-0 flex-1 truncate text-foreground">{r.title}</span>
+                    <span className="shrink-0 text-[12px] text-concrete">{r.creditLine}</span>
+                    {r.judgeCount > 0 && <span className="shrink-0 text-[11px] text-[#9fd59a]">✓</span>}
+                  </li>
+                ))}
+                {list.length === 0 && <li className="py-1.5 font-body text-sm text-concrete">Nobody yet.</li>}
+              </ol>
+            </div>
+          );
+        })}
+      </div>
+    </section>
   );
 }

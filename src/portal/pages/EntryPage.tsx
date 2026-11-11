@@ -48,14 +48,19 @@ export default function EntryPage() {
     <Shell section="Design" wide right={entry ? <CopyLink /> : null}>
       <div className="grid items-start gap-8 pt-6 md:pt-8 lg:grid-cols-[minmax(0,1fr)_24rem] lg:gap-12 xl:grid-cols-[minmax(0,1fr)_27rem]">
         <div className="flex min-w-0 flex-col gap-6">
-          {/* The video leads; the 3D model (if the team added one) follows. */}
+          {/* The team's cover picture leads, then their video, then the 3D model. */}
+          {entry && entry.images[0] && (
+            <a href={entry.images[0].url} target="_blank" rel="noopener noreferrer" className="focus-ember block overflow-hidden rounded-[2px] border border-bone/10 bg-[#0d0e10]">
+              <img src={entry.images[0].url} alt={`${entry.title}, cover`} className="max-h-[78vh] w-full object-contain" />
+            </a>
+          )}
           {entry && (entry.video || entry.videoLink) && <VideoPlayer title={entry.title} file={entry.video} link={entry.videoLink} poster={entry.thumb?.url} />}
           {(!entry || model) && (
             <ModelViewer
               source={model ? { kind: "url", url: model.url, ext: model.ext as ViewableExt } : null}
               upAxis={entry?.upAxis ?? "y"}
               label={entry ? `${entry.title}, 3D model` : "3D model"}
-              className={entry && (entry.video || entry.videoLink) ? "aspect-[16/10] w-full" : "h-[62vh] min-h-[340px] w-full lg:h-[calc(100dvh-7.5rem)]"}
+              className={entry && (entry.video || entry.videoLink || entry.images.length) ? "aspect-[16/10] w-full" : "h-[62vh] min-h-[340px] w-full lg:h-[calc(100dvh-7.5rem)]"}
               empty={<span className="font-body text-sm text-concrete">{entry ? "No model to show." : ""}</span>}
             />
           )}
@@ -87,19 +92,19 @@ export default function EntryPage() {
               </div>
               {entry.process && (
                 <div className="mt-7">
-                  <h2 className="font-body text-sm font-medium text-concrete">Look for</h2>
+                  <h2 className="font-body text-sm font-medium text-concrete">More from the team</h2>
                   <p className="mt-2 whitespace-pre-line font-body text-[16px] leading-relaxed text-foreground/85">{entry.process}</p>
                 </div>
               )}
 
-              {entry.images.length > 0 && (
+              {entry.images.length > 1 && (
                 <div className="mt-8">
-                  <h2 className="font-body text-sm font-medium text-concrete">Renders</h2>
+                  <h2 className="font-body text-sm font-medium text-concrete">More pictures</h2>
                   <ul className="mt-3 grid grid-cols-2 gap-2">
-                    {entry.images.map((img, i) => (
+                    {entry.images.slice(1).map((img, i) => (
                       <li key={img.id}>
                         <a href={img.url} target="_blank" rel="noopener noreferrer" className="focus-ember block overflow-hidden rounded-[2px] border border-bone/10">
-                          <img src={img.url} alt={`${entry.title}, render ${i + 1}`} className="aspect-[4/3] w-full object-cover transition-transform duration-300 hover:scale-[1.03]" loading="lazy" />
+                          <img src={img.url} alt={`${entry.title}, picture ${i + 2}`} className="aspect-[4/3] w-full object-cover transition-transform duration-300 hover:scale-[1.03]" loading="lazy" />
                         </a>
                       </li>
                     ))}

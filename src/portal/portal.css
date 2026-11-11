@@ -311,6 +311,21 @@
 .j-table tr:hover td { background: hsl(var(--bone) / 0.02); }
 .j-table .num { text-align: right; font-family: "Space Mono", ui-monospace, monospace; font-size: 0.8125rem; }
 
+/* Rubric: four levels per category, then the points within the chosen one. */
+.j-levels { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; }
+@media (min-width: 640px) { .j-levels { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.j-level {
+  display: flex; flex-direction: column; gap: 0.35rem; text-align: left;
+  padding: 0.55rem 0.6rem; border: 1px solid hsl(var(--bone) / 0.14); border-radius: 2px;
+  color: hsl(var(--foreground) / 0.75); transition: border-color 0.12s, background-color 0.12s, color 0.12s;
+}
+.j-level:hover { border-color: hsl(var(--bone) / 0.4); color: hsl(var(--foreground)); }
+.j-level[data-has="true"] { border-color: hsl(var(--ember) / 0.6); }
+.j-level[aria-pressed="true"] { border-color: hsl(var(--ember)); background: hsl(var(--ember) / 0.12); color: hsl(var(--foreground)); }
+.j-level-text { font: 400 0.75rem/1.35 "Archivo Variable", system-ui, sans-serif; }
+.j-points { display: flex; flex-wrap: wrap; gap: 4px; }
+.j-points .j-mark { min-width: 2.75rem; min-height: 2.75rem; flex: 1 0 2.75rem; max-width: 4rem; }
+
 /* Live board: one cell per judge per entry. */
 .j-cover td, .j-cover th { vertical-align: middle; }
 .j-cover th.num, .j-cover td.num { text-align: center; }

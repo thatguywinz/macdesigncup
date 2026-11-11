@@ -30,6 +30,7 @@ import type {
   PortalStatus,
   PublicEntry,
   Score,
+  Slot,
 } from "../../src/portal/shared/schema.js";
 import { LIMITS, parseEntry, publicCredit } from "../../src/portal/shared/schema.js";
 import {
@@ -44,7 +45,7 @@ import {
 } from "./auth.js";
 import { GRACE_SECONDS, type PortalConfig } from "./config.js";
 import { normalizeCode, randomId, randomSecret, safeEqual, sha256 } from "./crypto.js";
-import { Db, filePath, type JudgeSheet, type ScoresDoc, type SettingsDoc } from "./db.js";
+import { DEFAULT_ROOMS, Db, filePath, type JudgeSheet, type RoomsSetup, type ScoresDoc, type SettingsDoc } from "./db.js";
 import { BASE_HEADERS, HttpError, assertSameOrigin, clientIp, fail, rateLimit, readJson, sendJson, type Req, type Res } from "./http.js";
 import { SNIFF_BYTES, sniff } from "./sniff.js";
 import { BlobStorage } from "./storage/blob.js";
@@ -141,7 +142,8 @@ function linkView(url: string | undefined) {
 
 async function publicView(ctx: PortalContext, e: EntryRecord): Promise<PublicEntry> {
   const model = firstOf(e, "model");
-  const thumb = firstOf(e, "thumb");
+  // The team's own first picture is the cover; the captured still stands in without one.
+  const thumb = firstOf(e, "image") ?? firstOf(e, "thumb");
   return {
     id: e.id,
     title: e.title,
@@ -178,8 +180,18 @@ async function ownView(ctx: PortalContext, w: Window, e: EntryRecord): Promise<O
     locked: !canChange(w, e),
     notices,
     videoCheck: e.videoCheck ?? null,
+    slot: slotOf(w.settings, e.id),
   };
 }
+
+const slotOf = (settings: SettingsDoc, id: string): Slot | null => (settings.schedule && Object.hasOwn(settings.schedule, id) ? settings.schedule[id] : null);
+const roomsOf = (settings: SettingsDoc): RoomsSetup => ({ ...DEFAULT_ROOMS, ...(settings.rooms ?? {}) });
+/** The room a judge sits in, if organizers set one. */
+const roomOfJudge = (settings: SettingsDoc, key: string): string | null => {
+  const r = roomsOf(settings);
+  const room = r.judgeRooms[key];
+  return room && r.names.includes(room) ? room : null;
+};
 
 function inputOf(e: EntryRecord) {
   const { title, teamName, members, contactEmail, software, softwareOther, summary, process, aiUse, aiNote, credit, shareable, original, upAxis } = e;
@@ -230,6 +242,7 @@ async function judgeView(ctx: PortalContext, e: EntryRecord, s: Session): Promis
     checks: checksFor(e, Object.values(doc.entries), settings),
     modelMeta: firstOf(e, "model")?.meta ?? null,
     videoCheck: e.videoCheck ?? null,
+    slot: slotOf(settings, e.id),
   };
 }
 
@@ -601,7 +614,7 @@ on("DELETE", "/entries/:id/files/:fileId", async (ctx, req, res, { id, fileId })
     if (!canChange(w, e)) fail(409, "Submissions are closed.");
     const f = e.files.find((x) => x.id === fileId);
     if (!f) fail(404, "No such file.");
-    if (f.slot === "model" && e.status === "submitted") fail(409, "A submitted entry needs its model. Upload a new one to replace it.");
+    if (e.status === "submitted" && !hasVisual({ ...e, files: e.files.filter((x) => x.id !== fileId) })) fail(409, VISUAL_NEEDED);
     path = f.path;
     e.files = e.files.filter((x) => x.id !== fileId);
     e.updatedAt = iso(w.now);
@@ -610,6 +623,10 @@ on("DELETE", "/entries/:id/files/:fileId", async (ctx, req, res, { id, fileId })
   await ctx.db.storage.delete([path]).catch(() => {});
   sendJson(res, 200, { entry: await ownView(ctx, w, e) });
 });
+
+/** Something judges and the public page can look at: an image, a video or a 3D model. */
+const hasVisual = (e: Pick<EntryRecord, "files" | "videoLink">) => !!e.videoLink || e.files.some((f) => f.slot === "image" || f.slot === "video" || f.slot === "model");
+const VISUAL_NEEDED = "Add at least one picture of your design: a render or screenshot, a video, or your 3D model.";
 
 on("POST", "/entries/:id/submit", async (ctx, req, res, { id }) => {
   const before = await loadOwned(ctx, req, id);
@@ -621,7 +638,7 @@ on("POST", "/entries/:id/submit", async (ctx, req, res, { id }) => {
     if (!canChange(w, e)) fail(409, "Submissions are closed.");
     const parsed = parseEntry(e);
     if (!parsed.ok) fail(422, "Some fields need another look.", { errors: parsed.errors });
-    if (!e.files.some((f) => f.slot === "video") && !e.videoLink) fail(422, "Add your video: upload it or paste a link.", { field: "video" });
+    if (!hasVisual(e)) fail(422, VISUAL_NEEDED, { field: "visuals" });
     if (e.status !== "submitted") {
       e.status = "submitted";
       e.submittedAt = iso(w.now);
@@ -734,7 +751,7 @@ on("GET", "/judge/entries", async (ctx, req, res) => {
     submitted
       .sort((a, b) => String(b.submittedAt).localeCompare(String(a.submittedAt)))
       .map(async (e) => {
-        const thumb = firstOf(e, "thumb") ?? firstOf(e, "image");
+        const thumb = firstOf(e, "image") ?? firstOf(e, "thumb");
         return {
           id: e.id,
           title: e.title,
@@ -752,6 +769,7 @@ on("GET", "/judge/entries", async (ctx, req, res) => {
           scoreCount: counted.filter(([, j]) => totalOf(j.scores[e.id]?.marks) !== null).length,
           openReviews: openReviews(checksFor(e, all, w.settings)),
           specFails: spec && e.measure ? specCheck(e.measure, spec).filter((l) => l.ok === false).length : null,
+          slot: slotOf(w.settings, e.id),
         };
       }),
   );
@@ -759,6 +777,7 @@ on("GET", "/judge/entries", async (ctx, req, res) => {
     me: { role: s.role, name: s.name },
     cards,
     nextToMark: nextToMark(all, scores, w.settings, s.key),
+    myRoom: roomOfJudge(w.settings, s.key),
     drafts: s.role === "admin" ? all.length - submitted.length : undefined,
     deadline: iso(w.deadline),
     open: w.open,
@@ -814,6 +833,14 @@ on("PUT", "/judge/entries/:id/score", async (ctx, req, res, { id }) => {
 function nextToMark(all: EntryRecord[], scores: ScoresDoc, settings: SettingsDoc, judge: string, except?: string): string | null {
   const counted = countedSheets(scores, settings);
   const mine = scores.judges[judge]?.scores ?? {};
+  // A judge with a room follows that room's schedule, in time order.
+  const room = roomOfJudge(settings, judge);
+  if (room && settings.schedule) {
+    const queue = all
+      .filter((e) => e.status === "submitted" && e.id !== except && totalOf(mine[e.id]?.marks) === null && slotOf(settings, e.id)?.room === room)
+      .sort((a, b) => slotOf(settings, a.id)!.at.localeCompare(slotOf(settings, b.id)!.at));
+    if (queue.length) return queue[0].id;
+  }
   const pick = all
     .filter((e) => e.status === "submitted" && e.id !== except && totalOf(mine[e.id]?.marks) === null)
     .map((e) => ({ e, n: counted.filter(([, j]) => totalOf(j.scores[e.id]?.marks) !== null).length }))
@@ -880,7 +907,17 @@ async function results(ctx: PortalContext) {
     return { key, name, marked: done.length, lastAt };
   });
   const drafts = Object.values(doc.entries).filter((e) => e.status !== "submitted").length;
-  return { criteria: CRITERIA, maxTotal: MAX_TOTAL, judges, unlisted, rows, activity, drafts };
+  const rooms = roomsOf(settings);
+  return {
+    criteria: CRITERIA,
+    maxTotal: MAX_TOTAL,
+    judges,
+    unlisted,
+    rows: rows.map((r) => ({ ...r, slot: slotOf(settings, r.id) })),
+    activity: activity.map((a) => ({ ...a, room: roomOfJudge(settings, a.key) })),
+    drafts,
+    rooms: rooms.names,
+  };
 }
 
 const csvCell = (v: unknown) => {
@@ -980,6 +1017,11 @@ function settingsView(ctx: PortalContext, w: Window) {
     publicListing: w.settings.publicListing ?? "off",
     entryCodeOn: w.codeOn,
     opensAt: w.notYet ? iso(w.notYet) : null,
+    rooms: (() => {
+      const r = roomsOf(w.settings);
+      return { ...r, start: new Date(Date.parse(r.start)).toISOString() };
+    })(),
+    scheduled: Object.keys(w.settings.schedule ?? {}).length,
     open: w.open,
     graceSeconds: GRACE_SECONDS,
     storage: ctx.cfg.storage,
@@ -1013,7 +1055,69 @@ on("PUT", "/judge/settings", async (ctx, req, res) => {
     }
     if ("spec" in body) st.spec = cleanSpec(body.spec);
     if (typeof body.entryCodeOn === "boolean") st.entryCodeOn = body.entryCodeOn;
+    if (body.rooms && typeof body.rooms === "object") st.rooms = cleanRooms(body.rooms as Record<string, unknown>, roomsOf(st));
     if (body.publicListing === "off" || body.publicListing === "all" || body.publicListing === "selected") st.publicListing = body.publicListing;
+  });
+  sendJson(res, 200, settingsView(ctx, await windowOf(ctx)));
+});
+
+/** Validates the rooms setup; anything missing keeps its current value. */
+function cleanRooms(raw: Record<string, unknown>, cur: RoomsSetup): RoomsSetup {
+  const names = Array.isArray(raw.names)
+    ? [...new Set(raw.names.map((n) => String(n).replace(/\s+/g, " ").trim().slice(0, 40)).filter(Boolean))].slice(0, 12)
+    : cur.names;
+  if (!names.length) fail(422, "Add at least one room.");
+  let start = cur.start;
+  if (raw.start !== undefined) {
+    if (typeof raw.start !== "string" || Number.isNaN(Date.parse(raw.start))) fail(422, "That start time isn't a valid date.");
+    start = new Date(Date.parse(raw.start)).toISOString();
+  }
+  const slotMinutes = raw.slotMinutes === undefined ? cur.slotMinutes : Math.round(Number(raw.slotMinutes));
+  if (!Number.isFinite(slotMinutes) || slotMinutes < 1 || slotMinutes > 30) fail(422, "Minutes per team must be 1 to 30.");
+  const judgeRooms: Record<string, string> = {};
+  const src = raw.judgeRooms && typeof raw.judgeRooms === "object" ? (raw.judgeRooms as Record<string, unknown>) : cur.judgeRooms;
+  for (const [name, room] of Object.entries(src)) {
+    const key = judgeKey(name) || name;
+    if (typeof room === "string" && names.includes(room)) judgeRooms[key] = room;
+  }
+  return { names, start, slotMinutes, judgeRooms };
+}
+
+// The judging schedule. "make" gives every submitted entry without a slot the
+// next free time in the least-busy room (entries already scheduled keep
+// theirs, so late changes never move a team that was told its time).
+// "clear" removes it.
+on("POST", "/judge/schedule", async (ctx, req, res) => {
+  requireAdmin(ctx.cfg, req);
+  const body = await readJson(req);
+  const doc = await ctx.db.read("entries", { fresh: true });
+  await ctx.db.mutate("settings", (st) => {
+    if (body.action === "clear") {
+      delete st.schedule;
+      return;
+    }
+    if (body.action !== "make") fail(422, "Action must be make or clear.");
+    const r = roomsOf(st);
+    const schedule: Record<string, { room: string; at: string }> = {};
+    // Keep slots for entries that still exist, are submitted and whose room is still a room.
+    for (const [id, s] of Object.entries(st.schedule ?? {})) {
+      const e = Object.hasOwn(doc.entries, id) ? doc.entries[id] : null;
+      if (e && e.status === "submitted" && r.names.includes(s.room)) schedule[id] = s;
+    }
+    const step = r.slotMinutes * 60_000;
+    const next = new Map(r.names.map((n) => [n, Date.parse(r.start)]));
+    for (const s of Object.values(schedule)) next.set(s.room, Math.max(next.get(s.room)!, Date.parse(s.at) + step));
+    const count = new Map(r.names.map((n) => [n, Object.values(schedule).filter((s) => s.room === n).length]));
+    const waiting = Object.values(doc.entries)
+      .filter((e) => e.status === "submitted" && !e.hidden && !schedule[e.id])
+      .sort((a, b) => String(a.submittedAt).localeCompare(String(b.submittedAt)));
+    for (const e of waiting) {
+      const room = r.names.reduce((best, n) => (count.get(n)! < count.get(best)! || (count.get(n) === count.get(best) && next.get(n)! < next.get(best)!) ? n : best));
+      schedule[e.id] = { room, at: iso(next.get(room)!) };
+      next.set(room, next.get(room)! + step);
+      count.set(room, count.get(room)! + 1);
+    }
+    st.schedule = schedule;
   });
   sendJson(res, 200, settingsView(ctx, await windowOf(ctx)));
 });

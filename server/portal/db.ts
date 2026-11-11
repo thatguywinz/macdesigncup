@@ -35,6 +35,21 @@ export interface ScoresDoc {
   judges: Record<string, JudgeSheet>;
 }
 
+export interface RoomsSetup {
+  names: string[];
+  start: string;
+  slotMinutes: number;
+  /** judge key -> room name */
+  judgeRooms: Record<string, string>;
+}
+
+export const DEFAULT_ROOMS: RoomsSetup = {
+  names: ["WFL632", "WFL634", "WFL637"],
+  start: "2026-11-16T14:10:00-05:00",
+  slotMinutes: 4,
+  judgeRooms: {},
+};
+
 export interface SettingsDoc {
   v: 1;
   /**
@@ -56,6 +71,10 @@ export interface SettingsDoc {
    * form opens to anyone at the theme reveal time instead.
    */
   entryCodeOn?: boolean;
+  /** Judging rooms: names, when judging starts, minutes per team, and which room each judge sits in. */
+  rooms?: RoomsSetup;
+  /** entry id -> its judging room and time (made by organizers after submissions close). */
+  schedule?: Record<string, { room: string; at: string }>;
   /** Replaces the configured deadline (an organizer extended or moved it). */
   deadlineOverride: string | null;
   /** Organizer closed submissions early, whatever the clock says. */

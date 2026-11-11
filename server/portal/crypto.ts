@@ -29,4 +29,5 @@ export function safeEqual(a: string, b: string): boolean {
 }
 
 /** Case- and space-insensitive comparison for the entry code people type off a slide. */
-export const normalizeCode = (s: string) => String(s ?? "").replace(/\s+/g, "").toUpperCase();
+/** "mdc 2026", "MDC-2026" and "mdc2026" are the same code. */
+export const normalizeCode = (s: string) => String(s ?? "").replace(/[\s\-_.]+/g, "").toUpperCase();

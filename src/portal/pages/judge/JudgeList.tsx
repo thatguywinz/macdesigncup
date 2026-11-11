@@ -14,18 +14,20 @@ interface ListResponse {
   cards: JudgeCard[];
   /** The unmarked entry with the fewest marks: where this judge goes next. */
   nextToMark?: string | null;
+  /** The room this judge sits in, if organizers set one. */
+  myRoom?: string | null;
   drafts?: number;
   deadline: string;
   open: boolean;
 }
 
-type Filter = "all" | "todo" | "done" | "late" | "review";
+type Filter = "room" | "all" | "todo" | "done" | "late" | "review";
 
 export default function JudgeList() {
   const { me, signOut } = useMe();
   const [data, setData] = useState<ListResponse | null>(null);
   const [error, setError] = useState("");
-  const [filter, setFilter] = useState<Filter>("all");
+  const [filter, setFilter] = useState<Filter | null>(null);
   const [query, setQuery] = useState("");
   const now = useNow(1000);
 
@@ -54,18 +56,24 @@ export default function JudgeList() {
     };
   }, [signOut]);
 
+  const myRoom = data?.myRoom ?? null;
+  const roomCount = myRoom ? (data?.cards.filter((c) => c.slot?.room === myRoom).length ?? 0) : 0;
+  // A judge with a scheduled room starts on that room's list, in time order.
+  const active: Filter = filter ?? (roomCount ? "room" : "all");
   const cards = useMemo(() => {
     if (!data) return [];
     const q = query.trim().toLowerCase();
-    return data.cards.filter((c) => {
-      if (filter === "todo" && c.myTotal !== null) return false;
-      if (filter === "done" && c.myTotal === null) return false;
-      if (filter === "late" && !c.late) return false;
-      if (filter === "review" && !c.openReviews) return false;
+    const list = data.cards.filter((c) => {
+      if (active === "room" && c.slot?.room !== myRoom) return false;
+      if (active === "todo" && c.myTotal !== null) return false;
+      if (active === "done" && c.myTotal === null) return false;
+      if (active === "late" && !c.late) return false;
+      if (active === "review" && !c.openReviews) return false;
       if (!q) return true;
       return [c.title, c.creditLine, ...c.schools, ...c.software].some((s) => s.toLowerCase().includes(q));
     });
-  }, [data, filter, query]);
+    return active === "room" ? list.sort((a, b) => String(a.slot?.at).localeCompare(String(b.slot?.at))) : list;
+  }, [data, active, query, myRoom]);
 
   const marked = data?.cards.filter((c) => c.myTotal !== null).length ?? 0;
   const upNext = data?.nextToMark ? data.cards.find((c) => c.id === data.nextToMark) : undefined;
@@ -104,7 +112,12 @@ export default function JudgeList() {
               <p className="font-body text-[13px] text-ember">Up next for you</p>
               <p className="truncate font-body text-[17px] font-semibold text-bone">{upNext.title}</p>
               <p className="font-body text-[13px] text-concrete">
-                {upNext.creditLine} · {upNext.scoreCount === 0 ? "nobody has marked it yet" : `${upNext.scoreCount} ${upNext.scoreCount === 1 ? "mark" : "marks"} so far`}
+                {upNext.creditLine} ·{" "}
+                {upNext.slot
+                  ? `presents in ${upNext.slot.room} at ${clock(upNext.slot.at)}`
+                  : upNext.scoreCount === 0
+                    ? "nobody has marked it yet"
+                    : `${upNext.scoreCount} ${upNext.scoreCount === 1 ? "mark" : "marks"} so far`}
               </p>
             </div>
           </div>
@@ -123,6 +136,7 @@ export default function JudgeList() {
         <div className="flex flex-wrap gap-2" role="group" aria-label="Show">
           {(
             [
+              ...(roomCount ? ([["room", `My room · ${myRoom}`]] as [Filter, string][]) : []),
               ["all", "All"],
               ["todo", "To mark"],
               ["done", "Marked"],
@@ -130,7 +144,7 @@ export default function JudgeList() {
               ["review", "Needs review"],
             ] as [Filter, string][]
           ).map(([f, label]) => (
-            <button key={f} type="button" className="p-chip" aria-pressed={filter === f} onClick={() => setFilter(f)}>
+            <button key={f} type="button" className="p-chip" aria-pressed={active === f} onClick={() => setFilter(f)}>
               {label}
             </button>
           ))}
@@ -181,6 +195,11 @@ export default function JudgeList() {
                   </span>
                   <span className="truncate font-body text-[13px] text-concrete">{c.schools.join(", ")}</span>
                   <span className="mt-auto flex flex-wrap items-center gap-1.5 pt-2">
+                    {c.slot && (
+                      <span className="p-tag p-mono">
+                        {c.slot.room} · {clock(c.slot.at)}
+                      </span>
+                    )}
                     {c.late && <span className="p-tag p-tag--bad">Late</span>}
                     {c.openReviews > 0 && <span className="p-tag p-tag--ember">Needs review</span>}
                     {!!c.specFails && <span className="p-tag p-tag--bad">Outside spec</span>}
