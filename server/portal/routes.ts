@@ -994,6 +994,10 @@ on("DELETE", "/judge/entries/:id", async (ctx, req, res, { id }) => {
   await ctx.db.mutate("scores", (sc) => {
     for (const j of Object.values(sc.judges)) delete j.scores[id];
   });
+  // And its judging slot, so a deleted test entry leaves nothing behind.
+  await ctx.db.mutate("settings", (st) => {
+    if (st.schedule && Object.hasOwn(st.schedule, id)) delete st.schedule[id];
+  });
   await ctx.db.storage.delete(paths).catch(() => {});
   sendJson(res, 200, { ok: true });
 });

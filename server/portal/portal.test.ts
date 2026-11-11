@@ -584,6 +584,11 @@ describe("judging schedule", () => {
       .sort((a: { slot: { at: string } }, b: { slot: { at: string } }) => a.slot.at.localeCompare(b.slot.at))[0];
     expect(list.json.nextToMark).toBe(first.id);
 
+    // Deleting an entry frees its slot.
+    const before2 = (await call("/judge/settings", { cookie: admin.cookie })).json.scheduled;
+    await call(`/judge/entries/${id}`, { method: "DELETE", cookie: admin.cookie });
+    expect((await call("/judge/settings", { cookie: admin.cookie })).json.scheduled).toBe(before2 - 1);
+
     await call("/judge/schedule", { body: { action: "clear" }, cookie: admin.cookie });
     await call("/judge/settings", { method: "PUT", body: { judges: [], rooms: { names: ["WFL632", "WFL634", "WFL637"], judgeRooms: {} } }, cookie: admin.cookie });
   });
