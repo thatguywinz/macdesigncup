@@ -41,3 +41,6 @@ lion3d/*.avi
 .data/
 
 .env*
+
+# Organizer passcodes (local only)
+PORTAL-PASSCODES.txt
