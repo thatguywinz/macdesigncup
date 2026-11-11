@@ -242,7 +242,7 @@ export default function LivePage() {
                           <div className="h-full bg-ember transition-[width] duration-500" style={{ width: entries ? `${(j.marked / entries) * 100}%` : 0 }} />
                         </div>
                         <p className={`mt-1 font-body text-[12px] ${idle ? "text-ember" : "text-concrete"}`}>
-                          Last mark {ago(j.lastAt, now)}
+                          {j.lastAt ? `Last mark ${ago(j.lastAt, now)}` : "No marks yet"}
                         </p>
                       </li>
                     );
