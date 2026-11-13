@@ -47,13 +47,18 @@ export default function JudgeEntryPage({ practice = false }: { practice?: boolea
     setData(null);
     setError("");
     setShown(0);
+    let alive = true;
     if (practice) {
       setData({ entry: practiceEntry(), prev: null, next: null, nextToMark: null, toMark: 1, total: 1, spec: null, marksCount: false });
       return;
     }
+    // A slow answer for an entry the judge has already left must not replace the one on screen.
     api<EntryResponse>(`/judge/entries/${id}`)
-      .then(setData)
-      .catch((e: ApiError) => (e.status === 401 ? signOut() : setError(e.message)));
+      .then((d) => alive && setData(d))
+      .catch((e: ApiError) => alive && (e.status === 401 ? signOut() : setError(e.message)));
+    return () => {
+      alive = false;
+    };
   }, [id, signOut, practice]);
 
   const e = data?.entry;

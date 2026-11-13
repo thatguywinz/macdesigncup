@@ -494,7 +494,14 @@ export default function SubmitPage() {
 
   return (
     <Shell section={isEdit ? "Edit your entry" : "Submit your design"}>
-      {status && <DeadlineBar deadline={status.deadline} now={now} />}
+      {status && (
+        <DeadlineBar
+          deadline={status.deadline}
+          now={now}
+          closed={isEdit ? (saved ? locked : undefined) : !status.open}
+          reopened={isEdit && !locked && saved?.status === "submitted"}
+        />
+      )}
       {status?.devDefaults && (
         <p className="p-notice p-notice--calm mt-6 font-body text-sm">
           Local preview.{codeRequired ? <> Entry code <span className="p-mono text-ember">MDC-DEMO</span>.</> : " No entry code needed."} Files are saved on this computer only.
@@ -659,7 +666,7 @@ export default function SubmitPage() {
                   slot="source"
                   label="Project file"
                   optional
-                  hint="The file you modelled in (.f3d, .blend, .step, ...). Only judges can download it."
+                  hint="The file you modelled in (.f3d, .blend, .step, ...), up to 250 MB. Only judges can download it."
                   items={files.source}
                   error={errors.source}
                   onAdd={(l) => addFiles("source", l)}
@@ -1172,7 +1179,7 @@ function Done({ entry, editKey, onEdit, deadline, now }: { entry: OwnEntry; edit
   )}`;
   return (
     <Shell section="Submitted">
-      {deadline && <DeadlineBar deadline={deadline} now={now} />}
+      {deadline && <DeadlineBar deadline={deadline} now={now} closed={entry.locked} reopened={!entry.locked && entry.status === "submitted"} />}
       <div className="grid gap-12 pt-12 md:pt-16 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.9fr)]">
         <div>
           <p className="flex items-center gap-2 font-body text-[15px] text-ember">

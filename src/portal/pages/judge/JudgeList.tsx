@@ -101,7 +101,7 @@ export default function JudgeList() {
         )}
       </div>
 
-      {data && (me.role === "admin" ? <OrganizerGuide marksCount={data.marksCount} /> : marked === 0 && <JudgeTip />)}
+      {data && (me.role === "admin" ? <OrganizerGuide marksCount={data.marksCount} deadline={data.deadline} /> : marked === 0 && <JudgeTip />)}
 
       {total > 0 && (
         <div className="mt-6 h-[3px] w-full bg-bone/10" role="progressbar" aria-label="Entries you've marked" aria-valuemin={0} aria-valuemax={total} aria-valuenow={marked}>

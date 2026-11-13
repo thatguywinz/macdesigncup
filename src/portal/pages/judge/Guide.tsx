@@ -4,6 +4,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowRight, ChevronDown } from "lucide-react";
+import { clock } from "../../api";
 
 const SEEN = "mdc-guide-closed";
 
@@ -23,7 +24,7 @@ function PracticeLink({ children = "Try the judge screen" }: { children?: string
   );
 }
 
-export function OrganizerGuide({ marksCount }: { marksCount: boolean | undefined }) {
+export function OrganizerGuide({ marksCount, deadline }: { marksCount: boolean | undefined; deadline: string }) {
   const [open, setOpen] = useState(() => !readClosed());
   const toggle = (e: React.SyntheticEvent<HTMLDetailsElement>) => {
     const isOpen = e.currentTarget.open;
@@ -52,7 +53,7 @@ export function OrganizerGuide({ marksCount }: { marksCount: boolean | undefined
             </li>
             <li>
               <span className="p-mono mr-2 text-ember">2</span>On the entry: sees the team's pictures and model, reads their few words, and listens to the
-              1-minute pitch. There's no timer on their screen; the room schedule (3 minutes a team) keeps time.
+              1-minute pitch. There's no timer on their screen; the room schedule (minutes per team, set in Settings) keeps time.
             </li>
             <li>
               <span className="p-mono mr-2 text-ember">3</span>For each of the 4 categories, taps the description that fits, then the points. Then{" "}
@@ -68,11 +69,11 @@ export function OrganizerGuide({ marksCount }: { marksCount: boolean | undefined
           <h2 className="font-body text-[15px] font-semibold text-bone">What you do on the day</h2>
           <ol className="mt-3 flex flex-col gap-2.5 font-body text-[14px] leading-relaxed text-foreground/80">
             <li>
-              <span className="p-mono mr-2 text-ember">1</span>Before 2:00 PM: in <Link to="/judge/settings" className="p-link focus-ember">Settings</Link>,
+              <span className="p-mono mr-2 text-ember">1</span>Before submissions close ({clock(deadline)}): in <Link to="/judge/settings" className="p-link focus-ember">Settings</Link>,
               check the judges list and who sits in which room.
             </li>
             <li>
-              <span className="p-mono mr-2 text-ember">2</span>After submissions close at 2:00: in Settings, press{" "}
+              <span className="p-mono mr-2 text-ember">2</span>After submissions close: in Settings, press{" "}
               <span className="text-foreground">Make the schedule</span>. Every team then sees its room and time.
             </li>
             <li>
@@ -88,7 +89,7 @@ export function OrganizerGuide({ marksCount }: { marksCount: boolean | undefined
             You can open and mark any entry too.{" "}
             {marksCount === false
               ? "Your marks don't count in Results: only judges on the judges list do."
-              : "With no judges list set, your marks count as one more judge."}
+              : "Your marks count in Results, as one more judge."}
           </p>
         </div>
       </div>
