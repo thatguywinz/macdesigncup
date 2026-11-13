@@ -61,6 +61,8 @@ export interface PortalContext {
 
 const DOWNLOAD_TTL = 30 * 60; // seconds a file URL stays valid
 const UPLOAD_TTL = 20 * 60; // seconds a team has to finish one upload
+/** Model files up to this size are read whole for the fingerprint and metadata checks. */
+const INSPECT_MAX_BYTES = 100 * 1024 * 1024;
 const PENDING_MAX_AGE = 45 * 60 * 1000; // a signed-but-unfinished upload is forgotten after this
 
 // ── Clock and deadline ────────────────────────
@@ -304,6 +306,12 @@ function rosterKeys(settings: SettingsDoc): Set<string> | null {
   const names = settings.judges ?? [];
   return names.length ? new Set(names.map(judgeKey)) : null;
 }
+
+/** Whether a signed-in person's marks go into Results. */
+const marksCount = (settings: SettingsDoc, key: string) => {
+  const roster = rosterKeys(settings);
+  return !roster || roster.has(key);
+};
 
 /** The score sheets that count: everyone's, or only listed judges' once a list exists. */
 function countedSheets(scores: ScoresDoc, settings: SettingsDoc): [string, JudgeSheet][] {
@@ -571,8 +579,9 @@ on("POST", "/entries/:id/files/:fileId/complete", async (ctx, req, res, { id, fi
 
   // Model files: a fingerprint (identical files across entries) and the file's own metadata.
   let fingerprint: Pick<FileRef, "sha256" | "meta"> = {};
-  if (pending.slot === "model") {
-    const bytes = await storage.readAll(pending.path, rule.maxBytes);
+  // Very large files skip it: reading them whole could outlast the function's time limit.
+  if (pending.slot === "model" && info.size <= INSPECT_MAX_BYTES) {
+    const bytes = await storage.readAll(pending.path, INSPECT_MAX_BYTES);
     if (bytes) fingerprint = { sha256: sha256Of(bytes), meta: inspectModel(pending.ext, bytes) };
     lap("readAll+inspect");
   }
@@ -779,6 +788,8 @@ on("GET", "/judge/entries", async (ctx, req, res) => {
     nextToMark: nextToMark(all, scores, w.settings, s.key),
     myRoom: roomOfJudge(w.settings, s.key),
     drafts: s.role === "admin" ? all.length - submitted.length : undefined,
+    // Whether this person's marks go into Results (with a judges list, only listed judges' do).
+    marksCount: marksCount(w.settings, s.key),
     deadline: iso(w.deadline),
     open: w.open,
   });
@@ -804,6 +815,7 @@ on("GET", "/judge/entries/:id", async (ctx, req, res, { id }) => {
     nextToMark: nextToMark(Object.values(doc.entries), scores, settings, s.key, id),
     toMark: order.filter((x) => totalOf(mine[x]?.marks) === null).length,
     total: order.length,
+    marksCount: marksCount(settings, s.key),
   });
 });
 

@@ -9,6 +9,7 @@ import { countdown, useNow } from "../../hooks";
 import { MAX_TOTAL } from "../../shared/judging";
 import type { JudgeCard } from "../../shared/schema";
 import { JudgeShell, useMe } from "./context";
+import { JudgeTip, OrganizerGuide } from "./Guide";
 
 interface ListResponse {
   cards: JudgeCard[];
@@ -17,6 +18,8 @@ interface ListResponse {
   /** The room this judge sits in, if organizers set one. */
   myRoom?: string | null;
   drafts?: number;
+  /** Whether this person's marks go into Results. */
+  marksCount?: boolean;
   deadline: string;
   open: boolean;
 }
@@ -98,6 +101,8 @@ export default function JudgeList() {
         )}
       </div>
 
+      {data && (me.role === "admin" ? <OrganizerGuide marksCount={data.marksCount} /> : marked === 0 && <JudgeTip />)}
+
       {total > 0 && (
         <div className="mt-6 h-[3px] w-full bg-bone/10" role="progressbar" aria-label="Entries you've marked" aria-valuemin={0} aria-valuemax={total} aria-valuenow={marked}>
           <div className="h-full bg-ember transition-[width] duration-500" style={{ width: `${(marked / total) * 100}%` }} />
@@ -164,7 +169,17 @@ export default function JudgeList() {
         </p>
       ) : cards.length === 0 ? (
         <p className="mt-12 max-w-[34rem] font-body text-foreground/75">
-          {total === 0 ? "No entries yet. They show up here the moment a team submits." : "No entries match."}
+          {total === 0 ? (
+            <>
+              No entries yet. They show up here the moment a team submits (submissions close at {data ? clock(data.deadline) : "2:00 PM"}).{" "}
+              <Link to="/judge/practice" className="p-link focus-ember">
+                Try the practice entry
+              </Link>{" "}
+              to see how marking works.
+            </>
+          ) : (
+            "No entries match."
+          )}
         </p>
       ) : (
         <ul className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">

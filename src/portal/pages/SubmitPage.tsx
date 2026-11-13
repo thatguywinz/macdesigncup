@@ -13,10 +13,11 @@ import { Check, Circle, CircleCheck, Copy, ExternalLink, FileBox, ImagePlus, Pen
 import VideoPlayer, { captureVideoFrame } from "../components/VideoPlayer";
 import { VideoChoice, VideoGuide } from "../components/VideoStep";
 import { JudgingBriefing, SlotNotice } from "../components/Briefing";
+import DeadlineBar from "../components/DeadlineBar";
 import { parseVideoLink, type VideoCheck } from "../shared/video";
 import Shell from "../components/Shell";
 import { Block, Field, Progress } from "../components/fields";
-import { ApiError, api, clock, closesLabel, when } from "../api";
+import { ApiError, api, clock, when } from "../api";
 import { countdown, forgetEntry, rememberEntry, savedEntries, useMediaQuery, useNow, usePortalStatus } from "../hooks";
 import { SLOTS, checkFile, extOf, formatBytes, isViewable, type FileSlot } from "../shared/formats";
 import {
@@ -446,10 +447,7 @@ export default function SubmitPage() {
     );
   }
 
-  if (done && saved && entryId) return <Done entry={saved} editKey={editKey} onEdit={() => setDone(false)} />;
-
-  const left = deadline ? countdown(deadline, now) : "";
-  const soon = deadline ? deadline - now < 60 * 60 * 1000 : false;
+  if (done && saved && entryId) return <Done entry={saved} editKey={editKey} onEdit={() => setDone(false)} deadline={status?.deadline ?? null} now={now} />;
 
   // A new entry waits for the status: whether there's a code step, or the form isn't open yet.
   if (!isEdit && !status) {
@@ -495,16 +493,8 @@ export default function SubmitPage() {
   }
 
   return (
-    <Shell
-      section={isEdit ? "Edit your entry" : "Submit your design"}
-      right={
-        deadline ? (
-          <span className={`p-mono hidden sm:inline ${soon ? "text-ember" : "text-concrete"}`} aria-live="off">
-            {closesLabel(status.deadline, now, left)}
-          </span>
-        ) : null
-      }
-    >
+    <Shell section={isEdit ? "Edit your entry" : "Submit your design"}>
+      {status && <DeadlineBar deadline={status.deadline} now={now} />}
       {status?.devDefaults && (
         <p className="p-notice p-notice--calm mt-6 font-body text-sm">
           Local preview.{codeRequired ? <> Entry code <span className="p-mono text-ember">MDC-DEMO</span>.</> : " No entry code needed."} Files are saved on this computer only.
@@ -642,7 +632,7 @@ export default function SubmitPage() {
                   slot="model"
                   label="3D model"
                   optional
-                  hint="GLB, STL, OBJ, 3MF or PLY, up to 80 MB. Anyone can turn it around on your entry's page. GLB keeps colours and materials."
+                  hint="GLB, STL, OBJ, 3MF or PLY, up to 250 MB. Anyone can turn it around on your entry's page. GLB keeps colours and materials."
                   items={files.model}
                   error={errors.model}
                   onAdd={(l) => addFiles("model", l)}
@@ -1173,7 +1163,7 @@ function FileRow({ item, onRemove }: { item: Item; onRemove: () => void }) {
 
 // ── Done ──────────────────────────────────────
 
-function Done({ entry, editKey, onEdit }: { entry: OwnEntry; editKey: string; onEdit: () => void }) {
+function Done({ entry, editKey, onEdit, deadline, now }: { entry: OwnEntry; editKey: string; onEdit: () => void; deadline: string | null; now: number }) {
   const origin = window.location.origin;
   const share = `${origin}/entry/${entry.id}`;
   const edit = `${origin}/submit/edit/${entry.id}#k=${editKey}`;
@@ -1182,6 +1172,7 @@ function Done({ entry, editKey, onEdit }: { entry: OwnEntry; editKey: string; on
   )}`;
   return (
     <Shell section="Submitted">
+      {deadline && <DeadlineBar deadline={deadline} now={now} />}
       <div className="grid gap-12 pt-12 md:pt-16 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.9fr)]">
         <div>
           <p className="flex items-center gap-2 font-body text-[15px] text-ember">

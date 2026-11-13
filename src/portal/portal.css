@@ -324,7 +324,7 @@
 .j-level[aria-pressed="true"] { border-color: hsl(var(--ember)); background: hsl(var(--ember) / 0.12); color: hsl(var(--foreground)); }
 .j-level-text { font: 400 0.75rem/1.35 "Archivo Variable", system-ui, sans-serif; }
 .j-points { display: flex; flex-wrap: wrap; gap: 4px; }
-.j-points .j-mark { min-width: 2.75rem; min-height: 2.75rem; flex: 1 0 2.75rem; max-width: 4rem; }
+.j-points .j-mark { min-width: 2.5rem; min-height: 2.75rem; flex: 1 0 2.5rem; max-width: 4rem; }
 
 /* Live board: one cell per judge per entry. */
 .j-cover td, .j-cover th { vertical-align: middle; }
@@ -342,11 +342,32 @@
 }
 .j-dot[data-on] { border: 1px solid hsl(var(--ember) / 0.6); background: hsl(var(--ember) / 0.85); font-weight: 700; }
 
-/* Presentation timer on the judge's entry page. */
-.j-timer { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 0.75rem; border: 1px solid hsl(var(--bone) / 0.1); padding: 0.75rem 1rem; background: hsl(220 7% 5.5%); }
-.j-timer-time { font: 400 1.75rem/1 "Space Mono", ui-monospace, monospace; letter-spacing: 0.02em; color: hsl(var(--bone)); min-width: 5.5ch; }
-.j-timer[data-state="low"] .j-timer-time { color: hsl(var(--ember)); }
-.j-timer[data-state="over"] .j-timer-time { color: hsl(6 90% 66%); }
+/* Judge's marking: one block per category, and a save bar that stays in reach. */
+.j-crit { border: 1px solid hsl(var(--bone) / 0.1); padding: 1rem; background: hsl(220 7% 5.5%); transition: border-color 0.15s; }
+.j-crit[data-done="true"] { border-color: hsl(var(--ember) / 0.35); }
+.j-pip { width: 1.25rem; height: 0.375rem; border-radius: 1px; background: hsl(var(--bone) / 0.15); }
+.j-pip[data-on="true"] { background: hsl(var(--ember)); }
+.j-savebar {
+  position: sticky; bottom: 0; z-index: 5;
+  margin-top: 1.5rem; padding: 0.875rem 0 calc(0.875rem + env(safe-area-inset-bottom));
+  border-top: 1px solid hsl(var(--bone) / 0.12);
+  background: hsl(var(--background) / 0.96);
+  backdrop-filter: blur(8px);
+}
+
+/* Countdown to the deadline on the submit form. */
+.p-deadline {
+  position: sticky; top: 4rem; z-index: 20;
+  border-bottom: 1px solid hsl(var(--bone) / 0.1);
+  background: hsl(var(--background) / 0.94);
+  backdrop-filter: blur(8px);
+}
+.p-deadline[data-state="soon"] { border-bottom-color: hsl(var(--ember) / 0.6); background: hsl(24 60% 7% / 0.96); }
+.p-deadline[data-state="urgent"] { border-bottom-color: hsl(6 90% 60% / 0.8); background: hsl(6 50% 8% / 0.97); }
+.p-deadline-time { font: 400 clamp(1.5rem, 1.1rem + 1.6vw, 2.25rem)/1 "Space Mono", ui-monospace, monospace; letter-spacing: 0.02em; font-variant-numeric: tabular-nums; color: hsl(var(--bone)); }
+.p-deadline[data-state="soon"] .p-deadline-time { color: hsl(var(--ember)); }
+.p-deadline[data-state="urgent"] .p-deadline-time { color: hsl(6 90% 68%); }
+.p-deadline-unit { font: 400 0.6875rem/1 "Space Mono", ui-monospace, monospace; text-transform: uppercase; letter-spacing: 0.08em; color: hsl(var(--concrete)); }
 
 @media (prefers-reduced-motion: reduce) {
   .p-progress > span, .viewer-load-bar { transition: none; }

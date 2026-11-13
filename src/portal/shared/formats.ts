@@ -33,9 +33,10 @@ export const SLOTS: Record<FileSlot, SlotRule> = {
     accept: "video/mp4,video/quicktime,video/webm,.mp4,.mov,.m4v,.webm",
   },
   // The one file judges and the share page open in the 3D viewer.
+  // 250 MB each; the whole store's budget (routes.ts) is the real limit.
   model: {
     exts: VIEWABLE_EXTS,
-    maxBytes: 80 * MB,
+    maxBytes: 250 * MB,
     maxCount: 1,
     accept: ".glb,.stl,.obj,.3mf,.ply",
   },
@@ -57,7 +58,7 @@ export const SLOTS: Record<FileSlot, SlotRule> = {
   // The native project file, for judges only. Never opened by the site.
   source: {
     exts: ["step", "stp", "f3d", "f3z", "blend", "iges", "igs", "sldprt", "sldasm", "3dm", "skp", "fbx", "zip", "ipt", "par", "asm", "max", "ma", "mb"],
-    maxBytes: 100 * MB,
+    maxBytes: 250 * MB,
     maxCount: 1,
     accept:
       ".step,.stp,.f3d,.f3z,.blend,.iges,.igs,.sldprt,.sldasm,.3dm,.skp,.fbx,.zip,.ipt,.par,.asm,.max,.ma,.mb",

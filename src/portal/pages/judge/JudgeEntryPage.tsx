@@ -1,7 +1,9 @@
 // One entry, for judging at the table. Kept simple: the team's pictures,
 // video or model on the left (what they show while they present), and on the
-// right a timer, what they wrote, and the rubric. Everything else (files,
-// measurements, originality checks, organizer switches) is folded away below.
+// right what they wrote and the rubric, with a save bar that stays in reach.
+// Everything else (files, measurements, originality checks, organizer
+// switches) is folded away below. /judge/practice shows a made-up entry with
+// the same screen, so anyone can try marking before the day.
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, ArrowRight, ChevronDown, Download, ExternalLink } from "lucide-react";
@@ -15,7 +17,7 @@ import ModelViewer from "../../viewer/ModelViewer";
 import VideoPlayer from "../../components/VideoPlayer";
 import { parseVideoLink } from "../../shared/video";
 import { JudgeShell, useMe } from "./context";
-import PresentTimer from "./PresentTimer";
+import { PRACTICE_ID, practiceEntry } from "./practice";
 
 interface EntryResponse {
   entry: JudgeEntry;
@@ -26,10 +28,13 @@ interface EntryResponse {
   toMark: number;
   total: number;
   spec: Spec | null;
+  /** Whether this person's marks go into Results. */
+  marksCount?: boolean;
 }
 
-export default function JudgeEntryPage() {
-  const { id = "" } = useParams();
+export default function JudgeEntryPage({ practice = false }: { practice?: boolean }) {
+  const params = useParams();
+  const id = practice ? PRACTICE_ID : (params.id ?? "");
   const { me, signOut } = useMe();
   const navigate = useNavigate();
   const [data, setData] = useState<EntryResponse | null>(null);
@@ -42,10 +47,14 @@ export default function JudgeEntryPage() {
     setData(null);
     setError("");
     setShown(0);
+    if (practice) {
+      setData({ entry: practiceEntry(), prev: null, next: null, nextToMark: null, toMark: 1, total: 1, spec: null, marksCount: false });
+      return;
+    }
     api<EntryResponse>(`/judge/entries/${id}`)
       .then(setData)
       .catch((e: ApiError) => (e.status === 401 ? signOut() : setError(e.message)));
-  }, [id, signOut]);
+  }, [id, signOut, practice]);
 
   const e = data?.entry;
   const model = e?.files.find((f) => f.slot === "model");
@@ -65,12 +74,28 @@ export default function JudgeEntryPage() {
         <Link to="/judge" className="focus-ember inline-flex min-h-10 items-center gap-1.5 font-body text-sm text-concrete hover:text-foreground">
           <ArrowLeft size={15} strokeWidth={1.5} /> All entries
         </Link>
-        {data && (
+        {data && !practice && (
           <span className="p-mono text-[12px] text-concrete">
             You've marked {data.total - data.toMark} of {data.total}
           </span>
         )}
       </div>
+
+      {practice ? (
+        <p className="p-notice mt-3 font-body text-[15px]">
+          <span className="font-semibold text-bone">Practice.</span> A made-up entry so you can try marking. Nothing you do here is saved or counted.
+        </p>
+      ) : (
+        data &&
+        me.role === "admin" && (
+          <p className="p-notice p-notice--calm mt-3 font-body text-sm">
+            You're an organizer. This is the judges' screen, plus the Organizer section at the bottom.{" "}
+            {data.marksCount === false
+              ? "Marks you save here don't count: only judges on the judges list count in Results."
+              : "Marks you save here count in Results, as one more judge."}
+          </p>
+        )
+      )}
 
       {error && <p className="p-notice p-notice--bad mt-6 font-body">{error}</p>}
 
@@ -126,9 +151,7 @@ export default function JudgeEntryPage() {
           </p>
         ) : (
           <div className="min-w-0 pb-10">
-            <PresentTimer />
-
-            <div className="mt-6 flex flex-wrap items-center gap-1.5">
+            <div className="flex flex-wrap items-center gap-1.5">
               {e.slot && (
                 <span className="p-tag p-mono">
                   {e.slot.room} · {clock(e.slot.at)}
@@ -154,8 +177,10 @@ export default function JudgeEntryPage() {
               {e.software.map((s) => (s === "Other" && e.softwareOther ? e.softwareOther : s)).join(", ")} · AI: {e.aiUse === "some" ? e.aiNote : "none"}
             </p>
 
-            <ScoreForm key={e.id} entryId={e.id} initial={e.myScore} scoreCount={e.scoreCount} next={data?.nextToMark ?? null} />
+            <ScoreForm key={e.id} entryId={e.id} initial={e.myScore} scoreCount={e.scoreCount} next={data?.nextToMark ?? null} practice={practice} />
 
+            {!practice && (
+            <>
             <details className="group mt-10 border-t border-bone/10 pt-5">
               <summary className="focus-ember flex cursor-pointer list-none items-center justify-between gap-3 font-body text-[15px] font-medium text-foreground marker:hidden">
                 Files, measurements and checks
@@ -200,6 +225,8 @@ export default function JudgeEntryPage() {
             </div>
 
             {me.role === "admin" && <AdminPanel entry={e} onChange={(entry) => setData((d) => (d ? { ...d, entry } : d))} />}
+            </>
+            )}
           </div>
         )}
       </div>
@@ -227,9 +254,21 @@ function writeUnsaved(id: string, v: { marks: Record<string, number>; notes: str
   }
 }
 
-function ScoreForm({ entryId, initial, scoreCount, next }: { entryId: string; initial: Score | null; scoreCount: number; next: string | null }) {
+function ScoreForm({
+  entryId,
+  initial,
+  scoreCount,
+  next,
+  practice,
+}: {
+  entryId: string;
+  initial: Score | null;
+  scoreCount: number;
+  next: string | null;
+  practice: boolean;
+}) {
   const navigate = useNavigate();
-  const [unsaved] = useState(() => readUnsaved(entryId));
+  const [unsaved] = useState(() => (practice ? null : readUnsaved(entryId)));
   const [marks, setMarks] = useState<Record<string, number>>(unsaved?.marks ?? initial?.marks ?? {});
   const [notes, setNotes] = useState(unsaved?.notes ?? initial?.notes ?? "");
   const [savedAt, setSavedAt] = useState(initial?.updatedAt ?? "");
@@ -238,20 +277,27 @@ function ScoreForm({ entryId, initial, scoreCount, next }: { entryId: string; in
   const [error, setError] = useState("");
   const total = useMemo(() => totalOf(marks), [marks]);
   const done = CRITERIA.filter((c) => typeof marks[c.id] === "number").length;
+  const sum = CRITERIA.reduce((n, c) => n + (typeof marks[c.id] === "number" ? marks[c.id] : 0), 0);
 
   useEffect(() => {
-    if (dirty) writeUnsaved(entryId, { marks, notes });
-  }, [dirty, entryId, marks, notes]);
+    if (dirty && !practice) writeUnsaved(entryId, { marks, notes });
+  }, [dirty, entryId, marks, notes, practice]);
 
   // Unsaved marks: warn before leaving the tab.
   useEffect(() => {
-    if (!dirty) return;
+    if (!dirty || practice) return;
     const warn = (e: BeforeUnloadEvent) => e.preventDefault();
     window.addEventListener("beforeunload", warn);
     return () => window.removeEventListener("beforeunload", warn);
-  }, [dirty]);
+  }, [dirty, practice]);
 
   async function save(goNext: boolean) {
+    if (practice) {
+      // Nothing to send: show what a judge sees after saving.
+      setSavedAt(new Date().toISOString());
+      setDirty(false);
+      return;
+    }
     setBusy(true);
     setError("");
     try {
@@ -272,25 +318,53 @@ function ScoreForm({ entryId, initial, scoreCount, next }: { entryId: string; in
     setDirty(true);
   };
 
+  const left = CRITERIA.length - done;
+  const status = busy
+    ? "Saving…"
+    : total === null
+      ? `${left} ${left === 1 ? "category" : "categories"} left to mark`
+      : dirty
+        ? unsaved
+          ? "Not saved yet (kept from before)"
+          : "Not saved yet"
+        : savedAt
+          ? practice
+            ? "Saved (practice: nothing was sent)"
+            : `Saved at ${clock(savedAt)}`
+          : "All marked: ready to save";
+  const goesNext = !!next;
+
   return (
     <section aria-labelledby="marks-h" className="mt-8 border-t border-bone/10 pt-6">
-      <div className="flex items-baseline justify-between gap-4">
-        <h2 id="marks-h" className="font-body text-lg font-semibold tracking-[-0.01em] text-bone">
-          Your marks
-        </h2>
-        <span className="font-display text-[2rem] leading-none text-bone" aria-live="polite">
-          {total ?? "—"}
-          <span className="font-body text-base text-concrete">/{MAX_TOTAL}</span>
-        </span>
-      </div>
-      <p className="p-hint mt-1">
-        Pick the level that fits, then the points. {scoreCount} {scoreCount === 1 ? "judge has" : "judges have"} marked this entry; others' marks stay hidden.
-      </p>
-      <div className="mt-5 flex flex-col gap-7">
-        {CRITERIA.map((c) => (
-          <RubricRow key={c.id} c={c} value={marks[c.id]} onChange={(v) => setMark(c.id, v)} />
+      <h2 id="marks-h" className="font-body text-lg font-semibold tracking-[-0.01em] text-bone">
+        Your marks
+      </h2>
+      <ol className="mt-3 grid gap-2 font-body text-[14px] leading-snug text-foreground/80 sm:grid-cols-3">
+        {[
+          "Listen to the team's 1-minute pitch.",
+          "In each category, tap the description that fits, then the points.",
+          goesNext ? "Press Save and judge next." : "Press Save marks.",
+        ].map((t, i) => (
+          <li key={i} className="flex gap-2.5 border border-bone/10 bg-[hsl(220_7%_5.5%)] px-3 py-2.5">
+            <span className="p-mono text-ember" aria-hidden="true">
+              {i + 1}
+            </span>
+            <span>{t}</span>
+          </li>
         ))}
-        <label className="block">
+      </ol>
+      {!practice && (
+        <p className="p-hint mt-3">
+          {scoreCount === 0 ? "No judge has marked this entry yet." : `${scoreCount} ${scoreCount === 1 ? "judge has" : "judges have"} marked this entry.`} Other judges' marks
+          stay hidden from you.
+        </p>
+      )}
+
+      <div className="mt-6 flex flex-col gap-4">
+        {CRITERIA.map((c, i) => (
+          <RubricRow key={c.id} n={i + 1} c={c} value={marks[c.id]} onChange={(v) => setMark(c.id, v)} />
+        ))}
+        <label className="mt-2 block">
           <span className="p-label">Notes</span>
           <span className="p-hint block">Optional. For you and the organizers; teams never see these.</span>
           <textarea
@@ -302,51 +376,71 @@ function ScoreForm({ entryId, initial, scoreCount, next }: { entryId: string; in
             }}
           />
         </label>
-        {error && <p className="p-notice p-notice--bad font-body text-sm">{error}</p>}
-        <div className="flex flex-wrap items-center gap-3">
-          <button type="button" className="btn-portal p-btn" disabled={busy || total === null} onClick={() => save(true)}>
-            {next ? "Save and judge next" : "Save marks"}
-          </button>
-          {next && (
-            <button type="button" className="btn-ghost p-btn" disabled={busy || total === null} onClick={() => save(false)}>
-              Save
-            </button>
-          )}
-          <span className="font-body text-sm text-concrete" role="status">
-            {busy
-              ? "Saving…"
-              : total === null
-                ? `${done} of ${CRITERIA.length} marked`
-                : dirty
-                  ? unsaved
-                    ? "Not saved yet (kept from before)"
-                    : "Not saved yet"
-                  : savedAt
-                    ? `Saved ${clock(savedAt)}`
-                    : ""}
+      </div>
+
+      {/* Stays at the bottom of the screen while the rubric is in view, so saving is always one tap away. */}
+      <div className="j-savebar">
+        {error && <p className="p-notice p-notice--bad mb-3 font-body text-sm">{error}</p>}
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
+          <div className="flex items-baseline gap-1">
+            <span className="font-display text-[2rem] leading-none text-bone">{sum}</span>
+            <span className="font-body text-base text-concrete">/{MAX_TOTAL}</span>
+          </div>
+          <div className="flex gap-1" aria-hidden="true">
+            {CRITERIA.map((c) => (
+              <span key={c.id} className="j-pip" data-on={typeof marks[c.id] === "number" ? "true" : undefined} title={c.label} />
+            ))}
+          </div>
+          <span className="min-w-[9rem] flex-1 font-body text-sm text-concrete" role="status">
+            {status}
           </span>
+          <div className="flex flex-wrap gap-2">
+            {goesNext && (
+              <button type="button" className="btn-ghost p-btn" disabled={busy || total === null} onClick={() => save(false)}>
+                Save
+              </button>
+            )}
+            <button type="button" className="btn-portal p-btn" disabled={busy || total === null} onClick={() => save(true)}>
+              {goesNext ? "Save and judge next" : "Save marks"}
+            </button>
+          </div>
         </div>
+        {practice && savedAt && !dirty && (
+          <p className="mt-3 font-body text-sm text-foreground/85">
+            That's all there is to it. On the day, "Save and judge next" takes you straight to the next team in your room.{" "}
+            <Link to="/judge" className="p-link focus-ember">
+              Back to entries
+            </Link>
+          </p>
+        )}
       </div>
     </section>
   );
 }
 
 /** One rubric category: four levels with their description, then the points within the chosen level. */
-function RubricRow({ c, value, onChange }: { c: Criterion; value: number | undefined; onChange: (v: number) => void }) {
+function RubricRow({ n, c, value, onChange }: { n: number; c: Criterion; value: number | undefined; onChange: (v: number) => void }) {
   const marked = typeof value === "number";
   const [level, setLevel] = useState<number | null>(marked ? levelOf(value) : null);
   const lv = level !== null ? c.levels[level] : null;
+  const pickedHere = marked && level !== null && levelOf(value) === level;
   return (
-    <div role="group" aria-labelledby={`c-${c.id}`}>
-      <div className="flex items-baseline justify-between gap-3">
-        <p id={`c-${c.id}`} className="font-body text-[15px] font-semibold text-foreground">
-          {c.label}
-        </p>
-        <span className={`p-mono text-sm ${marked ? "text-foreground" : "text-concrete"}`}>
-          {marked ? value : "—"}/{MARK_MAX}
+    <div role="group" aria-labelledby={`c-${c.id}`} className="j-crit" data-done={marked ? "true" : undefined}>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p id={`c-${c.id}`} className="font-body text-[16px] font-semibold text-foreground">
+            <span className="p-mono mr-2 text-[12px] text-concrete" aria-hidden="true">
+              {n}/{CRITERIA.length}
+            </span>
+            {c.label}
+          </p>
+          <p className="mt-0.5 font-body text-[13px] text-concrete">{c.hint}</p>
+        </div>
+        <span className={`p-mono shrink-0 text-base ${marked ? "text-ember" : "text-concrete"}`}>
+          {marked ? value : "–"}/{MARK_MAX}
         </span>
       </div>
-      <div className="j-levels mt-2">
+      <div className="j-levels mt-3">
         {c.levels.map((l, i) => (
           <button
             key={i}
@@ -357,27 +451,32 @@ function RubricRow({ c, value, onChange }: { c: Criterion; value: number | undef
             onClick={() => setLevel(i)}
           >
             <span className="p-mono text-[11px]">
-              {l.min}–{l.max}
+              {l.min}–{l.max} pts
             </span>
             <span className="j-level-text">{l.text}</span>
           </button>
         ))}
       </div>
       {lv && (
-        <div className="j-points mt-2" role="radiogroup" aria-label={`${c.label}: points from ${lv.min} to ${lv.max}`}>
-          {Array.from({ length: lv.max - lv.min + 1 }, (_, i) => lv.min + i).map((v) => (
-            <button
-              key={v}
-              type="button"
-              role="radio"
-              aria-checked={value === v}
-              aria-label={`${v} out of ${MARK_MAX}`}
-              className="j-mark focus-ember"
-              onClick={() => onChange(v)}
-            >
-              {v}
-            </button>
-          ))}
+        <div className="mt-3">
+          <p className={`font-body text-[13px] ${pickedHere ? "text-concrete" : "text-ember"}`}>
+            {pickedHere ? "Points (tap another to change)" : `Now tap the points, ${lv.min} to ${lv.max}`}
+          </p>
+          <div className="j-points mt-1.5" role="radiogroup" aria-label={`${c.label}: points from ${lv.min} to ${lv.max}`}>
+            {Array.from({ length: lv.max - lv.min + 1 }, (_, i) => lv.min + i).map((v) => (
+              <button
+                key={v}
+                type="button"
+                role="radio"
+                aria-checked={value === v}
+                aria-label={`${v} out of ${MARK_MAX}`}
+                className="j-mark focus-ember"
+                onClick={() => onChange(v)}
+              >
+                {v}
+              </button>
+            ))}
+          </div>
         </div>
       )}
     </div>

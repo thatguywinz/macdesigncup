@@ -49,6 +49,7 @@ export default function JudgeApp() {
       <Routes>
         <Route index element={<JudgeList />} />
         <Route path="entry/:id" element={<JudgeEntryPage />} />
+        <Route path="practice" element={<JudgeEntryPage practice />} />
         <Route path="live" element={me.role === "admin" ? <LivePage /> : <OrganizersOnly />} />
         <Route path="results" element={me.role === "admin" ? <ResultsPage /> : <OrganizersOnly />} />
         <Route path="settings" element={me.role === "admin" ? <SettingsPage /> : <OrganizersOnly />} />
