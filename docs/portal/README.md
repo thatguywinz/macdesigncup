@@ -76,7 +76,7 @@ In `/judge/settings`, organizers choose:
   nobody can submit from home before the theme is out.
 - **Title**, **how it answers the theme** (judges read this before the team
   presents), **what to look for** (optional).
-- **3D model**, required: GLB, STL, OBJ, 3MF or PLY, up to 80 MB. GLB keeps
+- **3D model** (optional since the three-step form; a picture is enough): GLB, STL, OBJ, 3MF or PLY, up to 250 MB. GLB keeps
   colours and materials. A live 3D preview shows it before they submit, with a
   "stand it up" switch for Z-up CAD exports.
 - **Renders or screenshots**, up to 4 (optional).
@@ -120,10 +120,19 @@ entries started on that laptop.
 - **Up next for you**: each judge's dashboard and "Save and judge next" go to
   the entry they haven't marked that has the fewest marks so far (oldest
   first), so every entry gets a first look before any gets a third.
-- The entry page has a **presentation timer** (3, 5 or 7 minutes; orange in
-  the last 30 seconds, red overtime) and the marks right under the team's
-  write-up. Marks not saved yet are kept in that browser tab if the judge
-  moves to another entry and comes back.
+- The entry page has no timer (the room schedule keeps time). It shows a
+  three-step "how to mark" strip, then one block per rubric category, and a
+  save bar (total, which categories are done, **Save and judge next**) that
+  stays at the bottom of the screen. Marks not saved yet are kept in that
+  browser tab if the judge moves to another entry and comes back.
+- **Practice entry** (`/judge/practice`): a made-up entry (a sample model in
+  `public/portal/practice/`) with the real judge screen. Nothing is sent or
+  saved, so organizers can see exactly what judges see and judges can warm up.
+  Linked from the dashboard (judges who haven't marked anything yet, and the
+  "No entries yet" message).
+- **Organizer guide**: organizers' dashboard opens with a folding guide (what a
+  judge does, what to press on the day, whether the organizer's own marks
+  count). Folding it is remembered on that browser.
 - **Live** (`/judge/live`, organizers): entries down the side, judges across
   the top, a filled cell per mark, fewest-marked entries first; each judge's
   count and last mark time (orange after 20 idle minutes); the running top
@@ -192,6 +201,11 @@ against a student costs more than a missed one.
 
 ## The deadline
 
+The form shows a countdown under the header (days, then hours, minutes and
+seconds; orange in the last 30 minutes, red in the last 5) that stays in view
+while teams scroll. It uses the server's deadline and clock, so a moved
+deadline or a laptop with the wrong time still shows the right countdown.
+
 Submissions close at **2:00 PM on Nov 16** (`PORTAL_DEADLINE`, default
 `2026-11-16T14:00:00-05:00`). Organizers can move it or close early from
 `/judge/settings`.
@@ -230,8 +244,13 @@ Nothing here is deployed yet. To turn it on in the Vercel project:
 
 Limits worth knowing: files go straight from the browser to the private Blob
 store (never through the function, so the 4.5 MB function limit doesn't
-apply). On the Hobby plan Blob has monthly limits on storage (1 GB) and
-operations; 80 entries of typical size fit comfortably, but check the Usage
+apply). Models and project files can be up to 250 MB each, and one entry's
+files up to 300 MB together; model files over
+100 MB skip the fingerprint and metadata checks (reading them whole could
+outlast the function's 30 s). On the Hobby plan Blob has monthly limits on storage (1 GB) and
+operations. The portal stops accepting uploads at 900 MB in total
+(`PORTAL_STORAGE_BUDGET_MB`); with files up to 250 MB a handful of very large
+uploads can fill that, so raise it only on a paid plan, and check the Usage
 tab after the event.
 
 ## Security, in short
@@ -243,7 +262,7 @@ tab after the event.
   to `/api/portal`, valid 14 hours. Changing a passcode signs everyone out.
 - Every write needs a custom header and a same-origin `Origin`, so another
   site can't post on someone's behalf.
-- Uploads are signed for one exact storage path and size and expire in 20
+- Uploads are signed for one exact storage path and size and expire in 45
   minutes. After upload the server checks the real size and the file's first
   bytes against its type (a renamed `.html` is rejected and deleted).
 - Files are never public: every download is a presigned URL that expires in

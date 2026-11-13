@@ -60,7 +60,11 @@ export interface PortalContext {
 }
 
 const DOWNLOAD_TTL = 30 * 60; // seconds a file URL stays valid
-const UPLOAD_TTL = 20 * 60; // seconds a team has to finish one upload
+const UPLOAD_TTL = 45 * 60; // seconds a team has to finish one upload (250 MB on slow school Wi-Fi)
+/** One entry's files together (a 250 MB model plus pictures, or a model and a project file). */
+const ENTRY_MAX_BYTES = 300 * 1024 * 1024;
+/** Model files up to this size are read whole for the fingerprint and metadata checks. */
+const INSPECT_MAX_BYTES = 100 * 1024 * 1024;
 const PENDING_MAX_AGE = 45 * 60 * 1000; // a signed-but-unfinished upload is forgotten after this
 
 // ── Clock and deadline ────────────────────────
@@ -305,6 +309,12 @@ function rosterKeys(settings: SettingsDoc): Set<string> | null {
   return names.length ? new Set(names.map(judgeKey)) : null;
 }
 
+/** Whether a signed-in person's marks go into Results. */
+const marksCount = (settings: SettingsDoc, key: string) => {
+  const roster = rosterKeys(settings);
+  return !roster || roster.has(key);
+};
+
 /** The score sheets that count: everyone's, or only listed judges' once a list exists. */
 function countedSheets(scores: ScoresDoc, settings: SettingsDoc): [string, JudgeSheet][] {
   const roster = rosterKeys(settings);
@@ -526,6 +536,13 @@ on("POST", "/entries/:id/files", async (ctx, req, res, { id }) => {
       (sum, x) => sum + x.files.reduce((a, f) => a + f.size, 0) + Object.values(x.pending).reduce((a, f) => a + f.size, 0),
       0,
     );
+    // One team can't take the whole store: files they'd replace don't count.
+    const mine =
+      e.files.filter((f) => rule.maxCount > 1 || f.slot !== slot).reduce((a, f) => a + f.size, 0) +
+      Object.values(e.pending).reduce((a, f) => a + f.size, 0);
+    if (mine + size > ENTRY_MAX_BYTES) {
+      fail(413, `Your entry's files can add up to ${Math.round(ENTRY_MAX_BYTES / 1024 / 1024)} MB. Make this file smaller, or remove the project file or video and use a link.`, { field: slot });
+    }
     if (used + size > storageBudget()) {
       fail(507, slot === "video" ? "Upload space is full. Put your video on YouTube (Unlisted) or Google Drive and paste the link instead." : "Upload space is full. Find an organizer.", { field: slot });
     }
@@ -571,8 +588,9 @@ on("POST", "/entries/:id/files/:fileId/complete", async (ctx, req, res, { id, fi
 
   // Model files: a fingerprint (identical files across entries) and the file's own metadata.
   let fingerprint: Pick<FileRef, "sha256" | "meta"> = {};
-  if (pending.slot === "model") {
-    const bytes = await storage.readAll(pending.path, rule.maxBytes);
+  // Very large files skip it: reading them whole could outlast the function's time limit.
+  if (pending.slot === "model" && info.size <= INSPECT_MAX_BYTES) {
+    const bytes = await storage.readAll(pending.path, INSPECT_MAX_BYTES);
     if (bytes) fingerprint = { sha256: sha256Of(bytes), meta: inspectModel(pending.ext, bytes) };
     lap("readAll+inspect");
   }
@@ -779,6 +797,8 @@ on("GET", "/judge/entries", async (ctx, req, res) => {
     nextToMark: nextToMark(all, scores, w.settings, s.key),
     myRoom: roomOfJudge(w.settings, s.key),
     drafts: s.role === "admin" ? all.length - submitted.length : undefined,
+    // Whether this person's marks go into Results (with a judges list, only listed judges' do).
+    marksCount: marksCount(w.settings, s.key),
     deadline: iso(w.deadline),
     open: w.open,
   });
@@ -804,6 +824,7 @@ on("GET", "/judge/entries/:id", async (ctx, req, res, { id }) => {
     nextToMark: nextToMark(Object.values(doc.entries), scores, settings, s.key, id),
     toMark: order.filter((x) => totalOf(mine[x]?.marks) === null).length,
     total: order.length,
+    marksCount: marksCount(settings, s.key),
   });
 });
 

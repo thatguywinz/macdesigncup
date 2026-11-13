@@ -190,6 +190,16 @@ describe("teams", () => {
     expect((await call(`/entries/${id}/files`, { body: { slot: "image", name: "x.png", size: 999_000_000 }, key })).status).toBe(422);
   });
 
+  it("takes a 250 MB model, but caps one entry's files at 300 MB together", async () => {
+    const { id, key } = await create();
+    const MB = 1024 * 1024;
+    expect((await call(`/entries/${id}/files`, { body: { slot: "model", name: "m.stl", size: 250 * MB }, key })).status).toBe(200);
+    expect((await call(`/entries/${id}/files`, { body: { slot: "model", name: "m.stl", size: 251 * MB }, key })).status).toBe(422);
+    // 250 MB model pending + 100 MB project file is over 300 MB.
+    expect((await call(`/entries/${id}/files`, { body: { slot: "source", name: "p.step", size: 100 * MB }, key })).status).toBe(413);
+    expect((await call(`/entries/${id}/files`, { body: { slot: "source", name: "p.step", size: 40 * MB }, key })).status).toBe(200);
+  });
+
   it("caps an upload at the size the ticket allows", async () => {
     const { id, key } = await create();
     const s = await call(`/entries/${id}/files`, { body: { slot: "thumb", name: "p.png", size: 10 }, key });
