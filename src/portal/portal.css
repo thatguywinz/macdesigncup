@@ -126,6 +126,56 @@
   color: hsl(var(--bone));
 }
 
+/* The submit form's steps: 1 · 2 · 3, the current one lit, finished ones ticked. */
+.p-steps { display: flex; align-items: center; gap: 0.5rem; border-bottom: 1px solid hsl(var(--bone) / 0.09); padding-bottom: 0.75rem; }
+.p-steps li { display: flex; align-items: center; gap: 0.5rem; min-width: 0; }
+.p-steps li + li { flex: 1 1 auto; }
+.p-steps li + li::before {
+  content: ""; flex: 1 1 auto; min-width: 0.75rem; height: 1px;
+  background: hsl(var(--bone) / 0.16);
+}
+.p-steps li[data-state="done"] + li::before,
+.p-steps li[data-state="done"] + li[data-state]::before { background: hsl(var(--ember) / 0.55); }
+.p-step {
+  display: inline-flex; align-items: center; gap: 0.5rem;
+  min-height: 2.75rem; padding: 0 0.15rem;
+  font: 500 0.875rem/1.2 "Archivo Variable", system-ui, sans-serif;
+  color: hsl(var(--concrete));
+  white-space: nowrap;
+  transition: color 0.15s;
+}
+.p-step:hover { color: hsl(var(--foreground)); }
+.p-step-num {
+  display: grid; place-items: center; flex-shrink: 0;
+  width: 1.75rem; height: 1.75rem;
+  border: 1px solid hsl(var(--bone) / 0.25); border-radius: 2px;
+  font: 400 0.75rem/1 "Space Mono", ui-monospace, monospace;
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+}
+.p-step[data-state="current"] { color: hsl(var(--bone)); font-weight: 600; }
+.p-step[data-state="current"] .p-step-num { background: hsl(var(--ember)); border-color: hsl(var(--ember)); color: hsl(var(--background)); font-weight: 700; }
+.p-step[data-state="done"] { color: hsl(var(--foreground) / 0.85); }
+.p-step[data-state="done"] .p-step-num { border-color: hsl(var(--ember)); color: hsl(var(--ember)); }
+.p-step-title {
+  font: 600 1.375rem/1.2 "Archivo Variable", system-ui, sans-serif;
+  letter-spacing: -0.015em;
+  color: hsl(var(--bone));
+}
+
+/* The review on the last step. */
+.p-review { display: flex; flex-direction: column; gap: 0.75rem; }
+.p-review-group { border: 1px solid hsl(var(--bone) / 0.1); background: hsl(220 7% 5.5%); padding: 0.9rem 1rem; }
+.p-review-group[data-ok="false"] { border-color: hsl(6 90% 60% / 0.55); }
+
+/* Back / Next, kept in reach at the bottom of the screen. */
+.p-stepnav {
+  position: sticky; bottom: 0; z-index: 10;
+  margin-top: 2rem; padding: 0.875rem 0 calc(0.875rem + env(safe-area-inset-bottom));
+  border-top: 1px solid hsl(var(--bone) / 0.12);
+  background: hsl(var(--background) / 0.96);
+  backdrop-filter: blur(8px);
+}
+
 /* File drop zone. */
 .p-drop {
   position: relative;
@@ -371,4 +421,47 @@
 
 @media (prefers-reduced-motion: reduce) {
   .p-progress > span, .viewer-load-bar { transition: none; }
+}
+
+/* Top 5: the final meeting's ranked list. */
+.j-top {
+  display: grid;
+  grid-template-columns: 4.5rem minmax(0, 1fr);
+  border: 1px solid hsl(var(--bone) / 0.09);
+  border-radius: 2px;
+  background: hsl(220 7% 5.5%);
+}
+.j-top--podium { border-color: hsl(var(--ember) / 0.35); }
+.j-top-rank {
+  display: grid; place-items: start center;
+  padding-top: 1.1rem;
+  border-right: 1px solid hsl(var(--bone) / 0.09);
+  font-family: Anton, Impact, sans-serif;
+  font-size: 2.6rem; line-height: 1;
+  color: hsl(var(--concrete));
+}
+.j-top--podium .j-top-rank { color: hsl(var(--ember)); }
+.j-top-body { min-width: 0; padding: 1.1rem 1.25rem 1.25rem; }
+.j-top-grid {
+  display: grid; gap: 1px;
+  grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr));
+  background: hsl(var(--bone) / 0.08);
+  border: 1px solid hsl(var(--bone) / 0.08);
+}
+.j-top-grid > div { background: hsl(220 7% 5.5%); padding: 0.55rem 0.7rem; min-width: 0; }
+.j-top-grid dt { font: 400 11px/1.3 "Space Mono", ui-monospace, monospace; color: hsl(var(--concrete)); overflow-wrap: anywhere; }
+.j-top-grid dd { margin: 0.2rem 0 0; font: 500 16px/1.2 Archivo, system-ui, sans-serif; color: hsl(var(--foreground)); font-variant-numeric: tabular-nums; }
+@media (max-width: 639px) {
+  .j-top { grid-template-columns: 2.75rem minmax(0, 1fr); }
+  .j-top-rank { font-size: 1.8rem; padding-top: 1rem; }
+  .j-top-body { padding: 1rem 0.9rem 1.1rem; }
+  .j-top-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media print {
+  body, .portal-shell { background: #fff !important; }
+  .portal-shell header, nav, .p-deadline { display: none !important; }
+  .j-top .p-input, .j-top .p-textarea { background: #fff; color: #000; border-color: #bbb; }
+  .j-top { break-inside: avoid; border-color: #999; background: #fff; color: #000; }
+  .j-top-body *, .j-top-rank { color: #000 !important; }
+  .j-top-grid, .j-top-grid > div { background: #fff; border-color: #ccc; }
 }

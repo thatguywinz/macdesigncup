@@ -47,7 +47,7 @@ export interface RoomsSetup {
 
 export const DEFAULT_ROOMS: RoomsSetup = {
   names: ["WFL632", "WFL634", "WFL637"],
-  start: "2026-11-16T14:10:00-05:00",
+  start: "2026-11-16T14:00:00-05:00", // judging starts 2:00 PM (organizers, 2026-11-14)
   end: "2026-11-16T15:20:00-05:00",
   // A 1-minute pitch, then 1 to 2 minutes of scoring while the next team sets up.
   slotMinutes: 3,
@@ -79,6 +79,10 @@ export interface SettingsDoc {
   rooms?: RoomsSetup;
   /** entry id -> its judging room and time (made by organizers after submissions close). */
   schedule?: Record<string, { room: string; at: string }>;
+  /** When the schedule was made by itself at the deadline (or cleared on purpose): it isn't remade by itself after that. */
+  autoScheduledAt?: string;
+  /** Top 5 meeting: entry id -> why it placed, written by organizers. */
+  finalNotes?: Record<string, string>;
   /** Replaces the configured deadline (an organizer extended or moved it). */
   deadlineOverride: string | null;
   /** Organizer closed submissions early, whatever the clock says. */

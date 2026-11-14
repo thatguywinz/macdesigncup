@@ -170,6 +170,7 @@ export function parseEntry(raw: unknown, opts: { draft?: boolean } = {}): Parsed
   tooLong("title", title, LIMITS.title, "The title");
 
   const teamName = str(r.teamName, LIMITS.teamName);
+  if (!teamName) need("teamName", "Give your team a name (even a team of one).");
   tooLong("teamName", teamName, LIMITS.teamName, "The team name");
 
   const rawMembers = Array.isArray(r.members) ? r.members.slice(0, TEAM_MAX + 1) : [];
@@ -215,7 +216,6 @@ export function parseEntry(raw: unknown, opts: { draft?: boolean } = {}): Parsed
   tooManyWords("aiNote", aiNote);
 
   const credit = r.credit === "team" ? "team" : "names";
-  if (credit === "team" && !teamName) need("teamName", "Add a team name, or credit your names instead.");
 
   const shareable = r.shareable !== false;
   const original = r.original === true;
@@ -425,6 +425,9 @@ export interface JudgeEntry extends EntryInput {
 export interface JudgeCard {
   id: string;
   title: string;
+  teamName: string;
+  /** Members' names, for search. */
+  members: string[];
   creditLine: string;
   memberCount: number;
   schools: string[];
@@ -456,4 +459,6 @@ export interface PortalStatus {
   codeRequired: boolean;
   /** No entry code and the theme isn't revealed yet: when the form opens. */
   opensAt: string | null;
+  /** When and where judging runs (organizers' Settings). */
+  judging: { start: string; end: string; rooms: string[] };
 }

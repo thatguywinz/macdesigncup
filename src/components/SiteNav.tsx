@@ -2,17 +2,17 @@ import { useEffect, useId, useLayoutEffect, useRef, useState, type MouseEvent } 
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { m, useMotionValue, useMotionValueEvent, useScroll, useSpring } from "framer-motion";
 import { cn } from "@/lib/utils";
-import { EVENT_FULL, REGISTER_PATH, RESOURCES_PATH } from "@/config/site";
+import { EVENT_FULL, RESOURCES_PATH, SUBMIT_PATH } from "@/config/site";
 import { CTA, NAV } from "@/content/copy";
 import { useReducedMotionSafe } from "@/hooks/useReducedMotionSafe";
 import LionMark from "./LionMark";
-import RegisterButton from "./RegisterButton";
+import SubmitButton from "./SubmitButton";
 import SectionLink from "./SectionLink";
 import MobileNavMenu, { type MobileNavLink } from "./MobileNavMenu";
 import NavAnchor from "./nav/NavAnchor";
 import { SECTION_IDS, SECTION_LINKS } from "./nav/sectionLinks";
 import { useScrollSpy } from "./nav/useScrollSpy";
-import { WhoRegistersNote, WhoRegistersSr } from "./nav/WhoRegisters";
+import { SubmitNote, SubmitSr } from "./nav/SubmitNote";
 
 const PARTNER_PATH = "/partner";
 /** Base width of the underline; it is scaled to each link (transform only). */
@@ -32,10 +32,12 @@ const useIsoLayoutEffect = typeof window === "undefined" ? useEffect : useLayout
  * - Centre (`lg`+): four short section links (Prizes, Sponsors, The day,
  *   FAQ), with a scrollspy. The section you are in lights ember with a sliding
  *   2px underline and `aria-current`.
- * - Right: Partner and Register (`md`+). Register is described (for screen
- *   readers) as one form for students and teachers; the menu shows the tiny
- *   "Students and teachers" note under its Register row. Below `lg` the section links (plus Partner and
- *   Register) live in the menu; phones get Register from the sticky bar too.
+ * - Right: Resources, Partner and Submit here (`md`+). Submit here is a plain
+ *   `<a href="/submit">` (the portal build serves it), described for screen
+ *   readers by the deadline; the menu shows the deadline note under its
+ *   Submit here row. Below `lg` the section links (plus Partner and Submit
+ *   here) live in the menu; phones get Submit here from the sticky bar too.
+ *   Registration closed Nov 9: /register stays up, linked from the footer.
  * - Bottom edge: a hairline once the bar turns solid.
  *
  * Route-aware: on `/` links scroll in place; on `/register` or the 404 they
@@ -45,7 +47,6 @@ export default function SiteNav() {
   const location = useLocation();
   const navigate = useNavigate();
   const isHome = location.pathname === "/";
-  const onRegister = location.pathname === REGISTER_PATH;
   const reduced = useReducedMotionSafe();
 
   // Solid once the page has moved. Threshold crossings only: no per-frame state.
@@ -110,8 +111,7 @@ export default function SiteNav() {
     window.scrollTo({ top: 0, behavior: reduce ? "auto" : "smooth" });
   };
 
-  // Screen readers hear "one form for students and teachers" as the desktop
-  // Register button's description.
+  // Screen readers hear the deadline as the desktop Submit button's description.
   const noteId = useId();
 
   const menuLinks: MobileNavLink[] = [
@@ -119,12 +119,12 @@ export default function SiteNav() {
     { label: NAV.resources, to: RESOURCES_PATH, arrow: true, current: location.pathname === RESOURCES_PATH },
     { label: CTA.partner, to: PARTNER_PATH, arrow: true },
     {
-      label: CTA.register,
-      to: REGISTER_PATH,
+      label: CTA.submit,
+      to: SUBMIT_PATH,
+      document: true,
       accent: true,
       arrow: true,
-      current: onRegister,
-      detail: <WhoRegistersNote />,
+      detail: <SubmitNote />,
     },
   ];
 
@@ -203,7 +203,7 @@ export default function SiteNav() {
             />
           </ul>
 
-          {/* resources + partner + register, md+; the menu below lg */}
+          {/* resources + partner + submit, md+; the menu below lg */}
           <div className="flex shrink-0 items-center gap-3 md:gap-5">
             <Link
               to={RESOURCES_PATH}
@@ -221,16 +221,9 @@ export default function SiteNav() {
             >
               {NAV.partner}
             </Link>
-            {/* Phones get Register from the sticky bar (and the menu). */}
-            {!onRegister && (
-              <>
-                <RegisterButton
-                  aria-describedby={noteId}
-                  className="hidden min-h-[40px] px-4 py-2 md:inline-flex xl:px-5"
-                />
-                <WhoRegistersSr id={noteId} />
-              </>
-            )}
+            {/* Phones get Submit here from the sticky bar (and the menu). */}
+            <SubmitButton aria-describedby={noteId} className="hidden min-h-[40px] px-4 py-2 md:inline-flex xl:px-5" />
+            <SubmitSr id={noteId} />
             <MobileNavMenu links={menuLinks} hideFrom="lg" anchors="home" />
           </div>
         </nav>

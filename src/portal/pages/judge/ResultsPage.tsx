@@ -12,6 +12,7 @@ import { JudgeShell, useMe } from "./context";
 interface Row {
   id: string;
   title: string;
+  teamName: string;
   creditLine: string;
   members: MemberInput[];
   late: boolean;
@@ -22,6 +23,9 @@ interface Row {
   notes: { judge: string; notes: string }[];
   judgeCount: number;
   openReviews: number;
+  rank: number | null;
+  tied: boolean;
+  complete: boolean;
 }
 
 interface Results {
@@ -30,6 +34,7 @@ interface Results {
   judges: { key: string; name: string }[];
   unlisted: { key: string; name: string; marked: number }[];
   rows: Row[];
+  marksNeeded: number;
 }
 
 export default function ResultsPage() {
@@ -52,8 +57,11 @@ export default function ResultsPage() {
         <div>
           <h1 className="display-scene">Results</h1>
           <p className="mt-3 max-w-[40rem] font-body text-[15px] text-foreground/75">
-            Ranked by each entry's average total across the judges who marked it.
-            {data ? ` ${data.judges.length} ${data.judges.length === 1 ? "judge" : "judges"} so far.` : ""}
+            Every entry, ranked by its judging pair's average total. Each entry needs {data?.marksNeeded ?? 2} marks; the{" "}
+            <Link to="/judge/top" className="p-link focus-ember">
+              Top 5
+            </Link>{" "}
+            page is for the final meeting.
           </p>
         </div>
         <a href="/api/portal/judge/export.csv" className="btn-ghost p-btn self-start focus-ember" download>
@@ -91,7 +99,7 @@ export default function ResultsPage() {
                   </th>
                 ))}
                 <th scope="col" className="num">
-                  Judges
+                  Marks
                 </th>
                 <th scope="col">
                   <span className="sr-only">Details</span>
@@ -102,8 +110,12 @@ export default function ResultsPage() {
               {data.rows.map((r, i) => (
                 <Fragment key={r.id}>
                   <tr>
-                    <td className="num text-concrete">{r.average === null ? "" : i + 1}</td>
+                    <td className="num text-concrete">
+                      {r.rank ?? ""}
+                      {r.tied ? "=" : ""}
+                    </td>
                     <td>
+                      {r.teamName && <div className="text-[13px] text-ember">{r.teamName}</div>}
                       <Link to={`/judge/entry/${r.id}`} className="font-medium text-foreground hover:text-ember focus-ember">
                         {r.title}
                       </Link>
@@ -123,7 +135,9 @@ export default function ResultsPage() {
                         {f1(r.perCriterion[c.id])}
                       </td>
                     ))}
-                    <td className="num">{r.judgeCount}</td>
+                    <td className={`num ${r.complete ? "" : "text-ember"}`}>
+                      {r.judgeCount}/{data.marksNeeded}
+                    </td>
                     <td>
                       <button
                         type="button"

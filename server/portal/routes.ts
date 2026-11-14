@@ -13,7 +13,7 @@
 //                   / award / reopen / delete, deadline and close switch
 import type { FileSlot } from "../../src/portal/shared/formats.js";
 import { SLOTS, checkFile, contentTypeFor, extOf } from "../../src/portal/shared/formats.js";
-import { AWARDS, CRITERIA, MAX_TOTAL, cleanMarks, totalOf } from "../../src/portal/shared/judging.js";
+import { AWARDS, CRITERIA, MARKS_NEEDED, MAX_TOTAL, TOP_COUNT, cleanMarks, totalOf } from "../../src/portal/shared/judging.js";
 import { hasSpec, specCheck, type Measure, type Spec } from "../../src/portal/shared/checks.js";
 import { parseVideoLink } from "../../src/portal/shared/video.js";
 import { checkVideoLink } from "./videocheck.js";
@@ -44,7 +44,7 @@ import {
   type Session,
 } from "./auth.js";
 import { GRACE_SECONDS, type PortalConfig } from "./config.js";
-import { normalizeCode, randomId, randomSecret, safeEqual, sha256 } from "./crypto.js";
+import { hmac, normalizeCode, randomId, randomSecret, safeEqual, sha256 } from "./crypto.js";
 import { DEFAULT_ROOMS, Db, filePath, type JudgeSheet, type RoomsSetup, type ScoresDoc, type SettingsDoc } from "./db.js";
 import { BASE_HEADERS, HttpError, assertSameOrigin, clientIp, fail, rateLimit, readJson, sendJson, type Req, type Res } from "./http.js";
 import { SNIFF_BYTES, sniff } from "./sniff.js";
@@ -321,6 +321,58 @@ function countedSheets(scores: ScoresDoc, settings: SettingsDoc): [string, Judge
   return Object.entries(scores.judges).filter(([key]) => !roster || roster.has(key));
 }
 
+/** How many counted judges have fully marked an entry. */
+const marksOn = (counted: [string, JudgeSheet][], id: string) => counted.filter(([, j]) => totalOf(j.scores[id]?.marks) !== null).length;
+
+/**
+ * Gives every submitted entry without a slot the next free time in the
+ * least-busy room. Entries already scheduled keep theirs, so a late change
+ * never moves a team that was told its time.
+ */
+function fillSchedule(st: SettingsDoc, entries: Record<string, EntryRecord>) {
+  const r = roomsOf(st);
+  const schedule: Record<string, { room: string; at: string }> = {};
+  // Keep slots for entries that still exist, are submitted and whose room is still a room.
+  for (const [id, s] of Object.entries(st.schedule ?? {})) {
+    const e = Object.hasOwn(entries, id) ? entries[id] : null;
+    if (e && e.status === "submitted" && r.names.includes(s.room)) schedule[id] = s;
+  }
+  const step = r.slotMinutes * 60_000;
+  const next = new Map(r.names.map((n) => [n, Date.parse(r.start)]));
+  for (const s of Object.values(schedule)) next.set(s.room, Math.max(next.get(s.room)!, Date.parse(s.at) + step));
+  const count = new Map(r.names.map((n) => [n, Object.values(schedule).filter((s) => s.room === n).length]));
+  const waiting = Object.values(entries)
+    .filter((e) => e.status === "submitted" && !e.hidden && !schedule[e.id])
+    .sort((a, b) => String(a.submittedAt).localeCompare(String(b.submittedAt)));
+  for (const e of waiting) {
+    const room = r.names.reduce((best, n) => (count.get(n)! < count.get(best)! || (count.get(n) === count.get(best) && next.get(n)! < next.get(best)!) ? n : best));
+    schedule[e.id] = { room, at: iso(next.get(room)!) };
+    next.set(room, next.get(room)! + step);
+    count.set(room, count.get(room)! + 1);
+  }
+  st.schedule = schedule;
+}
+
+/**
+ * The schedule makes itself: the first request after submissions close fills
+ * it once (organizers can still remake or clear it in Settings). Returns the
+ * window, re-read when it changed.
+ */
+async function ensureSchedule(ctx: PortalContext, w: Window): Promise<Window> {
+  const closed = w.settings.closed || w.now >= w.deadline;
+  if (!closed || w.settings.autoScheduledAt || !roomsOf(w.settings).names.length) return w;
+  const doc = await ctx.db.read("entries", { fresh: true });
+  await ctx.db.mutate("settings", (st) => {
+    if (st.autoScheduledAt) return;
+    fillSchedule(st, doc.entries);
+    st.autoScheduledAt = iso(w.now);
+  });
+  return windowOf(ctx);
+}
+
+/** The secret part of the Google Sheets link: changes with the session secret. */
+const sheetKey = (cfg: PortalConfig) => hmac(cfg.sessionSecret, "sheet:v1").replace(/[^A-Za-z0-9]/g, "").slice(0, 32);
+
 // ── Router ────────────────────────────────────
 
 type Handler = (ctx: PortalContext, req: Req, res: Res, params: Record<string, string>, url: URL) => Promise<void>;
@@ -361,6 +413,10 @@ on("GET", "/status", async (ctx, _req, res) => {
     spec: hasSpec(w.settings.spec) ? w.settings.spec : null,
     codeRequired: w.codeOn,
     opensAt: w.notYet ? iso(w.notYet) : null,
+    judging: (() => {
+      const r = roomsOf(w.settings);
+      return { start: iso(Date.parse(r.start)), end: iso(Date.parse(r.end)), rooms: r.names };
+    })(),
   };
   sendJson(res, 200, body);
 });
@@ -478,7 +534,7 @@ on("POST", "/entries", async (ctx, req, res) => {
 
 on("GET", "/entries/:id", async (ctx, req, res, { id }) => {
   const e = await loadOwned(ctx, req, id);
-  sendJson(res, 200, { entry: await ownView(ctx, await windowOf(ctx), e) });
+  sendJson(res, 200, { entry: await ownView(ctx, await ensureSchedule(ctx, await windowOf(ctx)), e) });
 });
 
 on("PUT", "/entries/:id", async (ctx, req, res, { id }) => {
@@ -759,7 +815,8 @@ on("GET", "/judge/me", async (ctx, req, res) => {
 
 on("GET", "/judge/entries", async (ctx, req, res) => {
   const s = requireJudge(ctx.cfg, req);
-  const [doc, scores, w] = await Promise.all([ctx.db.read("entries"), ctx.db.read("scores"), windowOf(ctx)]);
+  const [doc, scores, w0] = await Promise.all([ctx.db.read("entries"), ctx.db.read("scores"), windowOf(ctx)]);
+  const w = await ensureSchedule(ctx, w0);
   const all = Object.values(doc.entries);
   const submitted = all.filter((e) => e.status === "submitted");
   const mine = scores.judges[s.key]?.scores ?? {};
@@ -773,7 +830,9 @@ on("GET", "/judge/entries", async (ctx, req, res) => {
         return {
           id: e.id,
           title: e.title,
+          teamName: e.teamName,
           creditLine: publicCredit(e),
+          members: e.members.map((m) => m.name),
           memberCount: e.members.length,
           schools: [...new Set(e.members.map((m) => m.school))],
           software: e.software.map((x) => (x === "Other" && e.softwareOther ? e.softwareOther : x)),
@@ -784,7 +843,7 @@ on("GET", "/judge/entries", async (ctx, req, res) => {
           modelExt: firstOf(e, "model")?.ext ?? null,
           thumb: thumb ? await ctx.db.storage.signedGetUrl(thumb.path, DOWNLOAD_TTL) : (e.videoLink ? parseVideoLink(e.videoLink)?.thumb ?? null : null),
           myTotal: totalOf(mine[e.id]?.marks),
-          scoreCount: counted.filter(([, j]) => totalOf(j.scores[e.id]?.marks) !== null).length,
+          scoreCount: marksOn(counted, e.id),
           openReviews: openReviews(checksFor(e, all, w.settings)),
           specFails: spec && e.measure ? specCheck(e.measure, spec).filter((l) => l.ok === false).length : null,
           slot: slotOf(w.settings, e.id),
@@ -822,7 +881,7 @@ on("GET", "/judge/entries/:id", async (ctx, req, res, { id }) => {
     prev: i > 0 ? order[i - 1] : null,
     next: i >= 0 && i < order.length - 1 ? order[i + 1] : null,
     nextToMark: nextToMark(Object.values(doc.entries), scores, settings, s.key, id),
-    toMark: order.filter((x) => totalOf(mine[x]?.marks) === null).length,
+    toMark: order.filter((x) => totalOf(mine[x]?.marks) === null && marksOn(countedSheets(scores, settings), x) < MARKS_NEEDED).length,
     total: order.length,
     marksCount: marksCount(settings, s.key),
   });
@@ -847,9 +906,9 @@ on("PUT", "/judge/entries/:id/score", async (ctx, req, res, { id }) => {
 });
 
 /**
- * The entry this judge should mark next: one they haven't marked, with the
- * fewest marks so far (so every entry gets judged before any gets a third
- * look), oldest submission first.
+ * The entry this judge should mark next: one they haven't marked that still
+ * needs marks (each entry needs MARKS_NEEDED, its judging pair's two; after
+ * that nobody is sent to it), fewest marks first, oldest submission first.
  */
 function nextToMark(all: EntryRecord[], scores: ScoresDoc, settings: SettingsDoc, judge: string, except?: string): string | null {
   const counted = countedSheets(scores, settings);
@@ -858,13 +917,14 @@ function nextToMark(all: EntryRecord[], scores: ScoresDoc, settings: SettingsDoc
   const room = roomOfJudge(settings, judge);
   if (room && settings.schedule) {
     const queue = all
-      .filter((e) => e.status === "submitted" && e.id !== except && totalOf(mine[e.id]?.marks) === null && slotOf(settings, e.id)?.room === room)
+      .filter((e) => e.status === "submitted" && e.id !== except && totalOf(mine[e.id]?.marks) === null && marksOn(counted, e.id) < MARKS_NEEDED && slotOf(settings, e.id)?.room === room)
       .sort((a, b) => slotOf(settings, a.id)!.at.localeCompare(slotOf(settings, b.id)!.at));
     if (queue.length) return queue[0].id;
   }
   const pick = all
     .filter((e) => e.status === "submitted" && e.id !== except && totalOf(mine[e.id]?.marks) === null)
-    .map((e) => ({ e, n: counted.filter(([, j]) => totalOf(j.scores[e.id]?.marks) !== null).length }))
+    .map((e) => ({ e, n: marksOn(counted, e.id) }))
+    .filter((x) => x.n < MARKS_NEEDED)
     .sort((a, b) => a.n - b.n || String(a.e.submittedAt).localeCompare(String(b.e.submittedAt)))[0];
   return pick?.e.id ?? null;
 }
@@ -875,11 +935,14 @@ const torontoTime = (ms: number) => new Date(ms).toLocaleTimeString("en-CA", { h
 
 on("GET", "/judge/results", async (ctx, req, res) => {
   requireAdmin(ctx.cfg, req);
+  await ensureSchedule(ctx, await windowOf(ctx));
   sendJson(res, 200, await results(ctx));
 });
 
 async function results(ctx: PortalContext) {
   const [doc, scores, settings] = await Promise.all([ctx.db.read("entries"), ctx.db.read("scores"), ctx.db.read("settings")]);
+  const roomJudges = (room: string | undefined) =>
+    room ? Object.entries(roomsOf(settings).judgeRooms).filter(([, r]) => r === room).map(([key]) => (settings.judges ?? []).find((n) => judgeKey(n) === key) ?? key) : [];
   const counted = countedSheets(scores, settings);
   const countedKeys = new Set(counted.map(([key]) => key));
   const judges = counted.map(([key, j]) => ({ key, name: j.name }));
@@ -903,8 +966,10 @@ async function results(ctx: PortalContext) {
       return {
         id: e.id,
         title: e.title,
+        teamName: e.teamName,
         creditLine: publicCredit(e),
         members: e.members,
+        thumb: (firstOf(e, "image") ?? firstOf(e, "thumb"))?.path ?? null,
         contactEmail: e.contactEmail,
         late: e.late,
         award: e.award,
@@ -913,11 +978,21 @@ async function results(ctx: PortalContext) {
         perCriterion,
         byJudge: Object.fromEntries(marked.map((x) => [x.key, totalOf(x.score.marks)])),
         notes: marked.filter((x) => x.score.notes).map((x) => ({ judge: scores.judges[x.key].name, notes: x.score.notes })),
+        marks: marked.map((x) => ({ judge: scores.judges[x.key].name, total: totalOf(x.score.marks) as number })),
         judgeCount: marked.length,
+        pair: roomJudges(slotOf(settings, e.id)?.room),
         openReviews: openReviews(checksFor(e, Object.values(doc.entries), settings)),
       };
     })
-    .sort((a, b) => (b.average ?? -1) - (a.average ?? -1));
+    .sort((a, b) => (b.average ?? -1) - (a.average ?? -1) || String(a.submittedAt).localeCompare(String(b.submittedAt)));
+  // Rank: equal averages share a place (a tie for organizers to break).
+  const ranked = rows.map((r, i) => ({
+    ...r,
+    rank: r.average === null ? null : rows.findIndex((x) => x.average === r.average) + 1,
+    tied: r.average !== null && rows.filter((x) => x.average === r.average).length > 1,
+    complete: r.judgeCount >= MARKS_NEEDED,
+    index: i,
+  }));
   // For the live board: every judge on the list (marked anything yet or not),
   // how many entries each has marked and when they last saved.
   const sheetFor = new Map(counted);
@@ -934,7 +1009,16 @@ async function results(ctx: PortalContext) {
     maxTotal: MAX_TOTAL,
     judges,
     unlisted,
-    rows: rows.map((r) => ({ ...r, slot: slotOf(settings, r.id) })),
+    rows: await Promise.all(
+      ranked.map(async ({ index: _i, thumb, ...r }) => ({
+        ...r,
+        thumb: thumb ? await ctx.db.storage.signedGetUrl(thumb, DOWNLOAD_TTL) : null,
+        slot: slotOf(settings, r.id),
+        why: settings.finalNotes?.[r.id] ?? "",
+      })),
+    ),
+    marksNeeded: MARKS_NEEDED,
+    topCount: TOP_COUNT,
     activity: activity.map((a) => ({ ...a, room: roomOfJudge(settings, a.key) })),
     drafts,
     rooms: rooms.names,
@@ -951,12 +1035,13 @@ const csvCell = (v: unknown) => {
 on("GET", "/judge/export.csv", async (ctx, req, res) => {
   requireAdmin(ctx.cfg, req);
   const r = await results(ctx);
-  const head = ["Rank", "Title", "Credit", "Members", "Schools", "Grades", "Contact email", "Average", ...r.criteria.map((c) => c.label), "Judges", ...r.judges.map((j) => j.name), "Late", "Award", "Submitted", "Entry id"];
+  const head = ["Rank", "Team", "Title", "Credit", "Members", "Schools", "Grades", "Contact email", "Average", ...r.criteria.map((c) => c.label), "Judges", ...r.judges.map((j) => j.name), "Late", "Award", "Submitted", "Entry id"];
   const lines = [head.map(csvCell).join(",")];
   r.rows.forEach((row, i) => {
     lines.push(
       [
-        i + 1,
+        row.rank ?? i + 1,
+        row.teamName,
         row.title,
         row.creditLine,
         row.members.map((m) => m.name).join("; "),
@@ -982,6 +1067,58 @@ on("GET", "/judge/export.csv", async (ctx, req, res) => {
     "Content-Disposition": `attachment; filename="mdc-2026-results.csv"`,
   });
   res.end("﻿" + lines.join("\r\n"));
+});
+
+// Top 5 meeting: organizers write down why each winner won.
+on("PUT", "/judge/final/:id", async (ctx, req, res, { id }) => {
+  requireAdmin(ctx.cfg, req);
+  const body = await readJson(req);
+  const doc = await ctx.db.read("entries");
+  if (doc.entries[id]?.status !== "submitted") fail(404, "No such entry.");
+  const why = String(body.why ?? "").slice(0, 2000);
+  await ctx.db.mutate("settings", (st) => {
+    st.finalNotes ??= {};
+    if (why.trim()) st.finalNotes[id] = why;
+    else delete st.finalNotes[id];
+  });
+  sendJson(res, 200, { ok: true, why });
+});
+
+// The live Google Sheet: =IMPORTDATA() of this URL. No contact emails, and
+// the key is a secret derived from the session secret.
+on("GET", "/sheet/:key", async (ctx, _req, res, { key }) => {
+  if (!safeEqual(key, sheetKey(ctx.cfg))) fail(404, "Not found.");
+  await ensureSchedule(ctx, await windowOf(ctx));
+  const r = await results(ctx);
+  // "2:10 PM" like the site, not en-CA's "2:10 p.m.".
+  const t = (ms: number) => new Date(ms).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: "America/Toronto" });
+  const head = ["Time", "Room", "Judging pair", "Team", "Title", "Members", "Schools", "Marks in", "Status", "Pair average", "Rank", "Award", "Submitted", "Entry id"];
+  const rows = [...r.rows].sort((a, b) => String(a.slot?.at ?? "~").localeCompare(String(b.slot?.at ?? "~")) || a.slot?.room?.localeCompare(b.slot?.room ?? "") || 0);
+  const lines = [head.map(csvCell).join(",")];
+  for (const row of rows) {
+    lines.push(
+      [
+        row.slot ? t(Date.parse(row.slot.at)) : "",
+        row.slot?.room ?? "",
+        row.pair.join(" + "),
+        row.teamName,
+        row.title,
+        row.members.map((m) => m.name).join(", "),
+        [...new Set(row.members.map((m) => m.school))].join(", "),
+        row.judgeCount,
+        row.complete ? "Done" : `Needs ${r.marksNeeded - row.judgeCount} more ${r.marksNeeded - row.judgeCount === 1 ? "mark" : "marks"}`,
+        row.average?.toFixed(1) ?? "",
+        row.rank ?? "",
+        row.award,
+        row.submittedAt ? t(Date.parse(row.submittedAt)) : "",
+        row.id,
+      ]
+        .map(csvCell)
+        .join(","),
+    );
+  }
+  res.writeHead(200, { ...BASE_HEADERS, "Content-Type": "text/csv; charset=utf-8", "Cache-Control": "no-store" });
+  res.end(lines.join("\r\n"));
 });
 
 on("PATCH", "/judge/entries/:id", async (ctx, req, res, { id }) => {
@@ -1013,11 +1150,16 @@ on("DELETE", "/judge/entries/:id", async (ctx, req, res, { id }) => {
     delete doc.entries[id];
   });
   await ctx.db.mutate("scores", (sc) => {
-    for (const j of Object.values(sc.judges)) delete j.scores[id];
+    for (const [key, j] of Object.entries(sc.judges)) {
+      delete j.scores[id];
+      // A sheet left empty (say, a test sign-in's) would show as "not counted" on Results.
+      if (!Object.keys(j.scores).length) delete sc.judges[key];
+    }
   });
-  // And its judging slot, so a deleted test entry leaves nothing behind.
+  // And its judging slot and final-meeting note, so a deleted test entry leaves nothing behind.
   await ctx.db.mutate("settings", (st) => {
     if (st.schedule && Object.hasOwn(st.schedule, id)) delete st.schedule[id];
+    if (st.finalNotes && Object.hasOwn(st.finalNotes, id)) delete st.finalNotes[id];
   });
   await ctx.db.storage.delete(paths).catch(() => {});
   sendJson(res, 200, { ok: true });
@@ -1025,7 +1167,7 @@ on("DELETE", "/judge/entries/:id", async (ctx, req, res, { id }) => {
 
 on("GET", "/judge/settings", async (ctx, req, res) => {
   requireAdmin(ctx.cfg, req);
-  const w = await windowOf(ctx);
+  const w = await ensureSchedule(ctx, await windowOf(ctx));
   sendJson(res, 200, settingsView(ctx, w));
 });
 
@@ -1052,6 +1194,9 @@ function settingsView(ctx: PortalContext, w: Window) {
       const ats = Object.values(w.settings.schedule ?? {}).map((s) => Date.parse(s.at));
       return ats.length ? iso(Math.max(...ats) + roomsOf(w.settings).slotMinutes * 60_000) : null;
     })(),
+    autoScheduledAt: w.settings.autoScheduledAt ?? null,
+    // The live Google Sheet: paste =IMPORTDATA("<sheetUrl>") into cell A1.
+    sheetPath: `/api/portal/sheet/${sheetKey(ctx.cfg)}`,
     open: w.open,
     graceSeconds: GRACE_SECONDS,
     storage: ctx.cfg.storage,
@@ -1118,9 +1263,9 @@ function cleanRooms(raw: Record<string, unknown>, cur: RoomsSetup): RoomsSetup {
   return { names, start, end, slotMinutes, judgeRooms };
 }
 
-// The judging schedule. "make" gives every submitted entry without a slot the
-// next free time in the least-busy room (entries already scheduled keep
-// theirs, so late changes never move a team that was told its time).
+// The judging schedule. It makes itself when submissions close (ensureSchedule);
+// "make" fills slots for any entry without one (fillSchedule: entries already
+// scheduled keep theirs).
 // "clear" removes it.
 on("POST", "/judge/schedule", async (ctx, req, res) => {
   requireAdmin(ctx.cfg, req);
@@ -1129,30 +1274,15 @@ on("POST", "/judge/schedule", async (ctx, req, res) => {
   await ctx.db.mutate("settings", (st) => {
     if (body.action === "clear") {
       delete st.schedule;
+      // Cleared after the deadline: on purpose, so don't remake it by itself.
+      // Cleared before (a test run): it makes itself at the deadline again.
+      const w = Date.parse(st.deadlineOverride ?? ctx.cfg.deadline);
+      if (st.closed || (ctx.now?.() ?? Date.now()) >= w) st.autoScheduledAt ??= new Date(ctx.now?.() ?? Date.now()).toISOString();
+      else delete st.autoScheduledAt;
       return;
     }
     if (body.action !== "make") fail(422, "Action must be make or clear.");
-    const r = roomsOf(st);
-    const schedule: Record<string, { room: string; at: string }> = {};
-    // Keep slots for entries that still exist, are submitted and whose room is still a room.
-    for (const [id, s] of Object.entries(st.schedule ?? {})) {
-      const e = Object.hasOwn(doc.entries, id) ? doc.entries[id] : null;
-      if (e && e.status === "submitted" && r.names.includes(s.room)) schedule[id] = s;
-    }
-    const step = r.slotMinutes * 60_000;
-    const next = new Map(r.names.map((n) => [n, Date.parse(r.start)]));
-    for (const s of Object.values(schedule)) next.set(s.room, Math.max(next.get(s.room)!, Date.parse(s.at) + step));
-    const count = new Map(r.names.map((n) => [n, Object.values(schedule).filter((s) => s.room === n).length]));
-    const waiting = Object.values(doc.entries)
-      .filter((e) => e.status === "submitted" && !e.hidden && !schedule[e.id])
-      .sort((a, b) => String(a.submittedAt).localeCompare(String(b.submittedAt)));
-    for (const e of waiting) {
-      const room = r.names.reduce((best, n) => (count.get(n)! < count.get(best)! || (count.get(n) === count.get(best) && next.get(n)! < next.get(best)!) ? n : best));
-      schedule[e.id] = { room, at: iso(next.get(room)!) };
-      next.set(room, next.get(room)! + step);
-      count.set(room, count.get(room)! + 1);
-    }
-    st.schedule = schedule;
+    fillSchedule(st, doc.entries);
   });
   sendJson(res, 200, settingsView(ctx, await windowOf(ctx)));
 });

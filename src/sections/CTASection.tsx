@@ -1,14 +1,14 @@
 import Sheet from "@/components/blueprint/Sheet";
 import DisplayHeading from "@/components/motion/DisplayHeading";
 import Reveal from "@/components/motion/Reveal";
-import RegisterBlock from "@/components/RegisterBlock";
+import SubmitBlock from "@/components/SubmitBlock";
 import { SECTIONS } from "@/content/copy";
 
 const s = SECTIONS.register;
 
 /**
  * The closer (#register): the heading, one status line and the date and
- * venue, with the Register block beside them from lg (under them below).
+ * venue, with the Submit block beside them from lg (under them below).
  * No other buttons. The phone's sticky bar steps aside here, so the block
  * keeps its own button on phones.
  */
@@ -35,7 +35,7 @@ export default function CTASection() {
         </div>
 
         <Reveal delay={0.2}>
-          <RegisterBlock buttonClassName="min-h-[52px] px-9 py-4 text-[15px]" className="gap-4" />
+          <SubmitBlock buttonClassName="min-h-[52px] px-9 py-4 text-[15px]" className="gap-4" />
         </Reveal>
       </div>
     </Sheet>

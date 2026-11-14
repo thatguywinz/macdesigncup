@@ -6,7 +6,7 @@ import { Link } from "react-router-dom";
 import { ArrowRight, Search } from "lucide-react";
 import { ApiError, api, clock, closesLabel } from "../../api";
 import { countdown, useNow } from "../../hooks";
-import { MAX_TOTAL } from "../../shared/judging";
+import { MARKS_NEEDED, MAX_TOTAL } from "../../shared/judging";
 import type { JudgeCard } from "../../shared/schema";
 import { JudgeShell, useMe } from "./context";
 import { JudgeTip, OrganizerGuide } from "./Guide";
@@ -24,7 +24,7 @@ interface ListResponse {
   open: boolean;
 }
 
-type Filter = "room" | "all" | "todo" | "done" | "late" | "review";
+type Filter = "room" | "all" | "todo" | "done" | "review";
 
 export default function JudgeList() {
   const { me, signOut } = useMe();
@@ -68,17 +68,18 @@ export default function JudgeList() {
     const q = query.trim().toLowerCase();
     const list = data.cards.filter((c) => {
       if (active === "room" && c.slot?.room !== myRoom) return false;
-      if (active === "todo" && c.myTotal !== null) return false;
-      if (active === "done" && c.myTotal === null) return false;
-      if (active === "late" && !c.late) return false;
+      // To mark: still needs marks (an entry is done once its pair's MARKS_NEEDED are in) and not marked by you.
+      if (active === "todo" && (c.myTotal !== null || c.scoreCount >= MARKS_NEEDED)) return false;
+      if (active === "done" && c.scoreCount < MARKS_NEEDED) return false;
       if (active === "review" && !c.openReviews) return false;
       if (!q) return true;
-      return [c.title, c.creditLine, ...c.schools, ...c.software].some((s) => s.toLowerCase().includes(q));
+      return [c.teamName, c.title, c.creditLine, ...c.members, ...c.schools, ...c.software].some((s) => s && s.toLowerCase().includes(q));
     });
     return active === "room" ? list.sort((a, b) => String(a.slot?.at).localeCompare(String(b.slot?.at))) : list;
   }, [data, active, query, myRoom]);
 
   const marked = data?.cards.filter((c) => c.myTotal !== null).length ?? 0;
+  const done = data?.cards.filter((c) => c.scoreCount >= MARKS_NEEDED).length ?? 0;
   const upNext = data?.nextToMark ? data.cards.find((c) => c.id === data.nextToMark) : undefined;
   const total = data?.cards.length ?? 0;
   const deadline = data ? Date.parse(data.deadline) : 0;
@@ -90,7 +91,7 @@ export default function JudgeList() {
         <div>
           <h1 className="display-scene">Entries</h1>
           <p className="mt-3 font-body text-[15px] text-foreground/75">
-            {total} submitted · you've marked {marked}
+            {total} submitted · {done} done ({MARKS_NEEDED} marks each) · you've marked {marked}
             {me.role === "admin" && data?.drafts ? ` · ${data.drafts} still drafting` : ""}
           </p>
         </div>
@@ -104,8 +105,8 @@ export default function JudgeList() {
       {data && (me.role === "admin" ? <OrganizerGuide marksCount={data.marksCount} deadline={data.deadline} /> : marked === 0 && <JudgeTip />)}
 
       {total > 0 && (
-        <div className="mt-6 h-[3px] w-full bg-bone/10" role="progressbar" aria-label="Entries you've marked" aria-valuemin={0} aria-valuemax={total} aria-valuenow={marked}>
-          <div className="h-full bg-ember transition-[width] duration-500" style={{ width: `${(marked / total) * 100}%` }} />
+        <div className="mt-6 h-[3px] w-full bg-bone/10" role="progressbar" aria-label="Entries done" aria-valuemin={0} aria-valuemax={total} aria-valuenow={done}>
+          <div className="h-full bg-ember transition-[width] duration-500" style={{ width: `${(done / total) * 100}%` }} />
         </div>
       )}
 
@@ -115,14 +116,15 @@ export default function JudgeList() {
             {upNext.thumb && <img src={upNext.thumb} alt="" className="hidden h-14 w-24 shrink-0 rounded-[2px] object-cover sm:block" />}
             <div className="min-w-0">
               <p className="font-body text-[13px] text-ember">Up next for you</p>
-              <p className="truncate font-body text-[17px] font-semibold text-bone">{upNext.title}</p>
+              <p className="truncate font-body text-[17px] font-semibold text-bone">{upNext.teamName || upNext.title}</p>
+              {upNext.teamName && <p className="truncate font-body text-sm text-foreground/75">{upNext.title}</p>}
               <p className="font-body text-[13px] text-concrete">
                 {upNext.creditLine} ·{" "}
                 {upNext.slot
                   ? `presents in ${upNext.slot.room} at ${clock(upNext.slot.at)}`
                   : upNext.scoreCount === 0
                     ? "nobody has marked it yet"
-                    : `${upNext.scoreCount} ${upNext.scoreCount === 1 ? "mark" : "marks"} so far`}
+                    : `${upNext.scoreCount} of ${MARKS_NEEDED} marks so far`}
               </p>
             </div>
           </div>
@@ -132,8 +134,8 @@ export default function JudgeList() {
         </div>
       ) : (
         total > 0 &&
-        marked === total && (
-          <p className="p-notice p-notice--calm mt-6 font-body text-[15px]">You've marked every entry. New ones show up here as teams submit.</p>
+        done + marked >= total && (
+          <p className="p-notice p-notice--calm mt-6 font-body text-[15px]">Nothing left for you to mark. New ones show up here as teams submit.</p>
         )
       )}
 
@@ -144,8 +146,7 @@ export default function JudgeList() {
               ...(roomCount ? ([["room", `My room · ${myRoom}`]] as [Filter, string][]) : []),
               ["all", "All"],
               ["todo", "To mark"],
-              ["done", "Marked"],
-              ["late", "Late"],
+              ["done", "Done"],
               ["review", "Needs review"],
             ] as [Filter, string][]
           ).map(([f, label]) => (
@@ -155,9 +156,9 @@ export default function JudgeList() {
           ))}
         </div>
         <label className="relative block sm:w-72">
-          <span className="sr-only">Search entries</span>
+          <span className="sr-only">Search by team name, title, student or school</span>
           <Search size={15} strokeWidth={1.5} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-concrete" aria-hidden="true" />
-          <input className="p-input pl-9" placeholder="Title, name, school, software" value={query} onChange={(e) => setQuery(e.target.value)} />
+          <input className="p-input pl-9" placeholder="Team name, title, student, school" value={query} onChange={(e) => setQuery(e.target.value)} />
         </label>
       </div>
 
@@ -195,17 +196,20 @@ export default function JudgeList() {
                   <span className="absolute right-2 top-2">
                     {c.myTotal !== null ? (
                       <span className="p-tag border-transparent bg-background/80 p-mono">
-                        {c.myTotal}/{MAX_TOTAL}
+                        You: {c.myTotal}/{MAX_TOTAL}
                       </span>
+                    ) : c.scoreCount >= MARKS_NEEDED ? (
+                      <span className="p-tag border-transparent bg-background/80">Done</span>
                     ) : (
                       <span className="p-tag p-tag--ember bg-background/80">To mark</span>
                     )}
                   </span>
                 </div>
                 <div className="flex flex-1 flex-col gap-1.5 p-4">
+                  {c.teamName && <span className="font-body text-[13px] text-ember">{c.teamName}</span>}
                   <span className="font-body text-[17px] font-semibold leading-snug tracking-[-0.01em] text-bone">{c.title}</span>
                   <span className="font-body text-sm text-foreground/75">
-                    {c.creditLine}
+                    {c.members.join(", ") || c.creditLine}
                     {c.memberCount > 1 ? ` · team of ${c.memberCount}` : ""}
                   </span>
                   <span className="truncate font-body text-[13px] text-concrete">{c.schools.join(", ")}</span>
@@ -221,7 +225,7 @@ export default function JudgeList() {
                     {c.award && <span className="p-tag p-tag--solid">{c.award}</span>}
                     {c.hidden && <span className="p-tag">Hidden</span>}
                     <span className="p-mono ml-auto text-[11px] text-concrete">
-                      {clock(c.submittedAt)} · {c.scoreCount} {c.scoreCount === 1 ? "mark" : "marks"}
+                      {clock(c.submittedAt)} · {Math.min(c.scoreCount, 99)}/{MARKS_NEEDED} marks
                     </span>
                   </span>
                 </div>

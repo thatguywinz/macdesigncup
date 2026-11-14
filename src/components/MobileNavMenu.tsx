@@ -25,6 +25,9 @@ export type MobileNavLink =
       accent?: boolean;
       /** Trailing arrow: this row leaves for another page. */
       arrow?: boolean;
+      /** A full page load (`<a href>`), for routes this app does not serve
+       *  (e.g. /submit, served by the portal build). */
+      document?: boolean;
     });
 
 interface MobileNavMenuProps {
@@ -174,7 +177,11 @@ export default function MobileNavMenu({ links, note, hideFrom = "md", anchors = 
               const shared = { ref, onClick, "aria-current": current, "aria-describedby": detailId, className: rowClass(link) } as const;
               return (
                 <li key={link.label} className="border-b border-line last:border-b-0">
-                  {"to" in link ? (
+                  {"to" in link && link.document ? (
+                    <a href={link.to} {...shared}>
+                      {content(link)}
+                    </a>
+                  ) : "to" in link ? (
                     <Link to={link.to} {...shared}>
                       {content(link)}
                     </Link>

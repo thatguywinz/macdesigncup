@@ -2,21 +2,26 @@
 // day's entry code; an existing one is opened with its private edit link
 // (the key rides in the URL fragment, which browsers never send to servers).
 //
+// The form is three steps: 1 Team, 2 Design, 3 Check & submit. A new entry
+// moves forward only when the step's required fields pass (the same
+// parseEntry rules the server runs); an existing entry opens on the review
+// and can jump to any step.
+//
 // Submitting runs in order: save the details (creating the entry if new),
 // upload each new file with its own progress bar, capture a still of the
 // model as the card thumbnail, then mark the entry submitted. If a step
 // fails, the entry is already saved and the page is on its edit link, so
 // pressing the button again picks up where it stopped.
-import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
-import { Check, Circle, CircleCheck, Copy, ExternalLink, FileBox, ImagePlus, PenTool, Plus, Trash2, Upload, Video, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Copy, ExternalLink, FileBox, ImagePlus, PenTool, Plus, Trash2, Upload, Video, X } from "lucide-react";
 import VideoPlayer, { captureVideoFrame } from "../components/VideoPlayer";
 import { VideoChoice, VideoGuide } from "../components/VideoStep";
 import { JudgingBriefing, SlotNotice } from "../components/Briefing";
 import DeadlineBar from "../components/DeadlineBar";
-import { parseVideoLink, type VideoCheck } from "../shared/video";
+import { parseVideoLink } from "../shared/video";
 import Shell from "../components/Shell";
-import { Block, Field, Progress } from "../components/fields";
+import { Field, Progress } from "../components/fields";
 import { ApiError, api, clock, when } from "../api";
 import { countdown, forgetEntry, rememberEntry, savedEntries, useMediaQuery, useNow, usePortalStatus } from "../hooks";
 import { SLOTS, checkFile, extOf, formatBytes, isViewable, type FileSlot } from "../shared/formats";
@@ -34,6 +39,7 @@ import {
   type FieldErrors,
   type FileView,
   type OwnEntry,
+  type PortalStatus,
 } from "../shared/schema";
 import { uploadFile } from "../upload";
 import { CAD_LINK_HINT, UNITS, formatMeasure, hasSpec, specCheck, type Measure, type Spec, type Units } from "../shared/checks";
@@ -53,6 +59,22 @@ function filesFrom(entry: OwnEntry): Files {
 
 const newKey = () => Math.random().toString(36).slice(2);
 
+// ── Steps ─────────────────────────────────────
+
+type Step = 0 | 1 | 2;
+const STEP_NAMES = ["Team", "Design", "Check & submit"] as const;
+const LAST: Step = 2;
+
+/** Which step shows a field (and so which step an error sends the team back to). */
+function stepOf(field: string): Step {
+  if (field === "code" || field === "teamName" || field === "contactEmail" || field.startsWith("members")) return 0;
+  if (field === "aiNote" || field === "original" || field === "filesNote" || field === "credit" || field === "shareable") return 2;
+  return 1;
+}
+
+const CODE_NEEDED = "Enter the code from the screen at the front of the room.";
+const VISUAL_NEEDED = "Add at least one picture (a render or screenshot), or a video or your 3D model.";
+
 // What a team has typed into a new entry, kept on this device until the entry
 // is first saved, so a refresh or a closed tab doesn't lose it. Files can't be
 // kept this way; they're picked again.
@@ -61,6 +83,7 @@ interface Typed {
   form: EntryInput;
   code: string;
   videoMode: "link" | "upload";
+  step?: number;
 }
 function readTyped(): Typed | null {
   try {
@@ -78,7 +101,14 @@ function writeTyped(t: Typed | null) {
     /* private mode: nothing kept */
   }
 }
-const typedIsEmpty = (f: EntryInput) => !f.title && !f.summary && !f.videoLink && !f.contactEmail && f.members.every((m) => !m.name && !m.school);
+const typedIsEmpty = (f: EntryInput) =>
+  !f.title && !f.teamName && !f.summary && !f.videoLink && !f.contactEmail && f.members.every((m) => !m.name && !m.school);
+
+/** What was typed here before, if anything worth restoring. */
+function restorable(): Typed | null {
+  const t = readTyped();
+  return t && !typedIsEmpty({ ...emptyEntry(), ...t.form }) ? t : null;
+}
 
 /** Reads the edit key from the URL fragment (#k=...), else from this device. */
 function editKeyFor(id: string | undefined, hash: string): string {
@@ -88,6 +118,8 @@ function editKeyFor(id: string | undefined, hash: string): string {
   return savedEntries().find((s) => s.id === id)?.key ?? "";
 }
 
+const asStep = (n: unknown): Step => (n === 1 || n === 2 ? n : 0);
+
 export default function SubmitPage() {
   const { id: routeId } = useParams();
   const { hash } = useLocation();
@@ -95,10 +127,12 @@ export default function SubmitPage() {
   const { status, serverOffset } = usePortalStatus();
   const now = useNow(1000, serverOffset);
 
+  // A new entry picks up what was typed here before (until it's first saved).
+  const [initial] = useState(() => (routeId ? null : restorable()));
   const [entryId, setEntryId] = useState<string | undefined>(routeId);
   const [editKey, setEditKey] = useState(() => editKeyFor(routeId, hash));
-  const [form, setForm] = useState<EntryInput>(emptyEntry);
-  const [code, setCode] = useState("");
+  const [form, setForm] = useState<EntryInput>(() => (initial ? { ...emptyEntry(), ...initial.form } : emptyEntry()));
+  const [code, setCode] = useState(initial?.code ?? "");
   const [files, setFiles] = useState<Files>(noFiles);
   const [removed, setRemoved] = useState<string[]>([]);
   const [saved, setSaved] = useState<OwnEntry | null>(null);
@@ -110,30 +144,26 @@ export default function SubmitPage() {
   const [done, setDone] = useState(false);
   const [draftSaved, setDraftSaved] = useState("");
   const [measure, setMeasure] = useState<Measure | null>(null);
-  const [videoMode, setVideoMode] = useState<"link" | "upload">("link");
+  const [videoMode, setVideoMode] = useState<"link" | "upload">(initial?.videoMode === "upload" ? "upload" : "link");
+  const [restored, setRestored] = useState(!!initial);
+  // An existing entry opens on the review, where everything is at a glance.
+  const [step, setStep] = useState<Step>(() => (routeId ? LAST : asStep(initial?.step)));
+  const [reached, setReached] = useState<Step>(step);
   const captureRef = useRef<CaptureFn | null>(null);
   const savedAxis = useRef<"y" | "z">("y");
+  const stepsRef = useRef<HTMLElement>(null);
+  const stepHeadingRef = useRef<HTMLHeadingElement>(null);
+  /** The next step change should scroll to the first error, not the top. */
+  const errorScroll = useRef(false);
 
   const isEdit = !!entryId;
   const wide = useMediaQuery("(min-width: 1024px)");
 
-  // A new entry picks up what was typed here before (until it's first saved).
-  const [restored, setRestored] = useState(false);
-  useEffect(() => {
-    if (routeId) return;
-    const t = readTyped();
-    if (!t || typedIsEmpty({ ...emptyEntry(), ...t.form })) return;
-    setForm({ ...emptyEntry(), ...t.form });
-    setCode(t.code ?? "");
-    setVideoMode(t.videoMode === "upload" ? "upload" : "link");
-    setRestored(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- once, on a fresh form
-  }, []);
   useEffect(() => {
     if (entryId) return;
-    const t = window.setTimeout(() => writeTyped(typedIsEmpty(form) && !code ? null : { form, code, videoMode }), 400);
+    const t = window.setTimeout(() => writeTyped(typedIsEmpty(form) && !code ? null : { form, code, videoMode, step }), 400);
     return () => window.clearTimeout(t);
-  }, [form, code, videoMode, entryId]);
+  }, [form, code, videoMode, step, entryId]);
   const startOver = () => {
     writeTyped(null);
     setForm(emptyEntry());
@@ -141,6 +171,8 @@ export default function SubmitPage() {
     setFiles(noFiles());
     setErrors({});
     setRestored(false);
+    setStep(0);
+    setReached(0);
   };
 
   // Open an existing entry. Skipped when this page just created it: the URL
@@ -176,7 +208,7 @@ export default function SubmitPage() {
 
   const set = useCallback(<K extends keyof EntryInput>(k: K, v: EntryInput[K]) => {
     setForm((f) => ({ ...f, [k]: v }));
-    setErrors((e) => (e[k as string] ? { ...e, [k]: undefined } : e));
+    setErrors((e) => (e[k as string] || (k === "videoLink" && e.visuals) ? { ...e, [k]: undefined, ...(k === "videoLink" ? { visuals: undefined } : {}) } : e));
   }, []);
 
   const setMember = (i: number, patch: Partial<EntryInput["members"][number]>) => {
@@ -212,7 +244,7 @@ export default function SubmitPage() {
       }
       return next;
     });
-    setErrors((e) => ({ ...e, [slot]: problems[0] }));
+    setErrors((e) => ({ ...e, [slot]: problems[0], visuals: undefined }));
   };
 
   const removeItem = (slot: keyof Files, item: Item) => {
@@ -244,29 +276,26 @@ export default function SubmitPage() {
     return isViewable(modelItem.view.ext) ? { kind: "url", url: modelItem.view.url, ext: modelItem.view.ext } : null;
   }, [modelItem]);
 
-  // ── Submit ────────────────────────────────
+  // ── Validation per step ───────────────────
   const deadline = status ? Date.parse(status.deadline) : null;
   const closedForNew = status ? !status.open : false;
   const codeRequired = status?.codeRequired ?? true;
   const locked = saved?.locked ?? false;
+  const submitted = saved?.status === "submitted";
 
-  // What's still needed to submit, from the same rules the server applies.
-  const liveErrors = useMemo(() => {
-    const p = parseEntry(form);
-    return "errors" in p ? p.errors : {};
-  }, [form]);
   const hasVideoNow = videoMode === "link" ? !!parseVideoLink(form.videoLink) : files.video.length > 0;
   const hasVisual = files.image.length > 0 || hasVideoNow || files.model.length > 0;
-  const ready: ReadyItem[] = [
-    ...(!isEdit && codeRequired ? [{ label: "Entry code", done: !!code.trim(), target: "blk-design" }] : []),
-    { label: "Title", done: !liveErrors.title, target: "blk-design" },
-    { label: "A few words on it", done: !liveErrors.summary, target: "blk-design" },
-    { label: "A picture, video or model", done: hasVisual, target: "blk-design" },
-    { label: "Your team", done: !Object.keys(liveErrors).some((k) => k.startsWith("members")) && !liveErrors.teamName, target: "blk-team" },
-    { label: "Contact email", done: !liveErrors.contactEmail, target: "blk-team" },
-    { label: "Software", done: !liveErrors.software && !liveErrors.softwareOther && !liveErrors.aiNote, target: "blk-confirm" },
-    { label: "Confirm it's your work", done: !liveErrors.original, target: "blk-confirm" },
-  ];
+  /** Everything still in the way of submitting, from the same rules the server applies. */
+  const needed = useMemo(() => {
+    const p = parseEntry(form);
+    const e: FieldErrors = "errors" in p ? { ...p.errors } : {};
+    if (!isEdit && codeRequired && !code.trim()) e.code = CODE_NEEDED;
+    if (!hasVisual) e.visuals = VISUAL_NEEDED;
+    return e;
+  }, [form, isEdit, codeRequired, code, hasVisual]);
+  const neededIn = (s: Step) => Object.fromEntries(Object.entries(needed).filter(([k, v]) => v && stepOf(k) === s)) as FieldErrors;
+  const stepOk = (s: Step) => Object.keys(neededIn(s)).length === 0;
+
   // The extras open by themselves once they hold something.
   const hasExtras =
     files.video.length + files.model.length + files.progress.length + files.source.length > 0 ||
@@ -274,7 +303,7 @@ export default function SubmitPage() {
     !!form.cadLink ||
     !!form.process ||
     !!(errors.video || errors.videoLink || errors.model || errors.cadLink || errors.progress || errors.source || errors.process);
-  // The first picture, shown beside the form as the entry's cover.
+  // The first picture: the entry's cover.
   const firstImage = files.image[0];
   const [coverUrl, setCoverUrl] = useState<string | null>(null);
   useEffect(() => {
@@ -285,9 +314,72 @@ export default function SubmitPage() {
     return () => URL.revokeObjectURL(url);
   }, [firstImage]);
 
+  /** Scrolls the first field with an error into view (after the step renders). */
+  const revealError = () =>
+    requestAnimationFrame(() =>
+      requestAnimationFrame(() => {
+        const el = document.querySelector<HTMLElement>("[data-field-error]");
+        el?.scrollIntoView({ block: "center", behavior: "smooth" });
+        el?.querySelector<HTMLElement>("input:not([type=hidden]), textarea, select")?.focus({ preventScroll: true });
+      }),
+    );
+
+  /** Shows a step's errors and opens that step. */
+  function showErrors(errs: FieldErrors) {
+    setErrors(errs);
+    const first = Math.min(...Object.keys(errs).map(stepOf)) as Step;
+    if (first !== step) {
+      errorScroll.current = true;
+      setStep(first);
+    } else revealError();
+  }
+
+  /**
+   * Moves to a step. Back is always open, and an existing entry can jump
+   * anywhere; a new entry goes forward only past steps that are complete.
+   */
+  function goTo(target: Step) {
+    if (target === step) return;
+    setFormError("");
+    if (!isEdit && target > step) {
+      for (let s = 0 as Step; s < target; s = (s + 1) as Step) {
+        const errs = neededIn(s);
+        if (Object.keys(errs).length) {
+          setErrors((e) => ({ ...e, ...errs }));
+          if (s !== step) {
+            errorScroll.current = true;
+            setStep(s);
+          } else revealError();
+          return;
+        }
+      }
+    }
+    setStep(target);
+    setReached((r) => (target > r ? target : r));
+  }
+
+  // A new step: focus its heading and bring the stepper into view.
+  const firstStep = useRef(true);
+  useEffect(() => {
+    if (firstStep.current) {
+      firstStep.current = false;
+      return;
+    }
+    stepHeadingRef.current?.focus({ preventScroll: true });
+    if (errorScroll.current) {
+      errorScroll.current = false;
+      revealError();
+    } else {
+      const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      stepsRef.current?.scrollIntoView({ block: "start", behavior: reduce ? "auto" : "smooth" });
+    }
+  }, [step]);
+
   function onSubmit(ev: FormEvent) {
     ev.preventDefault();
-    void save("submit");
+    // Enter (or the main button) on steps 1 and 2 of a new entry means Next.
+    if (step < LAST && !submitted) goTo((step + 1) as Step);
+    else void save("submit");
   }
 
   /**
@@ -302,12 +394,11 @@ export default function SubmitPage() {
     setDraftSaved("");
     const parsed = parseEntry(form, { draft });
     const errs: FieldErrors = "errors" in parsed ? { ...parsed.errors } : {};
-    if (!isEdit && codeRequired && !code.trim()) errs.code = "Enter the code from the screen at the front of the room.";
-    if (!hasVisual && !draft) errs.visuals = "Add at least one picture of your design (a render or screenshot), or a video or your 3D model.";
+    if (!isEdit && codeRequired && !code.trim()) errs.code = CODE_NEEDED;
+    if (!hasVisual && !draft) errs.visuals = VISUAL_NEEDED;
     if (Object.keys(errs).length || !("value" in parsed)) {
-      setErrors(errs);
       setFormError("Some fields need another look.");
-      requestAnimationFrame(() => document.querySelector("[data-field-error]")?.scrollIntoView({ block: "center", behavior: "smooth" }));
+      showErrors(errs);
       return;
     }
 
@@ -400,7 +491,7 @@ export default function SubmitPage() {
         const fresh = await api<{ entry: OwnEntry }>(`/entries/${id}`, { editKey: key });
         setSaved(fresh.entry);
         setFiles(filesFrom(fresh.entry));
-        setDraftSaved(`Draft saved at ${clock(new Date().toISOString())}. Come back with your edit link to add progress shots or submit.`);
+        setDraftSaved(`Draft saved at ${clock(new Date().toISOString())}. Keep your edit link to come back.`);
         return;
       }
 
@@ -413,8 +504,8 @@ export default function SubmitPage() {
       window.scrollTo({ top: 0 });
     } catch (e) {
       const err = e as ApiError;
-      if (err.body?.errors) setErrors(err.body.errors);
-      if (err.body?.field) setErrors((x) => ({ ...x, [err.body.field as string]: err.message }));
+      const fromServer: FieldErrors = { ...(err.body?.errors ?? {}), ...(err.body?.field ? { [err.body.field]: err.message } : {}) };
+      if (Object.keys(fromServer).length) showErrors(fromServer);
       setFormError(err.message || "Something went wrong. Try again.");
     } finally {
       setBusy("");
@@ -447,7 +538,7 @@ export default function SubmitPage() {
     );
   }
 
-  if (done && saved && entryId) return <Done entry={saved} editKey={editKey} onEdit={() => setDone(false)} deadline={status?.deadline ?? null} now={now} />;
+  if (done && saved && entryId) return <Done entry={saved} editKey={editKey} onEdit={() => setDone(false)} deadline={status?.deadline ?? null} judging={status?.judging} now={now} />;
 
   // A new entry waits for the status: whether there's a code step, or the form isn't open yet.
   if (!isEdit && !status) {
@@ -492,6 +583,34 @@ export default function SubmitPage() {
     );
   }
 
+  const until = deadline ? clock(status?.deadline) : "";
+  const lastName = submitted ? "Check & save" : STEP_NAMES[LAST];
+  const stepName = (s: Step) => (s === LAST ? lastName : STEP_NAMES[s]);
+  const shownStepErrors = Object.entries(errors).some(([k, v]) => v && stepOf(k) === step);
+  const uploading = (Object.keys(files) as (keyof Files)[])
+    .filter((slot) => slot !== "video" || videoMode === "upload")
+    .flatMap((slot) => files[slot].filter((x): x is Extract<Item, { kind: "new" }> => x.kind === "new"));
+
+  // The model viewer: beside the form on wide screens; in the design step (and
+  // on the review when there's no picture) on phones. Only one is ever mounted,
+  // so the thumbnail capture has one canvas.
+  const viewer = modelItem ? (
+    <ModelViewer
+      source={modelSource}
+      upAxis={form.upAxis}
+      onUpAxisChange={(a) => set("upAxis", a)}
+      onMeasure={setMeasure}
+      units={form.units}
+      spec={status?.spec ?? null}
+      captureRef={captureRef}
+      label="Preview of your model"
+      className="aspect-[4/3] w-full"
+      empty={<PreviewEmpty />}
+    />
+  ) : null;
+
+  const missing = <span className="text-[hsl(6_90%_66%)]">Missing</span>;
+
   return (
     <Shell section={isEdit ? "Edit your entry" : "Submit your design"}>
       {status && (
@@ -499,7 +618,7 @@ export default function SubmitPage() {
           deadline={status.deadline}
           now={now}
           closed={isEdit ? (saved ? locked : undefined) : !status.open}
-          reopened={isEdit && !locked && saved?.status === "submitted"}
+          reopened={isEdit && !locked && submitted}
         />
       )}
       {status?.devDefaults && (
@@ -508,398 +627,550 @@ export default function SubmitPage() {
         </p>
       )}
 
-      <div className="grid gap-x-12 pt-10 md:pt-14 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.85fr)]">
+      <div className="grid gap-x-12 pt-8 md:pt-12 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.8fr)]">
         <div className="min-w-0">
           <h1 className="display-scene">{isEdit ? form.title || "Your entry" : "Submit your design"}</h1>
-          <p className="mt-4 max-w-[38rem] font-body text-lg leading-relaxed text-foreground/75">
+          <p className="mt-3 max-w-[36rem] font-body text-[17px] leading-relaxed text-foreground/75">
             {isEdit
-              ? saved?.status === "submitted"
-                ? `Submitted at ${clock(saved.submittedAt)}. Change anything below and save until submissions close${deadline ? ` at ${clock(status?.deadline)}` : ""}.`
-                : "Not submitted yet. Finish the form and press Submit entry."
-              : `Three quick steps: your design, your team, then submit. Keep it short; the judges hear the rest when you present. Edit until ${deadline ? clock(status?.deadline) : "submissions close"}.`}
+              ? submitted
+                ? `Submitted at ${clock(saved?.submittedAt)}. You can change it until ${until || "submissions close"}.`
+                : "Not submitted yet. Finish the steps and press Submit entry."
+              : `Three short steps. Keep it brief: judges hear the rest when you present.${until ? ` Closes at ${until}.` : ""}`}
           </p>
           {saved?.slot && <SlotNotice slot={saved.slot} />}
           {restored && !isEdit && (
-            <p className="p-notice p-notice--calm mt-6 max-w-[38rem] font-body text-sm">
-              We kept what you typed on this laptop. Pick your files again if you'd added any.{" "}
+            <p className="p-notice p-notice--calm mt-5 max-w-[36rem] font-body text-sm">
+              We kept what you typed on this device. Pick your files again if you'd added any.{" "}
               <button type="button" className="p-link focus-ember" onClick={startOver}>
                 Start a fresh entry
               </button>
             </p>
           )}
-          {!isEdit && <SavedList />}
-          {locked && <p className="p-notice mt-6 font-body">Submissions are closed, so this entry can't be changed. Judges can see it as it is.</p>}
-          <JudgingBriefing className="mt-8" />
-        </div>
-        <div className="hidden lg:block" />
-      </div>
+          {!isEdit && step === 0 && <SavedList />}
+          {locked && <p className="p-notice mt-5 font-body">Submissions are closed, so this entry can't be changed. Judges can see it as it is.</p>}
 
-      <form onSubmit={onSubmit} noValidate className="mt-4 grid gap-x-12 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.85fr)]">
-        <fieldset disabled={locked || !!busy} className="min-w-0">
-          <Block id="blk-design" title="1 · Your design" note="What judges look at before you present, and what your entry's page shows.">
-            {!isEdit && codeRequired && (
-              <div id="blk-code" className="scroll-mt-24">
-                <Field label="Entry code" hint="On the screen at the front of the room." error={errors.code}>
-                  {(p) => (
-                    <input
-                      {...p}
-                      className="p-input p-mono max-w-[16rem] uppercase tracking-[0.08em]"
-                      autoComplete="off"
-                      autoCapitalize="characters"
-                      spellCheck={false}
-                      value={code}
-                      onChange={(e) => {
-                        setCode(e.target.value);
-                        setErrors((x) => ({ ...x, code: undefined }));
-                      }}
-                    />
-                  )}
-                </Field>
-              </div>
-            )}
-            <Field label="Title" error={errors.title} counter={{ value: form.title.length, max: LIMITS.title }}>
-              {(p) => <input {...p} className="p-input" value={form.title} maxLength={LIMITS.title + 20} onChange={(e) => set("title", e.target.value)} />}
-            </Field>
-            <Field
-              label="What you made and how it fits the theme"
-              hint={`Keep it quick: two or three sentences, up to ${WORDS.summary} words.`}
-              error={errors.summary}
-              counter={{ value: wordCount(form.summary), max: WORDS.summary, unit: "words" }}
-            >
-              {(p) => <textarea {...p} className="p-textarea min-h-[6rem]" value={form.summary} onChange={(e) => set("summary", e.target.value)} />}
-            </Field>
-            <FilePicker
-              slot="image"
-              label="Pictures of your design"
-              hint="Up to 4 renders or screenshots (PNG, JPG or WebP). The first one is your entry's cover. No picture? Add a video or your 3D model below instead."
-              items={files.image}
-              error={errors.image ?? errors.visuals}
-              onAdd={(l) => addFiles("image", l)}
-              onRemove={(it) => removeItem("image", it)}
-              icon={<ImagePlus size={20} strokeWidth={1.4} />}
-              multiple
-            />
+          <nav ref={stepsRef} aria-label="Steps" className="mt-8 scroll-mt-36">
+            <ol className="p-steps">
+              {([0, 1, 2] as Step[]).map((s) => {
+                const state = s === step ? "current" : stepOk(s) && (isEdit || s < reached) ? "done" : "todo";
+                return (
+                  <li key={s} data-state={state}>
+                    <button type="button" className="p-step focus-ember" data-state={state} aria-current={s === step ? "step" : undefined} onClick={() => goTo(s)}>
+                      <span className="p-step-num" aria-hidden="true">
+                        {state === "done" ? <Check size={14} strokeWidth={2.5} /> : s + 1}
+                      </span>
+                      <span className="p-step-name">
+                        <span className="sr-only">Step {s + 1}: </span>
+                        {stepName(s)}
+                        {state === "done" && <span className="sr-only"> (complete)</span>}
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ol>
+          </nav>
 
-            <details className="group" open={hasExtras || undefined}>
-              <summary className="focus-ember flex cursor-pointer list-none items-center gap-2 font-body text-[15px] text-foreground/90 marker:hidden">
-                <Plus size={15} strokeWidth={1.6} className="text-ember transition-transform group-open:rotate-45" aria-hidden="true" />
-                Add more: a video, your 3D model, a CAD link
-                <span className="text-concrete">optional</span>
-              </summary>
-              <div className="mt-6 flex flex-col gap-7 border-l border-bone/10 pl-4">
-                <div className="flex flex-col gap-4">
-                  <p className="p-label">
-                    Video <span className="ml-1.5 font-normal text-concrete">optional</span>
+          <form onSubmit={onSubmit} noValidate className="mt-2">
+            <fieldset disabled={locked || !!busy} className="min-w-0">
+              <section aria-labelledby="step-h" className="flex flex-col gap-6 pt-6">
+                <div>
+                  <h2 id="step-h" ref={stepHeadingRef} tabIndex={-1} className="p-step-title focus:outline-none">
+                    {step === 0 ? "Your team" : step === 1 ? "Your design" : submitted ? "Check and save" : "Check and submit"}
+                  </h2>
+                  <p className="p-hint mt-1">
+                    {step === 0
+                      ? `1 to ${TEAM_MAX} people, as registered.`
+                      : step === 1
+                        ? "What judges look at before you present."
+                        : submitted
+                          ? "A last look, then save your changes."
+                          : "A last look, two questions, then send it in."}
                   </p>
-                  <p className="p-hint -mt-3">A short screen recording or turntable of your design. Shown on your entry's page.</p>
-                  <VideoChoice
-                    mode={videoMode}
-                    onMode={(m) => {
-                      setVideoMode(m);
-                      setErrors((x) => ({ ...x, video: undefined, videoLink: undefined }));
-                    }}
-                    link={form.videoLink}
-                    onLink={(v) => set("videoLink", v)}
-                    error={errors.video ?? errors.videoLink}
-                    savedCheck={saved && saved.videoLink === form.videoLink ? saved.videoCheck : null}
-                    upload={
-                      <FilePicker
-                        slot="video"
-                        label="Video file"
-                        hint="MP4, MOV or WebM, up to 150 MB. Bigger? Use a YouTube (Unlisted) or Drive link."
-                        items={files.video}
-                        error={errors.video}
-                        onAdd={(l) => addFiles("video", l)}
-                        onRemove={(it) => removeItem("video", it)}
-                        icon={<Video size={20} strokeWidth={1.4} />}
-                      />
-                    }
-                  />
-                  <VideoGuide />
-                  {!wide && (videoLocalUrl || linkedPreview) && <VideoPlayer title={form.title || "Your video"} link={linkedPreview} localUrl={videoLocalUrl} />}
                 </div>
 
-                {/* The model preview sits here on phones and tablets; beside the form on wide screens.
-                    Only one viewer is ever mounted, so the thumbnail capture has one canvas. */}
-                {!wide && modelItem && (
-                  <ModelViewer
-                    source={modelSource}
-                    upAxis={form.upAxis}
-                    onUpAxisChange={(a) => set("upAxis", a)}
-                    onMeasure={setMeasure}
-                    units={form.units}
-                    spec={status?.spec ?? null}
-                    captureRef={captureRef}
-                    label="Preview of your model"
-                    className="aspect-[4/3] w-full"
-                    empty={<PreviewEmpty />}
-                  />
+                {/* ── Step 1: Team ── */}
+                {step === 0 && (
+                  <>
+                    {!isEdit && codeRequired && (
+                      <Field label="Entry code" hint="On the screen at the front of the room." error={errors.code}>
+                        {(p) => (
+                          <input
+                            {...p}
+                            className="p-input p-mono max-w-[16rem] uppercase tracking-[0.08em]"
+                            autoComplete="off"
+                            autoCapitalize="characters"
+                            spellCheck={false}
+                            value={code}
+                            onChange={(e) => {
+                              setCode(e.target.value);
+                              setErrors((x) => ({ ...x, code: undefined }));
+                            }}
+                          />
+                        )}
+                      </Field>
+                    )}
+                    <Field label="Team name" error={errors.teamName} counter={{ value: form.teamName.length, max: LIMITS.teamName }}>
+                      {(p) => <input {...p} className="p-input" autoComplete="off" value={form.teamName} maxLength={LIMITS.teamName + 10} onChange={(e) => set("teamName", e.target.value)} />}
+                    </Field>
+                    {form.members.map((m, i) => (
+                      <fieldset key={i} className="relative border-l border-bone/10 pl-4">
+                        <legend className="p-label float-left mb-3 w-full leading-9">Member {i + 1}</legend>
+                        {form.members.length > 1 && (
+                          <button
+                            type="button"
+                            className="btn-ghost p-btn p-btn-sm absolute right-0 top-0 border-transparent text-concrete hover:text-foreground"
+                            aria-label={`Remove ${m.name || `member ${i + 1}`}`}
+                            onClick={() => set("members", form.members.filter((_, j) => j !== i))}
+                          >
+                            <X size={15} strokeWidth={1.5} /> Remove
+                          </button>
+                        )}
+                        <div className="clear-left grid grid-cols-[minmax(0,1fr)_5.5rem] gap-4 sm:grid-cols-[minmax(0,1.2fr)_minmax(0,1.3fr)_6rem] sm:items-start">
+                          <div className="col-span-2 sm:col-span-1">
+                            <Field label="Full name" error={errors[`members.${i}.name`]}>
+                              {(p) => <input {...p} className="p-input" autoComplete={i === 0 ? "name" : "off"} value={m.name} onChange={(e) => setMember(i, { name: e.target.value })} />}
+                            </Field>
+                          </div>
+                          <Field label="School" error={errors[`members.${i}.school`]}>
+                            {(p) => <input {...p} className="p-input" value={m.school} onChange={(e) => setMember(i, { school: e.target.value })} />}
+                          </Field>
+                          <Field label="Grade" error={errors[`members.${i}.grade`]}>
+                            {(p) => (
+                              <select {...p} className="p-select" value={m.grade} onChange={(e) => setMember(i, { grade: e.target.value as (typeof GRADES)[number] })}>
+                                {GRADES.map((g) => (
+                                  <option key={g} value={g}>
+                                    {g}
+                                  </option>
+                                ))}
+                              </select>
+                            )}
+                          </Field>
+                        </div>
+                      </fieldset>
+                    ))}
+                    {errors.members && (
+                      <p className="p-error" data-field-error="true">
+                        {errors.members}
+                      </p>
+                    )}
+                    {form.members.length < TEAM_MAX && (
+                      <button
+                        type="button"
+                        className="btn-ghost p-btn p-btn-sm self-start"
+                        onClick={() => set("members", [...form.members, { name: "", school: form.members[0]?.school ?? "", grade: form.members[0]?.grade ?? "10" }])}
+                      >
+                        <Plus size={15} strokeWidth={1.5} /> Add a team member
+                      </button>
+                    )}
+                    <Field label="Contact email" hint="For prizes. Never shown publicly." error={errors.contactEmail}>
+                      {(p) => <input {...p} type="email" className="p-input" autoComplete="email" inputMode="email" value={form.contactEmail} onChange={(e) => set("contactEmail", e.target.value)} />}
+                    </Field>
+                  </>
                 )}
-                <FilePicker
-                  slot="model"
-                  label="3D model"
-                  optional
-                  hint="GLB, STL, OBJ, 3MF or PLY, up to 250 MB. Anyone can turn it around on your entry's page. GLB keeps colours and materials."
-                  items={files.model}
-                  error={errors.model}
-                  onAdd={(l) => addFiles("model", l)}
-                  onRemove={(it) => removeItem("model", it)}
-                  icon={<FileBox size={20} strokeWidth={1.4} />}
-                />
-                {modelItem && <ModelChecks units={form.units} onUnits={(u) => set("units", u)} measure={measure} spec={status?.spec ?? null} hasModel={!!modelItem} />}
-                <Field label="Link to your CAD document" optional hint={`View-only share link (${CAD_LINK_HINT}).`} error={errors.cadLink}>
-                  {(p) => <input {...p} type="url" inputMode="url" className="p-input" placeholder="https://cad.onshape.com/documents/…" value={form.cadLink} onChange={(e) => set("cadLink", e.target.value)} />}
-                </Field>
-                <FilePicker
-                  slot="progress"
-                  label="Sketches and progress shots"
-                  optional
-                  hint="Screenshots of sketches or your feature tree. Each is timestamped when it uploads (press Save draft during the day)."
-                  items={files.progress}
-                  error={errors.progress}
-                  onAdd={(l) => addFiles("progress", l)}
-                  onRemove={(it) => removeItem("progress", it)}
-                  icon={<PenTool size={20} strokeWidth={1.4} />}
-                  multiple
-                />
-                <FilePicker
-                  slot="source"
-                  label="Project file"
-                  optional
-                  hint="The file you modelled in (.f3d, .blend, .step, ...), up to 250 MB. Only judges can download it."
-                  items={files.source}
-                  error={errors.source}
-                  onAdd={(l) => addFiles("source", l)}
-                  onRemove={(it) => removeItem("source", it)}
-                  icon={<Upload size={20} strokeWidth={1.4} />}
-                />
-                <Field
-                  label="Anything else for the judges"
-                  optional
-                  hint={`A detail you're proud of, how it would be made. Up to ${WORDS.process} words.`}
-                  error={errors.process}
-                  counter={{ value: wordCount(form.process), max: WORDS.process, unit: "words" }}
-                >
-                  {(p) => <textarea {...p} className="p-textarea min-h-[5rem]" value={form.process} onChange={(e) => set("process", e.target.value)} />}
-                </Field>
-              </div>
-            </details>
-          </Block>
 
-          <Block id="blk-team" title="2 · Your team" note={`1 to ${TEAM_MAX} people, as registered.`}>
-            {form.members.map((m, i) => (
-              <div key={i} className="grid gap-4 border-l border-bone/10 pl-4 sm:grid-cols-[minmax(0,1.2fr)_minmax(0,1.3fr)_6.5rem_auto] sm:items-start">
-                <Field label={i === 0 ? "Full name" : `Member ${i + 1} full name`} error={errors[`members.${i}.name`]}>
-                  {(p) => <input {...p} className="p-input" autoComplete={i === 0 ? "name" : "off"} value={m.name} onChange={(e) => setMember(i, { name: e.target.value })} />}
-                </Field>
-                <Field label="School" error={errors[`members.${i}.school`]}>
-                  {(p) => <input {...p} className="p-input" value={m.school} onChange={(e) => setMember(i, { school: e.target.value })} />}
-                </Field>
-                <Field label="Grade" error={errors[`members.${i}.grade`]}>
-                  {(p) => (
-                    <select {...p} className="p-select" value={m.grade} onChange={(e) => setMember(i, { grade: e.target.value as (typeof GRADES)[number] })}>
-                      {GRADES.map((g) => (
-                        <option key={g} value={g}>
-                          {g}
-                        </option>
-                      ))}
-                    </select>
-                  )}
-                </Field>
-                {form.members.length > 1 ? (
-                  <button
-                    type="button"
-                    className="btn-ghost p-btn p-btn-sm mt-7 self-start"
-                    aria-label={`Remove ${m.name || `member ${i + 1}`}`}
-                    onClick={() => set("members", form.members.filter((_, j) => j !== i))}
-                  >
-                    <X size={15} strokeWidth={1.5} />
-                  </button>
-                ) : (
-                  <span className="hidden sm:block" />
-                )}
-              </div>
-            ))}
-            {errors.members && <p className="p-error">{errors.members}</p>}
-            {form.members.length < TEAM_MAX && (
-              <button
-                type="button"
-                className="btn-ghost p-btn p-btn-sm self-start"
-                onClick={() => set("members", [...form.members, { name: "", school: form.members[0]?.school ?? "", grade: form.members[0]?.grade ?? "10" }])}
-              >
-                <Plus size={15} strokeWidth={1.5} /> Add a team member
-              </button>
-            )}
-            <div className="grid gap-6 sm:grid-cols-2">
-              <Field label="Contact email" hint="For prizes. Never shown publicly." error={errors.contactEmail}>
-                {(p) => <input {...p} type="email" className="p-input" autoComplete="email" inputMode="email" value={form.contactEmail} onChange={(e) => set("contactEmail", e.target.value)} />}
-              </Field>
-              <Field label="Team name" optional error={errors.teamName}>
-                {(p) => <input {...p} className="p-input" value={form.teamName} onChange={(e) => set("teamName", e.target.value)} />}
-              </Field>
-            </div>
-            <fieldset>
-              <legend className="p-label">On your entry's public page, credit</legend>
-              <div className="p-seg mt-2" role="radiogroup">
-                <label>
-                  <input type="radio" name="credit" className="sr-only" checked={form.credit === "names"} onChange={() => set("credit", "names")} />
-                  First names
-                </label>
-                <label>
-                  <input type="radio" name="credit" className="sr-only" checked={form.credit === "team"} onChange={() => set("credit", "team")} />
-                  Team name
-                </label>
-              </div>
-              <p className="p-hint mt-2">
-                Shown as <span className="text-foreground">{publicCredit(form) || "your first names"}</span>. Never surnames, schools or emails.
-              </p>
-            </fieldset>
-            <label className="flex cursor-pointer items-start gap-3 font-body text-[15px] text-foreground/85">
-              <input type="checkbox" className="mt-1 h-4 w-4 accent-[hsl(24_100%_54%)]" checked={form.shareable} onChange={(e) => set("shareable", e.target.checked)} />
-              <span>
-                Anyone with the link can see our entry
-                <span className="p-hint block">Untick to keep it between your team and the judges. Scores are always private.</span>
-              </span>
-            </label>
-          </Block>
-
-          <Block id="blk-confirm" title="3 · Submit">
-            <fieldset>
-              <legend className="p-label">Software you used</legend>
-              <div className="mt-2 flex flex-wrap gap-2" data-field-error={errors.software ? "true" : undefined}>
-                {SOFTWARE.map((s) => (
-                  <label key={s} className="p-chip">
-                    <input
-                      type="checkbox"
-                      className="sr-only"
-                      checked={form.software.includes(s)}
-                      onChange={(e) => set("software", e.target.checked ? [...form.software, s] : form.software.filter((x) => x !== s))}
+                {/* ── Step 2: Design ── */}
+                {step === 1 && (
+                  <>
+                    <Field label="Title" error={errors.title} counter={{ value: form.title.length, max: LIMITS.title }}>
+                      {(p) => <input {...p} className="p-input" value={form.title} maxLength={LIMITS.title + 20} onChange={(e) => set("title", e.target.value)} />}
+                    </Field>
+                    <Field
+                      label="What you made and how it fits the theme"
+                      hint="Two or three sentences."
+                      error={errors.summary}
+                      counter={{ value: wordCount(form.summary), max: WORDS.summary, unit: "words" }}
+                    >
+                      {(p) => <textarea {...p} className="p-textarea min-h-[6rem]" value={form.summary} onChange={(e) => set("summary", e.target.value)} />}
+                    </Field>
+                    <fieldset data-field-error={errors.software ? "true" : undefined}>
+                      <legend className="p-label">Software you used</legend>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {SOFTWARE.map((s) => (
+                          <label key={s} className="p-chip">
+                            <input
+                              type="checkbox"
+                              className="sr-only"
+                              checked={form.software.includes(s)}
+                              onChange={(e) => set("software", e.target.checked ? [...form.software, s] : form.software.filter((x) => x !== s))}
+                            />
+                            {form.software.includes(s) && <Check size={14} strokeWidth={2} aria-hidden="true" />}
+                            {s}
+                          </label>
+                        ))}
+                      </div>
+                      {errors.software && <p className="p-error">{errors.software}</p>}
+                    </fieldset>
+                    {form.software.includes("Other") && (
+                      <Field label="Other software" error={errors.softwareOther}>
+                        {(p) => <input {...p} className="p-input max-w-[22rem]" value={form.softwareOther} onChange={(e) => set("softwareOther", e.target.value)} />}
+                      </Field>
+                    )}
+                    <FilePicker
+                      slot="image"
+                      label="Pictures of your design"
+                      hint="Up to 4 renders or screenshots (PNG, JPG, WebP). The first is your cover. No picture? Add a video or 3D model below."
+                      items={files.image}
+                      error={errors.image ?? errors.visuals}
+                      onAdd={(l) => addFiles("image", l)}
+                      onRemove={(it) => removeItem("image", it)}
+                      icon={<ImagePlus size={20} strokeWidth={1.4} />}
+                      multiple
                     />
-                    {form.software.includes(s) && <Check size={14} strokeWidth={2} aria-hidden="true" />}
-                    {s}
-                  </label>
+
+                    <details className="group" open={hasExtras || undefined}>
+                      <summary className="focus-ember flex cursor-pointer list-none items-center gap-2 font-body text-[15px] text-foreground/90 marker:hidden">
+                        <Plus size={15} strokeWidth={1.6} className="shrink-0 text-ember transition-transform group-open:rotate-45" aria-hidden="true" />
+                        <span>
+                          Add more: video, 3D model, CAD link, project file <span className="text-concrete">optional</span>
+                        </span>
+                      </summary>
+                      <div className="mt-6 flex flex-col gap-7 border-l border-bone/10 pl-4">
+                        <div className="flex flex-col gap-4">
+                          <p className="p-label">
+                            Video <span className="ml-1.5 font-normal text-concrete">optional</span>
+                          </p>
+                          <p className="p-hint -mt-3">A short screen recording or turntable. Shown on your entry's page.</p>
+                          <VideoChoice
+                            mode={videoMode}
+                            onMode={(m) => {
+                              setVideoMode(m);
+                              setErrors((x) => ({ ...x, video: undefined, videoLink: undefined }));
+                            }}
+                            link={form.videoLink}
+                            onLink={(v) => set("videoLink", v)}
+                            error={errors.video ?? errors.videoLink}
+                            savedCheck={saved && saved.videoLink === form.videoLink ? saved.videoCheck : null}
+                            upload={
+                              <FilePicker
+                                slot="video"
+                                label="Video file"
+                                hint="MP4, MOV or WebM, up to 150 MB. Bigger? Use a YouTube (Unlisted) or Drive link."
+                                items={files.video}
+                                error={errors.video}
+                                onAdd={(l) => addFiles("video", l)}
+                                onRemove={(it) => removeItem("video", it)}
+                                icon={<Video size={20} strokeWidth={1.4} />}
+                              />
+                            }
+                          />
+                          <VideoGuide />
+                          {!wide && (videoLocalUrl || linkedPreview) && <VideoPlayer title={form.title || "Your video"} link={linkedPreview} localUrl={videoLocalUrl} />}
+                        </div>
+
+                        {!wide && viewer}
+                        <FilePicker
+                          slot="model"
+                          label="3D model"
+                          optional
+                          hint="GLB, STL, OBJ, 3MF or PLY, up to 250 MB. GLB keeps colours and materials."
+                          items={files.model}
+                          error={errors.model}
+                          onAdd={(l) => addFiles("model", l)}
+                          onRemove={(it) => removeItem("model", it)}
+                          icon={<FileBox size={20} strokeWidth={1.4} />}
+                        />
+                        {modelItem && <ModelChecks units={form.units} onUnits={(u) => set("units", u)} measure={measure} spec={status?.spec ?? null} hasModel={!!modelItem} />}
+                        <Field label="Link to your CAD document" optional hint={`View-only share link (${CAD_LINK_HINT}).`} error={errors.cadLink}>
+                          {(p) => <input {...p} type="url" inputMode="url" className="p-input" placeholder="https://cad.onshape.com/documents/…" value={form.cadLink} onChange={(e) => set("cadLink", e.target.value)} />}
+                        </Field>
+                        <FilePicker
+                          slot="progress"
+                          label="Sketches and progress shots"
+                          optional
+                          hint="Each is timestamped when it uploads, so press Save draft as you go."
+                          items={files.progress}
+                          error={errors.progress}
+                          onAdd={(l) => addFiles("progress", l)}
+                          onRemove={(it) => removeItem("progress", it)}
+                          icon={<PenTool size={20} strokeWidth={1.4} />}
+                          multiple
+                        />
+                        <FilePicker
+                          slot="source"
+                          label="Project file"
+                          optional
+                          hint="The file you modelled in (.f3d, .blend, .step…), up to 250 MB. Only judges can download it."
+                          items={files.source}
+                          error={errors.source}
+                          onAdd={(l) => addFiles("source", l)}
+                          onRemove={(it) => removeItem("source", it)}
+                          icon={<Upload size={20} strokeWidth={1.4} />}
+                        />
+                        <Field
+                          label="Anything else for the judges"
+                          optional
+                          hint="A detail you're proud of, or how it would be made."
+                          error={errors.process}
+                          counter={{ value: wordCount(form.process), max: WORDS.process, unit: "words" }}
+                        >
+                          {(p) => <textarea {...p} className="p-textarea min-h-[5rem]" value={form.process} onChange={(e) => set("process", e.target.value)} />}
+                        </Field>
+                      </div>
+                    </details>
+                  </>
+                )}
+
+                {/* ── Step 3: Check & submit ── */}
+                {step === LAST && (
+                  <>
+                    <div className="p-review">
+                      <ReviewGroup title="Team" ok={stepOk(0)} onEdit={() => goTo(0)} locked={locked}>
+                        <ReviewRow label="Team name">{form.teamName || missing}</ReviewRow>
+                        <ReviewRow label={form.members.length > 1 ? "Members" : "Member"}>
+                          {form.members.some((m) => m.name)
+                            ? form.members.map((m, i) => (
+                                <span key={i} className="block">
+                                  {m.name || missing}
+                                  <span className="text-concrete">
+                                    {" "}
+                                    · Gr {m.grade}
+                                    {m.school ? ` · ${m.school}` : ""}
+                                  </span>
+                                </span>
+                              ))
+                            : missing}
+                        </ReviewRow>
+                        <ReviewRow label="Email">{form.contactEmail ? <span className="break-all">{form.contactEmail}</span> : missing}</ReviewRow>
+                        {!isEdit && codeRequired && <ReviewRow label="Entry code">{code.trim() ? <span className="p-mono uppercase">{code.trim()}</span> : missing}</ReviewRow>}
+                      </ReviewGroup>
+                      <ReviewGroup title="Design" ok={stepOk(1)} onEdit={() => goTo(1)} locked={locked}>
+                        <ReviewRow label="Title">{form.title || missing}</ReviewRow>
+                        <ReviewRow label="About">{needed.summary ? missing : <span className="line-clamp-3">{form.summary}</span>}</ReviewRow>
+                        <ReviewRow label="Software">
+                          {form.software.length ? form.software.map((s) => (s === "Other" && form.softwareOther ? form.softwareOther : s)).join(", ") : missing}
+                        </ReviewRow>
+                        <ReviewRow label="Files">
+                          {hasVisual || files.progress.length || files.source.length ? (
+                            [
+                              files.image.length && `${files.image.length} ${files.image.length === 1 ? "picture" : "pictures"}`,
+                              modelItem && "3D model",
+                              hasVideoNow && (videoMode === "link" ? "video link" : "video"),
+                              files.progress.length && `${files.progress.length} progress ${files.progress.length === 1 ? "shot" : "shots"}`,
+                              files.source.length && "project file",
+                              form.cadLink && "CAD link",
+                            ]
+                              .filter(Boolean)
+                              .join(" · ")
+                          ) : (
+                            missing
+                          )}
+                        </ReviewRow>
+                      </ReviewGroup>
+                      {!wide && (coverUrl ? <img src={coverUrl} alt="Your cover picture" className="aspect-video w-full rounded-[2px] border border-bone/10 bg-[#0d0e10] object-contain" /> : viewer)}
+                    </div>
+
+                    <fieldset>
+                      <legend className="p-label">AI tools</legend>
+                      <p className="p-hint mt-1">Fine as a helper. Pure prompt-to-3D isn't allowed.</p>
+                      <div className="p-seg mt-2" role="radiogroup">
+                        <label>
+                          <input type="radio" name="ai" className="sr-only" checked={form.aiUse === "none"} onChange={() => set("aiUse", "none")} />
+                          Didn't use any
+                        </label>
+                        <label>
+                          <input type="radio" name="ai" className="sr-only" checked={form.aiUse === "some"} onChange={() => set("aiUse", "some")} />
+                          Used some
+                        </label>
+                      </div>
+                    </fieldset>
+                    {form.aiUse === "some" && (
+                      <Field label="What did AI help with?" error={errors.aiNote} counter={{ value: wordCount(form.aiNote), max: WORDS.aiNote, unit: "words" }}>
+                        {(p) => <textarea {...p} className="p-textarea min-h-[4.5rem]" value={form.aiNote} onChange={(e) => set("aiNote", e.target.value)} />}
+                      </Field>
+                    )}
+
+                    <fieldset>
+                      <legend className="p-label">On your entry's public page, credit</legend>
+                      <div className="p-seg mt-2" role="radiogroup">
+                        <label>
+                          <input type="radio" name="credit" className="sr-only" checked={form.credit === "team"} onChange={() => set("credit", "team")} />
+                          Team name
+                        </label>
+                        <label>
+                          <input type="radio" name="credit" className="sr-only" checked={form.credit === "names"} onChange={() => set("credit", "names")} />
+                          First names
+                        </label>
+                      </div>
+                      <p className="p-hint mt-2">
+                        Shown as <span className="text-foreground">{publicCredit(form) || "your first names"}</span>. Never surnames, schools or emails.
+                      </p>
+                    </fieldset>
+                    <label className="flex cursor-pointer items-start gap-3 font-body text-[15px] text-foreground/85">
+                      <input type="checkbox" className="mt-1 h-4 w-4 shrink-0 accent-[hsl(24_100%_54%)]" checked={form.shareable} onChange={(e) => set("shareable", e.target.checked)} />
+                      <span>
+                        Anyone with the link can see our entry
+                        <span className="p-hint block">Untick to keep it to your team and the judges. Scores are always private.</span>
+                      </span>
+                    </label>
+
+                    {saved && saved.notices.length > 0 && (
+                      <div className="p-notice font-body text-[15px]" role="status">
+                        <p className="font-medium text-foreground">Our file check noticed something judges will ask about:</p>
+                        <ul className="mt-2 list-disc pl-5 text-foreground/85">
+                          {saved.notices.map((n, i) => (
+                            <li key={i}>{n}</li>
+                          ))}
+                        </ul>
+                        <p className="mt-2 text-sm text-foreground/70">That's not a judgement: files can carry odd metadata. If there's an explanation, add it below.</p>
+                      </div>
+                    )}
+                    {saved?.notices.length || form.filesNote ? (
+                      <Field
+                        label="Anything judges should know about your files?"
+                        optional
+                        hint="For example: you converted the file or used a part from a library."
+                        error={errors.filesNote}
+                        counter={{ value: wordCount(form.filesNote), max: WORDS.filesNote, unit: "words" }}
+                      >
+                        {(p) => <textarea {...p} className="p-textarea min-h-[4.5rem]" value={form.filesNote} onChange={(e) => set("filesNote", e.target.value)} />}
+                      </Field>
+                    ) : null}
+
+                    <div data-field-error={errors.original ? "true" : undefined}>
+                      <label className="flex cursor-pointer items-start gap-3 border border-bone/15 bg-[hsl(220_7%_5.5%)] p-4 font-body text-[15px] text-foreground/90">
+                        <input type="checkbox" className="mt-1 h-4 w-4 shrink-0 accent-[hsl(24_100%_54%)]" checked={form.original} onChange={(e) => set("original", e.target.checked)} />
+                        <span>We modelled this today, after the theme reveal, and it's our own work.</span>
+                      </label>
+                      {errors.original && <p className="p-error">{errors.original}</p>}
+                    </div>
+                  </>
+                )}
+              </section>
+            </fieldset>
+
+            {/* Uploads run while the team is on the review: show them here too. */}
+            {step === LAST && uploading.some((u) => u.progress > 0 || u.error) && (
+              <ul className="mt-6 flex flex-col gap-2" aria-label="Uploads">
+                {uploading.map((u) => (
+                  <li key={u.key}>
+                    <p className="flex justify-between gap-3 font-body text-sm">
+                      <span className="truncate">{u.file.name}</span>
+                      <span className="p-mono shrink-0 text-concrete">{u.error ? "failed" : `${Math.round(u.progress * 100)}%`}</span>
+                    </p>
+                    <Progress value={u.progress} />
+                    {u.error && <p className="p-error">{u.error}</p>}
+                  </li>
                 ))}
-              </div>
-              {errors.software && <p className="p-error">{errors.software}</p>}
-            </fieldset>
-            {form.software.includes("Other") && (
-              <Field label="Other software" error={errors.softwareOther}>
-                {(p) => <input {...p} className="p-input max-w-[22rem]" value={form.softwareOther} onChange={(e) => set("softwareOther", e.target.value)} />}
-              </Field>
-            )}
-            <fieldset>
-              <legend className="p-label">AI tools</legend>
-              <p className="p-hint mt-1">Allowed as a helper; keep it minimal. Pure prompt-to-3D generation isn't allowed.</p>
-              <div className="p-seg mt-2" role="radiogroup">
-                <label>
-                  <input type="radio" name="ai" className="sr-only" checked={form.aiUse === "none"} onChange={() => set("aiUse", "none")} />
-                  Didn't use any
-                </label>
-                <label>
-                  <input type="radio" name="ai" className="sr-only" checked={form.aiUse === "some"} onChange={() => set("aiUse", "some")} />
-                  Used some
-                </label>
-              </div>
-            </fieldset>
-            {form.aiUse === "some" && (
-              <Field label="What did AI help with?" hint={`Up to ${WORDS.aiNote} words.`} error={errors.aiNote} counter={{ value: wordCount(form.aiNote), max: WORDS.aiNote, unit: "words" }}>
-                {(p) => <textarea {...p} className="p-textarea min-h-[4.5rem]" value={form.aiNote} onChange={(e) => set("aiNote", e.target.value)} />}
-              </Field>
+              </ul>
             )}
 
-            <label className="flex cursor-pointer items-start gap-3 font-body text-[15px] text-foreground/90" data-field-error={errors.original ? "true" : undefined}>
-              <input type="checkbox" className="mt-1 h-4 w-4 accent-[hsl(24_100%_54%)]" checked={form.original} onChange={(e) => set("original", e.target.checked)} />
-              <span>We modelled this today, after the theme reveal, and it's our own work.</span>
-            </label>
-            {errors.original && <p className="p-error -mt-4">{errors.original}</p>}
-
-            {saved && saved.notices.length > 0 && (
-              <div className="p-notice font-body text-[15px]" role="status">
-                <p className="font-medium text-foreground">Our file check noticed something judges will ask about:</p>
-                <ul className="mt-2 list-disc pl-5 text-foreground/85">
-                  {saved.notices.map((n) => (
-                    <li key={n}>{n}</li>
-                  ))}
-                </ul>
-                <p className="mt-2 text-sm text-foreground/70">That's not a judgement: files can carry odd metadata. If there's an explanation, add it below.</p>
-              </div>
-            )}
-            {(saved?.notices.length || form.filesNote) ? (
-              <Field
-                label="Anything judges should know about your files?"
-                optional
-                hint={`For example: you converted the file or used a part from a library. Up to ${WORDS.filesNote} words.`}
-                error={errors.filesNote}
-                counter={{ value: wordCount(form.filesNote), max: WORDS.filesNote, unit: "words" }}
-              >
-                {(p) => <textarea {...p} className="p-textarea min-h-[4.5rem]" value={form.filesNote} onChange={(e) => set("filesNote", e.target.value)} />}
-              </Field>
-            ) : null}
-
-            {!wide && !locked && <ReadyList items={ready} />}
-            {draftSaved && (
-              <p className="p-notice p-notice--calm font-body text-[15px]" role="status">
-                {draftSaved}
-              </p>
-            )}
-            {formError && (
-              <p className="p-notice p-notice--bad font-body" role="alert">
-                {formError}
-              </p>
-            )}
-            <div className="flex flex-wrap items-center gap-4">
-              <button type="submit" className="btn-portal p-btn min-w-[11rem]" disabled={!!busy || locked}>
-                {busy ? "Working…" : isEdit && saved?.status === "submitted" ? "Save changes" : "Submit entry"}
-              </button>
-              {saved?.status !== "submitted" && (
-                <button type="button" className="btn-ghost p-btn" disabled={!!busy || locked} onClick={() => void save("draft")}>
-                  Save draft
-                </button>
+            <div className="p-stepnav">
+              {(draftSaved || formError || busy || (shownStepErrors && !formError)) && (
+                <div className="mb-3 flex flex-col gap-2">
+                  {busy && (
+                    <p className="font-body text-sm text-foreground/85" role="status">
+                      {busy}
+                    </p>
+                  )}
+                  {draftSaved && !busy && (
+                    <p className="p-notice p-notice--calm font-body text-sm" role="status">
+                      {draftSaved}
+                    </p>
+                  )}
+                  {formError && !busy && (
+                    <p className="p-notice p-notice--bad font-body text-sm" role="alert">
+                      {formError}
+                    </p>
+                  )}
+                  {shownStepErrors && !formError && !busy && (
+                    <p className="font-body text-sm text-[hsl(6_90%_66%)]" role="alert">
+                      Fill in the fields marked in red to continue.
+                    </p>
+                  )}
+                </div>
               )}
-              {busy && (
-                <span className="font-body text-sm text-concrete" role="status">
-                  {busy}
+              <div className="flex items-center gap-2 sm:gap-3">
+                {step > 0 && (
+                  <button type="button" className="btn-ghost p-btn px-3 sm:px-4" onClick={() => goTo((step - 1) as Step)}>
+                    <ArrowLeft size={16} strokeWidth={1.6} aria-hidden="true" /> Back
+                  </button>
+                )}
+                <span className="p-mono hidden text-concrete sm:inline">
+                  {step + 1} / {LAST + 1}
                 </span>
-              )}
+                <div className="ml-auto flex items-center gap-2 sm:gap-3">
+                  {!submitted && step > 0 && (
+                    <button type="button" className="btn-ghost p-btn px-3 sm:px-4" disabled={!!busy || locked} onClick={() => void save("draft")}>
+                      Save draft
+                    </button>
+                  )}
+                  {submitted && step < LAST && (
+                    <button type="button" className="btn-ghost p-btn px-3 sm:px-4" onClick={() => goTo((step + 1) as Step)}>
+                      Next <ArrowRight size={16} strokeWidth={1.6} aria-hidden="true" />
+                    </button>
+                  )}
+                  {step < LAST && !submitted ? (
+                    <button type="submit" className="btn-portal p-btn px-4 sm:px-5">
+                      <span>
+                        Next<span className="hidden sm:inline">: {STEP_NAMES[step + 1]}</span>
+                      </span>
+                      <ArrowRight size={16} strokeWidth={1.8} aria-hidden="true" />
+                    </button>
+                  ) : (
+                    <button type="submit" className="btn-portal p-btn min-w-[8.5rem] px-4 sm:min-w-[10rem] sm:px-5" disabled={!!busy || locked}>
+                      {busy ? "Working…" : submitted ? "Save changes" : "Submit entry"}
+                    </button>
+                  )}
+                </div>
+              </div>
             </div>
-          </Block>
-        </fieldset>
+          </form>
+
+          {!wide && step === LAST && <JudgingBriefing className="mt-10" deadline={status?.deadline} judging={status?.judging} />}
+        </div>
 
         {wide && (
           <aside aria-label="Preview">
-            <div className="sticky top-24 flex flex-col gap-4 pt-8">
-              {!locked && <ReadyList items={ready} />}
+            <div className="sticky top-36 flex flex-col gap-4">
               {coverUrl ? (
                 <img src={coverUrl} alt="Your cover picture" className="aspect-video w-full rounded-[2px] border border-bone/10 bg-[#0d0e10] object-contain" />
               ) : (
                 !(videoLocalUrl || linkedPreview) &&
-                !modelItem && (
+                !modelItem &&
+                step > 0 && (
                   <div className="grid aspect-video place-items-center border border-bone/10 bg-[#0d0e10] p-6 text-center font-body text-sm text-concrete">
                     Your pictures show up here.
                   </div>
                 )
               )}
               {(videoLocalUrl || linkedPreview) && <VideoPlayer title={form.title || "Your video"} link={linkedPreview} localUrl={videoLocalUrl} />}
-              {modelItem && (
-                <ModelViewer
-                  source={modelSource}
-                  upAxis={form.upAxis}
-                  onUpAxisChange={(a) => set("upAxis", a)}
-                  onMeasure={setMeasure}
-                  units={form.units}
-                  spec={status?.spec ?? null}
-                  captureRef={captureRef}
-                  label="Preview of your model"
-                  className="aspect-[4/3] w-full"
-                  empty={<PreviewEmpty />}
-                />
-              )}
-              <p className="p-hint">What judges and your entry's page show.</p>
+              {viewer}
+              <JudgingBriefing deadline={status?.deadline} judging={status?.judging} />
             </div>
           </aside>
         )}
-      </form>
+      </div>
     </Shell>
+  );
+}
+
+/** One part of the review: what the team entered, and a way back to change it. */
+function ReviewGroup({ title, ok, onEdit, locked, children }: { title: string; ok: boolean; onEdit: () => void; locked: boolean; children: ReactNode }) {
+  return (
+    <div className="p-review-group" data-ok={ok}>
+      <div className="flex items-center justify-between gap-3">
+        <h3 className="font-body text-[15px] font-semibold text-bone">
+          {title}
+          {!ok && <span className="ml-2 font-normal text-[hsl(6_90%_66%)]">needs a look</span>}
+        </h3>
+        {!locked && (
+          <button type="button" className="p-link focus-ember font-body text-sm" onClick={onEdit}>
+            Edit<span className="sr-only"> {title.toLowerCase()}</span>
+          </button>
+        )}
+      </div>
+      <dl className="mt-3 flex flex-col gap-2">{children}</dl>
+    </div>
+  );
+}
+
+function ReviewRow({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="grid grid-cols-[5.5rem_minmax(0,1fr)] gap-3 font-body text-sm">
+      <dt className="text-concrete">{label}</dt>
+      <dd className="min-w-0 text-foreground/90">{children}</dd>
+    </div>
   );
 }
 
@@ -975,51 +1246,6 @@ function ModelChecks({
   );
 }
 
-interface ReadyItem {
-  label: string;
-  done: boolean;
-  /** The form section to jump to. */
-  target: string;
-}
-
-/** What's needed to submit, ticking off as the team fills the form. Each line jumps to its section. */
-function ReadyList({ items }: { items: ReadyItem[] }) {
-  const left = items.filter((i) => !i.done).length;
-  return (
-    <div className="border border-bone/10 bg-[hsl(220_7%_5.5%)] p-4">
-      <p className="flex items-baseline justify-between gap-3 font-body text-[15px] font-medium text-foreground">
-        {left ? "Needed to submit" : "Ready to submit"}
-        <span className={`p-mono text-[12px] ${left ? "text-concrete" : "text-[#9fd59a]"}`}>
-          {items.length - left}/{items.length}
-        </span>
-      </p>
-      <ul className="mt-3 grid gap-1.5 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
-        {items.map((i) => (
-          <li key={i.label}>
-            <a
-              href={`#${i.target}`}
-              className={`focus-ember flex items-center gap-2 font-body text-sm ${i.done ? "text-foreground/60" : "text-foreground hover:text-ember"}`}
-              onClick={(e) => {
-                e.preventDefault();
-                document.getElementById(i.target)?.scrollIntoView({ behavior: "smooth", block: "start" });
-              }}
-            >
-              {i.done ? (
-                <CircleCheck size={15} strokeWidth={1.8} className="shrink-0 text-[#9fd59a]" aria-hidden="true" />
-              ) : (
-                <Circle size={15} strokeWidth={1.6} className="shrink-0 text-concrete" aria-hidden="true" />
-              )}
-              <span>
-                {i.label}
-                <span className="sr-only">{i.done ? ", done" : ", still needed"}</span>
-              </span>
-            </a>
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-}
 
 function PreviewEmpty() {
   return (
@@ -1170,7 +1396,21 @@ function FileRow({ item, onRemove }: { item: Item; onRemove: () => void }) {
 
 // ── Done ──────────────────────────────────────
 
-function Done({ entry, editKey, onEdit, deadline, now }: { entry: OwnEntry; editKey: string; onEdit: () => void; deadline: string | null; now: number }) {
+function Done({
+  entry,
+  editKey,
+  onEdit,
+  deadline,
+  judging,
+  now,
+}: {
+  entry: OwnEntry;
+  editKey: string;
+  onEdit: () => void;
+  deadline: string | null;
+  judging?: PortalStatus["judging"] | null;
+  now: number;
+}) {
   const origin = window.location.origin;
   const share = `${origin}/entry/${entry.id}`;
   const edit = `${origin}/submit/edit/${entry.id}#k=${editKey}`;
@@ -1191,7 +1431,7 @@ function Done({ entry, editKey, onEdit, deadline, now }: { entry: OwnEntry; edit
             The judges have it. Keep both links: the first shows your design to anyone, the second lets your team edit until submissions close.
           </p>
           {entry.slot && <SlotNotice slot={entry.slot} />}
-          <JudgingBriefing className="mt-8" open />
+          <JudgingBriefing className="mt-8" open deadline={deadline} judging={judging} />
 
           <div className="mt-10 flex flex-col gap-8">
             <LinkBox

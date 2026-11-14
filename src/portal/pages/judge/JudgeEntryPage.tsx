@@ -9,7 +9,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, ArrowRight, ChevronDown, Download, ExternalLink } from "lucide-react";
 import { ApiError, api, clock } from "../../api";
 import { formatBytes, isViewable, type ViewableExt } from "../../shared/formats";
-import { AWARDS, CRITERIA, MARK_MAX, MAX_TOTAL, levelOf, totalOf, type Criterion } from "../../shared/judging";
+import { AWARDS, CRITERIA, MARK_MAX, MARKS_NEEDED, MAX_TOTAL, levelOf, totalOf, type Criterion } from "../../shared/judging";
 import type { JudgeEntry, Score } from "../../shared/schema";
 import type { Measure, Spec } from "../../shared/checks";
 import { ChecksPanel, MeasurePanel, ProcessPanel } from "./panels";
@@ -81,7 +81,7 @@ export default function JudgeEntryPage({ practice = false }: { practice?: boolea
         </Link>
         {data && !practice && (
           <span className="p-mono text-[12px] text-concrete">
-            You've marked {data.total - data.toMark} of {data.total}
+            {data.toMark === 0 ? "Nothing left to mark" : `${data.toMark} left to mark`}
           </span>
         )}
       </div>
@@ -360,8 +360,10 @@ function ScoreForm({
       </ol>
       {!practice && (
         <p className="p-hint mt-3">
-          {scoreCount === 0 ? "No judge has marked this entry yet." : `${scoreCount} ${scoreCount === 1 ? "judge has" : "judges have"} marked this entry.`} Other judges' marks
-          stay hidden from you.
+          {scoreCount >= MARKS_NEEDED && !initial
+            ? `Done: this entry already has its ${MARKS_NEEDED} marks, so it doesn't need yours.`
+            : `${Math.min(scoreCount, MARKS_NEEDED)} of ${MARKS_NEEDED} marks in.`}{" "}
+          Other judges' marks stay hidden from you.
         </p>
       )}
 

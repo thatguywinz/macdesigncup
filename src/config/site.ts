@@ -64,8 +64,9 @@ export const START_TIME = "8:30 AM";
 // check-in and sponsor demos 8:30 to 9:00, opening ceremony 9:10 (the theme
 // is revealed at its end), design session 1 9:55 to 12:00, lunch 12:00 to
 // 12:30, design session 2 12:35 to 2:00 with early judging from 1:30,
-// submissions by 2:00, judging 2:05 to 3:15, closing ceremony and awards
-// 3:20 to 3:50, everyone out by 4:00. Rooms and names stay off the site.
+// judging from 2:00 (organizers, 2026-11-14; was 2:05), closing ceremony and awards 3:20 to 3:50, everyone
+// out by 4:00. Rooms and names stay off the site. Submissions close at 1:30
+// (organizers, 2026-11-14: moved up from 2:00; no late submissions).
 export const TIMES = {
   /** Building access (partners, setup): never earlier. */
   access: "8:00 AM",
@@ -74,13 +75,30 @@ export const TIMES = {
   opening: "9:10 AM",
   design: "9:55 AM",
   lunch: "12:00 PM",
-  earlyJudging: "1:30 PM",
-  submit: "2:00 PM",
-  judging: "2:05 PM",
+  /** Submissions close (SUBMIT_DEADLINE below). No late entries. */
+  submit: "1:30 PM",
+  judging: "2:00 PM",
   closing: "3:20 PM",
   /** Everyone is out by this (access ends). */
   end: "4:00 PM",
 } as const;
+
+// ─────────────────────────────────────────────
+// Submitting. Teams submit on the day at /submit, a full-page route served by
+// the submission portal build (vercel.json rewrites it), so link to it with a
+// plain <a href>, never the SPA router. Submissions close at 1:30 PM on the
+// day (organizers, 2026-11-14), with no late entries. The home page counts
+// down to SUBMIT_DEADLINE. The QR code in public/qr/ encodes SUBMIT_URL;
+// regenerate it with `node scripts/make-submit-qr.mjs` if the URL changes.
+// ─────────────────────────────────────────────
+export const SUBMIT_PATH = "/submit";
+export const SUBMIT_URL = `${SITE_URL}${SUBMIT_PATH}`;
+/** "www.macdesigncup.ca/submit": the URL as people type it. */
+export const SUBMIT_URL_SHORT = `${SITE_HOST}${SUBMIT_PATH}`;
+export const SUBMIT_DEADLINE = "2026-11-16T13:30:00-05:00";
+/** "Mon, Nov 16, 1:30 PM" */
+export const SUBMIT_DEADLINE_SHORT = `${EVENT_WEEKDAY.slice(0, 3)}, Nov 16, ${TIMES.submit}`;
+export const SUBMIT_QR_SVG = "/qr/submit-qr.svg";
 
 // ─────────────────────────────────────────────
 // Who. TDSB high school students only (organizer, July 2026: not "GTA").

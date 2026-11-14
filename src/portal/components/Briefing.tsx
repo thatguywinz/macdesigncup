@@ -5,7 +5,21 @@ import { CRITERIA, MARK_MAX, MAX_TOTAL } from "../shared/judging";
 import type { Slot } from "../shared/schema";
 import { clock } from "../api";
 
-export function JudgingBriefing({ className = "", open = false }: { className?: string; open?: boolean }) {
+export function JudgingBriefing({
+  className = "",
+  open = false,
+  deadline,
+  judging,
+}: {
+  className?: string;
+  open?: boolean;
+  /** The submission deadline from /api/portal/status, so the time here always matches the server's. */
+  deadline?: string | null;
+  /** When and where judging runs, from /api/portal/status. */
+  judging?: { start: string; end: string; rooms: string[] } | null;
+}) {
+  const rooms = judging?.rooms.length ? judging.rooms : ["WFL632", "WFL634", "WFL637"];
+  const roomList = rooms.length > 1 ? `${rooms.slice(0, -1).join(", ")} and ${rooms.at(-1)}` : rooms[0];
   return (
     <section aria-labelledby="brief-h" className={`max-w-[40rem] border border-bone/10 bg-[hsl(220_7%_5.5%)] p-5 ${className}`}>
       <h2 id="brief-h" className="font-body text-[17px] font-semibold tracking-[-0.01em] text-bone">
@@ -15,8 +29,9 @@ export function JudgingBriefing({ className = "", open = false }: { className?: 
         <li className="flex gap-3">
           <CalendarClock size={18} strokeWidth={1.5} className="mt-0.5 shrink-0 text-ember" aria-hidden="true" />
           <span>
-            Judging runs <span className="text-foreground">2:10 to 3:20 PM</span> in WFL632, WFL634 and WFL637. You get your room and time after
-            submissions close at 2:00. It shows on your entry's edit page too.
+            Judging runs{" "}
+            <span className="text-foreground">{judging ? `${clock(judging.start).replace(/ PM$/, "")} to ${clock(judging.end)}` : "2:00 to 3:20 PM"}</span> in {roomList}. You get your room and time after
+            submissions close{deadline ? ` at ${clock(deadline)}` : ""}. It shows on your entry's edit page too.
           </span>
         </li>
         <li className="flex gap-3">

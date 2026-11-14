@@ -24,6 +24,8 @@ interface Settings {
   scheduleEnds: string | null;
   open: boolean;
   graceSeconds: number;
+  autoScheduledAt: string | null;
+  sheetPath: string;
   storage: string;
   devDefaults: boolean;
 }
@@ -156,9 +158,7 @@ export default function SettingsPage() {
                 {s.open ? "Open" : "Closed"} · close {when(s.deadline)}
                 {s.deadlineOverride ? " (moved from the default)" : ""}
               </p>
-              <p className="p-hint mt-1">
-                A team mid-upload at the deadline gets {Math.round(s.graceSeconds / 60)} more minutes to finish; those entries are flagged late.
-              </p>
+              <p className="p-hint mt-1">No late submissions: the form locks at the deadline exactly, even mid-upload. Teams see a countdown on the form.</p>
               <div className="mt-5 flex flex-wrap items-end gap-3">
                 <label className="block">
                   <span className="p-label">Deadline</span>
@@ -260,6 +260,8 @@ export default function SettingsPage() {
 
             <RoomsSection rooms={s.rooms} judges={s.judges} scheduled={s.scheduled} scheduleEnds={s.scheduleEnds} open={s.open} busy={busy} onSave={put} onSchedule={schedule} />
 
+            <SheetSection path={s.sheetPath} />
+
 
             <section className="border-t border-bone/10 py-7">
               <h2 className="p-block-title">Storage</h2>
@@ -272,5 +274,39 @@ export default function SettingsPage() {
         )}
       </div>
     </JudgeShell>
+  );
+}
+
+/** The live Google Sheet: IMPORTDATA of a secret CSV link (schedule, pairs, marks, ranking; no emails). */
+function SheetSection({ path }: { path: string }) {
+  const [copied, setCopied] = useState(false);
+  const url = `${window.location.origin}${path}`;
+  const formula = `=IMPORTDATA("${url}")`;
+  const copy = () =>
+    navigator.clipboard
+      .writeText(formula)
+      .then(() => {
+        setCopied(true);
+        window.setTimeout(() => setCopied(false), 2000);
+      })
+      .catch(() => {});
+  return (
+    <section className="border-t border-bone/10 py-7">
+      <h2 className="p-block-title">Google Sheet</h2>
+      <p className="p-hint mt-1 max-w-[38rem]">
+        A live sheet of every submission: time, room, judging pair, team, members, marks in, pair average and rank. Make a new Google Sheet, paste this
+        into cell A1, and it fills itself (Google refreshes it about every hour; reopen the sheet to refresh sooner). No contact emails. Keep the link
+        private: anyone with it can see team names.
+      </p>
+      <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+        <input className="p-input p-mono min-w-0 flex-1 text-[13px]" readOnly value={formula} onFocus={(e) => e.currentTarget.select()} aria-label="Formula for cell A1" />
+        <button type="button" className="btn-ghost p-btn shrink-0" onClick={copy}>
+          {copied ? "Copied" : "Copy formula"}
+        </button>
+      </div>
+      <a href={path} className="p-link focus-ember mt-3 inline-block font-body text-sm" download="mdc-2026-schedule.csv">
+        Or download it as a CSV
+      </a>
+    </section>
   );
 }
