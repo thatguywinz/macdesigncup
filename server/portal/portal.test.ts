@@ -628,9 +628,11 @@ describe("day of (organizers, 2026-11-14)", () => {
     await ctx.db.mutate("settings", (st) => {
       delete st.schedule;
       delete st.autoScheduledAt;
+      delete st.scheduleOff;
     });
     const { id, key } = await create({ title: "Auto Slot" });
     await call(`/entries/${id}/submit`, { body: {}, key });
+    const late = await create({ title: "Reopened Slot" }); // a draft that misses the deadline
     const admin = await login("admin-demo", "Organizer");
     expect((await call("/judge/settings", { cookie: admin.cookie })).json.autoScheduledAt).toBeNull();
     clock = Date.parse("2026-11-16T13:31:00-05:00");
@@ -638,7 +640,13 @@ describe("day of (organizers, 2026-11-14)", () => {
     expect(st.json.autoScheduledAt).toBeTruthy();
     expect(st.json.scheduled).toBeGreaterThan(0);
     expect((await call(`/entries/${id}`, { key })).json.entry.slot?.room).toBeTruthy();
-    // Cleared on purpose: it stays cleared.
+    // Organizers reopen one entry's window: a new submission gets a slot by itself too.
+    await ctx.db.mutate("entries", (doc) => {
+      doc.entries[late.id].unlocked = true;
+    });
+    await call(`/entries/${late.id}/submit`, { body: {}, key: late.key });
+    expect((await call(`/entries/${late.id}`, { key: late.key })).json.entry.slot?.room).toBeTruthy();
+    // Cleared on purpose after the deadline: it stays cleared.
     await call("/judge/schedule", { body: { action: "clear" }, cookie: admin.cookie });
     expect((await call("/judge/settings", { cookie: admin.cookie })).json.scheduled).toBe(0);
   });
@@ -646,7 +654,7 @@ describe("day of (organizers, 2026-11-14)", () => {
   it("a test run before the deadline can't stop the schedule from making itself", async () => {
     const admin = await login("admin-demo", "Organizer");
     await ctx.db.mutate("settings", (st) => {
-      st.autoScheduledAt = "2026-11-16T10:00:00.000Z";
+      st.scheduleOff = true;
     });
     await call("/judge/schedule", { body: { action: "make" }, cookie: admin.cookie });
     await call("/judge/schedule", { body: { action: "clear" }, cookie: admin.cookie });

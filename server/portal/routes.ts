@@ -360,12 +360,17 @@ function fillSchedule(st: SettingsDoc, entries: Record<string, EntryRecord>) {
  */
 async function ensureSchedule(ctx: PortalContext, w: Window): Promise<Window> {
   const closed = w.settings.closed || w.now >= w.deadline;
-  if (!closed || w.settings.autoScheduledAt || !roomsOf(w.settings).names.length) return w;
+  if (!closed || w.settings.scheduleOff || !roomsOf(w.settings).names.length) return w;
+  // Any submitted entry without a slot gets one: the first time at the
+  // deadline, and again if organizers reopened submissions and more came in.
+  const unslotted = (entries: Record<string, EntryRecord>, st: SettingsDoc) =>
+    Object.values(entries).some((e) => e.status === "submitted" && !e.hidden && !slotOf(st, e.id));
+  if (!unslotted((await ctx.db.read("entries")).entries, w.settings)) return w;
   const doc = await ctx.db.read("entries", { fresh: true });
   await ctx.db.mutate("settings", (st) => {
-    if (st.autoScheduledAt) return;
+    if (st.scheduleOff || !unslotted(doc.entries, st)) return;
     fillSchedule(st, doc.entries);
-    st.autoScheduledAt = iso(w.now);
+    st.autoScheduledAt ??= iso(w.now);
   });
   return windowOf(ctx);
 }
@@ -915,14 +920,19 @@ function nextToMark(all: EntryRecord[], scores: ScoresDoc, settings: SettingsDoc
   const mine = scores.judges[judge]?.scores ?? {};
   // A judge with a room follows that room's schedule, in time order.
   const room = roomOfJudge(settings, judge);
-  if (room && settings.schedule) {
+  const scheduled = !!(room && settings.schedule);
+  if (scheduled) {
     const queue = all
       .filter((e) => e.status === "submitted" && e.id !== except && totalOf(mine[e.id]?.marks) === null && marksOn(counted, e.id) < MARKS_NEEDED && slotOf(settings, e.id)?.room === room)
       .sort((a, b) => slotOf(settings, a.id)!.at.localeCompare(slotOf(settings, b.id)!.at));
     if (queue.length) return queue[0].id;
   }
+  // A judge with a room never gets sent to another room's teams: those are
+  // that room's pair's to mark (otherwise an outsider's mark could "finish"
+  // an entry before its own pair reaches it). Only entries with no slot yet
+  // are open to anyone.
   const pick = all
-    .filter((e) => e.status === "submitted" && e.id !== except && totalOf(mine[e.id]?.marks) === null)
+    .filter((e) => e.status === "submitted" && e.id !== except && totalOf(mine[e.id]?.marks) === null && !(scheduled && slotOf(settings, e.id)))
     .map((e) => ({ e, n: marksOn(counted, e.id) }))
     .filter((x) => x.n < MARKS_NEEDED)
     .sort((a, b) => a.n - b.n || String(a.e.submittedAt).localeCompare(String(b.e.submittedAt)))[0];
@@ -1274,14 +1284,16 @@ on("POST", "/judge/schedule", async (ctx, req, res) => {
   await ctx.db.mutate("settings", (st) => {
     if (body.action === "clear") {
       delete st.schedule;
+      delete st.autoScheduledAt;
       // Cleared after the deadline: on purpose, so don't remake it by itself.
       // Cleared before (a test run): it makes itself at the deadline again.
       const w = Date.parse(st.deadlineOverride ?? ctx.cfg.deadline);
-      if (st.closed || (ctx.now?.() ?? Date.now()) >= w) st.autoScheduledAt ??= new Date(ctx.now?.() ?? Date.now()).toISOString();
-      else delete st.autoScheduledAt;
+      if (st.closed || (ctx.now?.() ?? Date.now()) >= w) st.scheduleOff = true;
+      else delete st.scheduleOff;
       return;
     }
     if (body.action !== "make") fail(422, "Action must be make or clear.");
+    delete st.scheduleOff;
     fillSchedule(st, doc.entries);
   });
   sendJson(res, 200, settingsView(ctx, await windowOf(ctx)));
