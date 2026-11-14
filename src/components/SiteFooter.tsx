@@ -2,14 +2,14 @@ import { useId, type MouseEvent, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { ArrowUp, ArrowUpRight } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { CONTACT_EMAIL, EVENT_FULL, REGISTER_PATH, RESOURCES_PATH, VENUE_MAP_URL } from "@/config/site";
+import { CONTACT_EMAIL, EVENT_FULL, REGISTER_PATH, RESOURCES_PATH, SUBMIT_PATH, VENUE_MAP_URL } from "@/config/site";
 import { CTA, FOOTER, NAV } from "@/content/copy";
 import LionMark from "./LionMark";
 import SectionLink from "./SectionLink";
 import NavAnchor from "./nav/NavAnchor";
 import { SECTION_LINKS } from "./nav/sectionLinks";
 import { useIsHome } from "./nav/useIsHome";
-import { WhoRegistersSr } from "./nav/WhoRegisters";
+import { SubmitSr } from "./nav/SubmitNote";
 
 const LINK =
   "focus-ember inline-flex min-h-[44px] items-center gap-1.5 font-body text-[15px] transition-colors md:min-h-[32px]";
@@ -58,13 +58,14 @@ function BackToTop({ className, children }: { className: string; children: React
 /**
  * The site footer: the lockup and who runs it; Where (a real `<address>`
  * with its map link), When and Contact; the section links (+ Partner with us
- * and Register now); then copyright and Back to top. Works on every route:
- * section links go to `/#id` away from home.
+ * Registration and Submit here); then copyright and Back to top. Works on
+ * every route: section links go to `/#id` away from home.
  *
- * Register now (CTA.register, the one Register wording) is a plain index
- * link here, not a Register button: the final CTA right above carries the
- * button. Screen readers still get the who-registers note as the link's
- * description. The lion is the still frame.
+ * Submit here (CTA.submit) is a plain index link here, not a button: the
+ * final CTA right above carries the button. It is a plain `<a>`: /submit is
+ * served by the portal build. Screen readers get the deadline as the link's
+ * description. Registration (closed Nov 9) stays as a quiet link to
+ * /register. The lion is the still frame.
  */
 export default function SiteFooter() {
   const noteId = useId();
@@ -153,14 +154,19 @@ export default function SiteFooter() {
                   </Link>
                 </li>
                 <li>
-                  <Link
-                    to={REGISTER_PATH}
+                  <Link to={REGISTER_PATH} className={cn(LINK, "text-foreground/75 hover:text-foreground")}>
+                    {CTA.registration}
+                  </Link>
+                </li>
+                <li>
+                  <a
+                    href={SUBMIT_PATH}
                     aria-describedby={noteId}
                     className={cn(LINK, "text-foreground/75 hover:text-foreground")}
                   >
-                    {CTA.register}
-                  </Link>
-                  <WhoRegistersSr id={noteId} />
+                    {CTA.submit}
+                  </a>
+                  <SubmitSr id={noteId} />
                 </li>
               </ul>
             </nav>

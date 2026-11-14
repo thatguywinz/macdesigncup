@@ -11,7 +11,8 @@
 // 4. We = the WLMAC 3D Design Club (the students running this). You = the
 //    student or teacher reading. Never I/me/my.
 //    Exception: FAQ questions are the reader speaking and may use I/my.
-// 5. The CTA string is verbatim, everywhere: CTA.register.
+// 5. The CTA string is verbatim, everywhere: CTA.submit (registration closed
+//    Nov 9, so the site's one call to action is now Submit here).
 //
 // VOICE
 // Speaker: the club, first person plural. Reader: a TDSB student or their
@@ -41,11 +42,12 @@ import {
   PRIZE_POOL,
   REGISTER_PATH,
   REGISTRATION_CLOSES_LABEL,
-  REGISTRATION_CLOSES_SHORT,
   RESOURCE_GUIDES,
   RESOURCES_PATH,
   RUNNER_UP_PRIZE,
   SITE_HOST,
+  SUBMIT_DEADLINE_SHORT,
+  SUBMIT_URL_SHORT,
   TEAM_MAX,
   TIMES,
   VENUE_ADDRESS,
@@ -63,9 +65,12 @@ import {
 /** "9:00 AM" -> "9 AM" (on-the-hour times in tight spots). */
 const HOUR = (t: string) => t.replace(":00 ", " ");
 
-/** The only wording any Register button or link uses. */
+/** The only wording any Submit or Register button or link uses. */
 export const CTA = {
-  register: "Register now",
+  /** The day's one call to action: to /submit. */
+  submit: "Submit here",
+  /** Plain links to /register (registration closed Nov 9; the page stays). */
+  registration: "Registration",
   enter: "Enter the hall",
   /** What the hero's lit door says on its face (its accessible name is `enter`). */
   door: "Enter",
@@ -75,15 +80,17 @@ export const CTA = {
 } as const;
 
 /**
- * Who registers: everyone, on one form (organizer, 2026-09-23; the Tally
- * form's Student / Teacher branch). The tiny note beside every Register
+ * Submitting on the day (organizers, 2026-11-14): at /submit, closing at
+ * TIMES.submit, no late entries. The tiny note beside every Submit here
  * button; `sr` is the button's screen-reader description.
  */
-export const WHO_REGISTERS = {
-  note: "Students and teachers",
-  sr: `One form for students and teachers. Closes ${REGISTRATION_CLOSES_SHORT}.`,
-  /** The deadline, under the note where there is room (the phone's sticky bar). */
-  closes: `Closes ${REGISTRATION_CLOSES_SHORT}`,
+export const SUBMIT = {
+  note: `Closes ${TIMES.submit} · No late entries`,
+  sr: `Submit your design at ${SUBMIT_URL_SHORT}. Submissions close ${SUBMIT_DEADLINE_SHORT}. No late entries.`,
+  /** The line under the QR code. */
+  scan: "Scan to submit",
+  qrAlt: `QR code for ${SUBMIT_URL_SHORT}`,
+  url: SUBMIT_URL_SHORT,
 } as const;
 
 // ── Hero (the 3D hall) ────────────────────────
@@ -109,12 +116,12 @@ export const SUMMARY = {
 // so the band shows it once and says the rule in a line.
 export const PATHS = {
   /** Accessible name of the two-route nav (not shown). */
-  label: "Register or partner",
+  label: "Submit or partner",
   routes: {
-    register: {
-      label: "Students & teachers",
-      line: `One form for everyone. Closes ${REGISTRATION_CLOSES_SHORT}.`,
-      cta: CTA.register,
+    submit: {
+      label: "Competitors",
+      line: `Submit your design by ${TIMES.submit} on the day. No late entries.`,
+      cta: CTA.submit,
     },
     partners: { label: "Partners", line: "Back TDSB students in design", cta: CTA.partner },
   },
@@ -145,13 +152,14 @@ export const SECTIONS = {
     },
     // Accessible name for the Where cell's map link (visible text is CTA.map).
     mapLabel: `${CTA.map}: ${VENUE_BUILDING}, ${VENUE_STREET} (opens in a new tab)`,
-    // The launch clock (also shown on /partner).
+    // The clock counts down to the submission deadline (SUBMIT_DEADLINE).
     countdown: {
-      aria: "Countdown to event day",
+      aria: "Countdown to the submission deadline",
       units: { days: "Days", hours: "Hrs", mins: "Min", secs: "Sec" },
-      until: "Until we start",
-      done: "We've started.",
-      tba: "Date drops soon.",
+      until: "Submissions close in",
+      when: SUBMIT_DEADLINE_SHORT,
+      done: "Submissions are closed.",
+      doneWhen: `Closed ${SUBMIT_DEADLINE_SHORT}`,
     },
   },
   prizes: {
@@ -229,7 +237,7 @@ export const SECTIONS = {
       },
       {
         title: "Submit before judging",
-        body: `Submissions close at ${TIMES.submit}. Late entries aren't judged.`,
+        body: `Submit at ${SUBMIT_URL_SHORT} by ${TIMES.submit}. No late submissions.`,
       },
     ],
   },
@@ -245,10 +253,12 @@ export const SECTIONS = {
       subject: "Mac Design Cup question",
     },
   },
+  // The closer (#register). Registration closed Nov 9, so it now points at
+  // the day's one action: submitting.
   register: {
-    lines: ["Register"],
+    lines: ["Submit"],
     /** The line under the heading. */
-    status: `Registration is open until ${REGISTRATION_CLOSES_LABEL}. Spots are limited.`,
+    status: `Registration has closed. On the day, submit your design by ${TIMES.submit}. No late entries.`,
     /** The mono line under the button, joined with " · ". */
     meta: [EVENT_DATE_SHORT, `${TIMES.start} check-in`, `${VENUE_BUILDING}, ${VENUE_CITY}`],
   },
@@ -419,8 +429,8 @@ export const NAV = {
   label: "Main",
   /** Screen-reader note on links that open a new tab. */
   newTab: "(opens in a new tab)",
-  /** Landmark name of the phone sticky Register bar. */
-  registerBar: "Registration",
+  /** Landmark name of the phone sticky Submit bar. */
+  submitBar: "Submit",
 } as const;
 
 export const FOOTER = {

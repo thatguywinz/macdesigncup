@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import { ArrowRight } from "lucide-react";
 import { REGISTER_PATH, RESOURCES_PATH } from "@/config/site";
 import { NOT_FOUND } from "@/content/copy";
-import RegisterBlock from "@/components/RegisterBlock";
+import SubmitBlock from "@/components/SubmitBlock";
 import SiteFooter from "@/components/SiteFooter";
 import SiteNav from "@/components/SiteNav";
 
@@ -16,7 +16,7 @@ const INDEX: ReadonlyArray<{ label: string; to: string }> = [
 ];
 
 /**
- * 404. The one line, then everything that does exist: the Register call to
+ * 404. The one line, then everything that does exist: the Submit here call to
  * action and a short list of the real pages. Fits a phone screen without
  * scrolling. The route is noindex (set by the head table).
  */
@@ -33,7 +33,7 @@ const NotFound = () => {
             <p className="font-mono text-xs uppercase tracking-[0.12em] text-ember">404</p>
             <h1 className="display-scene mt-3">{NOT_FOUND.title}</h1>
             <p className="mt-4 max-w-[34ch] font-body text-lg leading-relaxed text-foreground/75">{NOT_FOUND.line}</p>
-            <RegisterBlock className="mt-8 gap-4" />
+            <SubmitBlock className="mt-8 gap-4" />
           </div>
 
           <nav aria-label={NOT_FOUND.index}>

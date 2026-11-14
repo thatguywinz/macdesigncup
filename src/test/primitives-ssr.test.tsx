@@ -11,8 +11,8 @@ import CountUp from "@/components/motion/CountUp";
 import DisplayHeading from "@/components/motion/DisplayHeading";
 import DrawPath from "@/components/motion/DrawPath";
 import Reveal from "@/components/motion/Reveal";
-import RegisterBlock from "@/components/RegisterBlock";
-import { CTA, PATHS, SECTIONS, WHO_REGISTERS } from "@/content/copy";
+import SubmitBlock from "@/components/SubmitBlock";
+import { CTA, PATHS, SECTIONS, SUBMIT } from "@/content/copy";
 import { SPONSORS } from "@/config/sponsors";
 import PathBand from "@/sections/glance/PathBand";
 import SponsorMarquee from "@/sections/sponsors/SponsorMarquee";
@@ -58,15 +58,17 @@ describe("primitives render on the server", () => {
     expect(solid).toMatch(/d="M[-\d.]+ [-\d.]+L/);
   });
 
-  it("RegisterBlock: links to /register with the verbatim CTA and the one note", () => {
+  it("SubmitBlock: a plain link to /submit with the verbatim CTA and the deadline note", () => {
     const html = renderToString(
       <MemoryRouter>
-        <RegisterBlock />
+        <SubmitBlock />
       </MemoryRouter>,
     );
-    expect(html).toContain('href="/register"');
-    expect(html).toContain(CTA.register);
-    expect(html).toContain(WHO_REGISTERS.note);
+    expect(html).toContain('href="/submit"');
+    expect(html).toContain(CTA.submit);
+    expect(html).toContain(SUBMIT.note);
+    expect(html).not.toContain('href="/register"');
+    expect(SUBMIT.note).toContain("1:30 PM");
   });
 
   it("SponsorMarquee: every sponsor is one announced, focusable link; copies are hidden", () => {
@@ -87,14 +89,14 @@ describe("primitives render on the server", () => {
     expect(html).toContain('href="/partner"');
   });
 
-  it("PathBand: one shared register route and the partner route", () => {
+  it("PathBand: the submit route and the partner route", () => {
     const html = renderToString(
       <MemoryRouter>
         <PathBand />
       </MemoryRouter>,
     );
-    expect(html).toContain(PATHS.routes.register.line);
-    expect(html).toContain('href="/register"');
+    expect(html).toContain(PATHS.routes.submit.line);
+    expect(html).toContain('href="/submit"');
     expect(html).toContain('href="/partner"');
     expect(html).not.toContain('href="#teachers"');
   });

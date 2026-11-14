@@ -1,25 +1,29 @@
 import { useEffect, useId, useRef } from "react";
-import { NAV } from "@/content/copy";
-import RegisterButton from "./RegisterButton";
-import { WhoRegistersNote } from "./nav/WhoRegisters";
+import { NAV, SECTIONS } from "@/content/copy";
+import { useSubmitClosed } from "@/hooks/useSubmitClosed";
+import SubmitButton from "./SubmitButton";
+import { SubmitNote } from "./nav/SubmitNote";
+
+const C = SECTIONS.glance.countdown;
 
 /** What the bar steps aside for: the final CTA and the footer. */
 const AWAY_FROM = ["#register", "[data-site-footer]"];
 
 /**
- * Phones only: the one sticky Register, pinned to the bottom of the screen,
- * with the tiny "Students and teachers" note and the deadline beside it (which also
- * describes the button): one form for everyone.
+ * Phones only: the one sticky Submit here, pinned to the bottom of the
+ * screen, with the deadline note beside it (which also describes the button).
  *
  * It slides away while the final CTA (#register) or the footer is on screen,
- * so a phone never shows two Register buttons at once, and comes back when
- * you scroll up. The switch is written straight to the DOM from an
+ * so a phone never shows two Submit buttons at once, and comes back when you
+ * scroll up. The switch is written straight to the DOM from an
  * IntersectionObserver (no React state); while away the bar is `inert`, so
  * it can't be tabbed to. Server render: shown.
  */
-export default function MobileRegisterBar() {
+export default function MobileSubmitBar() {
   const barRef = useRef<HTMLElement>(null);
   const captionId = useId();
+  // After the deadline: say so, and step the button down to the ghost style.
+  const closed = useSubmitClosed();
 
   useEffect(() => {
     const bar = barRef.current;
@@ -45,13 +49,23 @@ export default function MobileRegisterBar() {
   return (
     <aside
       ref={barRef}
-      aria-label={NAV.registerBar}
+      aria-label={NAV.submitBar}
       className="fixed inset-x-0 bottom-0 z-50 border-t border-bone/15 bg-background/90 backdrop-blur-md transition-[transform,opacity] duration-500 [transition-timing-function:cubic-bezier(0.22,1,0.36,1)] data-[away]:pointer-events-none data-[away]:translate-y-full data-[away]:opacity-0 motion-reduce:transition-none md:hidden"
       style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
     >
       <div className="flex items-center gap-3 px-4 py-2.5 min-[380px]:gap-4">
-        <WhoRegistersNote id={captionId} closes className="min-w-0 flex-1" />
-        <RegisterButton aria-describedby={captionId} className="min-h-[48px] shrink-0 px-5 py-3.5 text-[11px]" />
+        {closed ? (
+          <span id={captionId} className="min-w-0 flex-1 font-body text-[13px] leading-snug text-foreground/70">
+            {C.done}
+          </span>
+        ) : (
+          <SubmitNote id={captionId} url className="min-w-0 flex-1" />
+        )}
+        <SubmitButton
+          variant={closed ? "ghost" : "solid"}
+          aria-describedby={captionId}
+          className="min-h-[48px] shrink-0 px-5 py-3.5 text-[13px]"
+        />
       </div>
     </aside>
   );
