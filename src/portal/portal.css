@@ -461,6 +461,8 @@
   body, .portal-shell { background: #fff !important; }
   .portal-shell header, nav, .p-deadline { display: none !important; }
   .j-top .p-input, .j-top .p-textarea { background: #fff; color: #000; border-color: #bbb; }
+  .display-scene, .p-notice, .portal-shell main p, .portal-shell main h1 { color: #000 !important; }
+  .p-notice { background: #fff !important; border-color: #999 !important; }
   .j-top { break-inside: avoid; border-color: #999; background: #fff; color: #000; }
   .j-top-body *, .j-top-rank { color: #000 !important; }
   .j-top-grid, .j-top-grid > div { background: #fff; border-color: #ccc; }

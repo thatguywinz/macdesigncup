@@ -115,6 +115,13 @@ export default function TopPage() {
       );
   }, []);
 
+  // The printout shows the judges' notes, not folded away.
+  useEffect(() => {
+    const open = () => document.querySelectorAll<HTMLDetailsElement>(".j-top details").forEach((d) => (d.open = true));
+    window.addEventListener("beforeprint", open);
+    return () => window.removeEventListener("beforeprint", open);
+  }, []);
+
   // Leaving the page or closing the laptop mid-sentence still saves the note.
   useEffect(() => {
     const flush = () => Object.keys(dirty.current).forEach(send);
