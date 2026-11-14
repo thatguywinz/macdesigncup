@@ -413,6 +413,10 @@ on("GET", "/status", async (ctx, _req, res) => {
     spec: hasSpec(w.settings.spec) ? w.settings.spec : null,
     codeRequired: w.codeOn,
     opensAt: w.notYet ? iso(w.notYet) : null,
+    judging: (() => {
+      const r = roomsOf(w.settings);
+      return { start: iso(Date.parse(r.start)), end: iso(Date.parse(r.end)), rooms: r.names };
+    })(),
   };
   sendJson(res, 200, body);
 });
@@ -1146,11 +1150,16 @@ on("DELETE", "/judge/entries/:id", async (ctx, req, res, { id }) => {
     delete doc.entries[id];
   });
   await ctx.db.mutate("scores", (sc) => {
-    for (const j of Object.values(sc.judges)) delete j.scores[id];
+    for (const [key, j] of Object.entries(sc.judges)) {
+      delete j.scores[id];
+      // A sheet left empty (say, a test sign-in's) would show as "not counted" on Results.
+      if (!Object.keys(j.scores).length) delete sc.judges[key];
+    }
   });
-  // And its judging slot, so a deleted test entry leaves nothing behind.
+  // And its judging slot and final-meeting note, so a deleted test entry leaves nothing behind.
   await ctx.db.mutate("settings", (st) => {
     if (st.schedule && Object.hasOwn(st.schedule, id)) delete st.schedule[id];
+    if (st.finalNotes && Object.hasOwn(st.finalNotes, id)) delete st.finalNotes[id];
   });
   await ctx.db.storage.delete(paths).catch(() => {});
   sendJson(res, 200, { ok: true });
@@ -1265,8 +1274,11 @@ on("POST", "/judge/schedule", async (ctx, req, res) => {
   await ctx.db.mutate("settings", (st) => {
     if (body.action === "clear") {
       delete st.schedule;
-      // Cleared on purpose: don't remake it by itself.
-      st.autoScheduledAt ??= new Date().toISOString();
+      // Cleared after the deadline: on purpose, so don't remake it by itself.
+      // Cleared before (a test run): it makes itself at the deadline again.
+      const w = Date.parse(st.deadlineOverride ?? ctx.cfg.deadline);
+      if (st.closed || (ctx.now?.() ?? Date.now()) >= w) st.autoScheduledAt ??= new Date(ctx.now?.() ?? Date.now()).toISOString();
+      else delete st.autoScheduledAt;
       return;
     }
     if (body.action !== "make") fail(422, "Action must be make or clear.");

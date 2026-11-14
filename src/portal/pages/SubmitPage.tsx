@@ -39,6 +39,7 @@ import {
   type FieldErrors,
   type FileView,
   type OwnEntry,
+  type PortalStatus,
 } from "../shared/schema";
 import { uploadFile } from "../upload";
 import { CAD_LINK_HINT, UNITS, formatMeasure, hasSpec, specCheck, type Measure, type Spec, type Units } from "../shared/checks";
@@ -537,7 +538,7 @@ export default function SubmitPage() {
     );
   }
 
-  if (done && saved && entryId) return <Done entry={saved} editKey={editKey} onEdit={() => setDone(false)} deadline={status?.deadline ?? null} now={now} />;
+  if (done && saved && entryId) return <Done entry={saved} editKey={editKey} onEdit={() => setDone(false)} deadline={status?.deadline ?? null} judging={status?.judging} now={now} />;
 
   // A new entry waits for the status: whether there's a code step, or the form isn't open yet.
   if (!isEdit && !status) {
@@ -1116,7 +1117,7 @@ export default function SubmitPage() {
             </div>
           </form>
 
-          {!wide && step === LAST && <JudgingBriefing className="mt-10" deadline={status?.deadline} />}
+          {!wide && step === LAST && <JudgingBriefing className="mt-10" deadline={status?.deadline} judging={status?.judging} />}
         </div>
 
         {wide && (
@@ -1135,7 +1136,7 @@ export default function SubmitPage() {
               )}
               {(videoLocalUrl || linkedPreview) && <VideoPlayer title={form.title || "Your video"} link={linkedPreview} localUrl={videoLocalUrl} />}
               {viewer}
-              <JudgingBriefing deadline={status?.deadline} />
+              <JudgingBriefing deadline={status?.deadline} judging={status?.judging} />
             </div>
           </aside>
         )}
@@ -1395,7 +1396,21 @@ function FileRow({ item, onRemove }: { item: Item; onRemove: () => void }) {
 
 // ── Done ──────────────────────────────────────
 
-function Done({ entry, editKey, onEdit, deadline, now }: { entry: OwnEntry; editKey: string; onEdit: () => void; deadline: string | null; now: number }) {
+function Done({
+  entry,
+  editKey,
+  onEdit,
+  deadline,
+  judging,
+  now,
+}: {
+  entry: OwnEntry;
+  editKey: string;
+  onEdit: () => void;
+  deadline: string | null;
+  judging?: PortalStatus["judging"] | null;
+  now: number;
+}) {
   const origin = window.location.origin;
   const share = `${origin}/entry/${entry.id}`;
   const edit = `${origin}/submit/edit/${entry.id}#k=${editKey}`;
@@ -1416,7 +1431,7 @@ function Done({ entry, editKey, onEdit, deadline, now }: { entry: OwnEntry; edit
             The judges have it. Keep both links: the first shows your design to anyone, the second lets your team edit until submissions close.
           </p>
           {entry.slot && <SlotNotice slot={entry.slot} />}
-          <JudgingBriefing className="mt-8" open deadline={deadline} />
+          <JudgingBriefing className="mt-8" open deadline={deadline} judging={judging} />
 
           <div className="mt-10 flex flex-col gap-8">
             <LinkBox

@@ -643,6 +643,26 @@ describe("day of (organizers, 2026-11-14)", () => {
     expect((await call("/judge/settings", { cookie: admin.cookie })).json.scheduled).toBe(0);
   });
 
+  it("a test run before the deadline can't stop the schedule from making itself", async () => {
+    const admin = await login("admin-demo", "Organizer");
+    await ctx.db.mutate("settings", (st) => {
+      st.autoScheduledAt = "2026-11-16T10:00:00.000Z";
+    });
+    await call("/judge/schedule", { body: { action: "make" }, cookie: admin.cookie });
+    await call("/judge/schedule", { body: { action: "clear" }, cookie: admin.cookie });
+    expect((await call("/judge/settings", { cookie: admin.cookie })).json.autoScheduledAt).toBeNull();
+    const { id, key } = await create({ title: "Gone Later" });
+    await call(`/entries/${id}/submit`, { body: {}, key });
+    const judge = await login("judge-demo", "Cleanup Judge");
+    await call(`/judge/entries/${id}/score`, { method: "PUT", body: { marks: { originality: 5, technical: 5, theme: 5, communication: 5 } }, cookie: judge.cookie });
+    await call(`/judge/final/${id}`, { method: "PUT", body: { why: "test" }, cookie: admin.cookie });
+    await call(`/judge/entries/${id}`, { method: "DELETE", cookie: admin.cookie });
+    const res = await call("/judge/results", { cookie: admin.cookie });
+    expect(res.json.unlisted.find((u: { name: string }) => u.name === "Cleanup Judge")).toBeUndefined();
+    const st = await ctx.db.read("settings", { fresh: true });
+    expect(st.finalNotes?.[id]).toBeUndefined();
+  });
+
   it("an entry with two marks is done: nobody else is sent to it, and it ranks by the pair's average", async () => {
     const admin = await login("admin-demo", "Organizer");
     await call("/judge/settings", { method: "PUT", body: { judges: ["Pair One", "Pair Two", "Third Judge"] }, cookie: admin.cookie });

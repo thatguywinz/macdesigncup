@@ -204,7 +204,7 @@ export const SECTIONS = {
       },
       { time: TIMES.start, title: "Check-in and opening", note: `Theme revealed at the ${TIMES.opening} opening` },
       { time: TIMES.design, title: "Design sprint", note: "Lunch at noon" },
-      { time: TIMES.submit, title: "Submit and judging", note: `Present to a judge · early slots from ${TIMES.earlyJudging}` },
+      { time: TIMES.submit, title: "Submit, then judging", note: `Submissions close · present to your judges from ${TIMES.judging}` },
       { time: TIMES.closing, title: "Closing and awards", note: `Done by ${TIMES.end}` },
     ] as readonly DayStep[],
   },
@@ -334,7 +334,7 @@ export const FAQS: Faq[] = [
   {
     for: "teachers",
     q: "What time does the day end?",
-    a: `The Mackenzie Design Cup is done by ${TIMES.end} on ${EVENT_WEEKDAY}, ${EVENT_DATE_LABEL}. Students design from ${TIMES.design} until submissions close at ${TIMES.submit}, with lunch at noon. Judging runs from ${TIMES.judging} (early slots open at ${TIMES.earlyJudging}), and the closing ceremony and awards start at ${TIMES.closing}.`,
+    a: `The Mackenzie Design Cup is done by ${TIMES.end} on ${EVENT_WEEKDAY}, ${EVENT_DATE_LABEL}. Students design from ${TIMES.design} until submissions close at ${TIMES.submit}, with lunch at noon. Judging runs from ${TIMES.judging}, and the closing ceremony and awards start at ${TIMES.closing}.`,
   },
   {
     for: "students",

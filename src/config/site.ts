@@ -64,7 +64,7 @@ export const START_TIME = "8:30 AM";
 // check-in and sponsor demos 8:30 to 9:00, opening ceremony 9:10 (the theme
 // is revealed at its end), design session 1 9:55 to 12:00, lunch 12:00 to
 // 12:30, design session 2 12:35 to 2:00 with early judging from 1:30,
-// judging 2:05 to 3:15, closing ceremony and awards 3:20 to 3:50, everyone
+// judging from 2:00 (organizers, 2026-11-14; was 2:05), closing ceremony and awards 3:20 to 3:50, everyone
 // out by 4:00. Rooms and names stay off the site. Submissions close at 1:30
 // (organizers, 2026-11-14: moved up from 2:00; no late submissions).
 export const TIMES = {
@@ -75,10 +75,9 @@ export const TIMES = {
   opening: "9:10 AM",
   design: "9:55 AM",
   lunch: "12:00 PM",
-  earlyJudging: "1:30 PM",
   /** Submissions close (SUBMIT_DEADLINE below). No late entries. */
   submit: "1:30 PM",
-  judging: "2:05 PM",
+  judging: "2:00 PM",
   closing: "3:20 PM",
   /** Everyone is out by this (access ends). */
   end: "4:00 PM",

@@ -459,4 +459,6 @@ export interface PortalStatus {
   codeRequired: boolean;
   /** No entry code and the theme isn't revealed yet: when the form opens. */
   opensAt: string | null;
+  /** When and where judging runs (organizers' Settings). */
+  judging: { start: string; end: string; rooms: string[] };
 }
