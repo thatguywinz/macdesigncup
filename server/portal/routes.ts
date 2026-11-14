@@ -227,7 +227,7 @@ function inputOf(e: EntryRecord) {
 async function judgeView(ctx: PortalContext, e: EntryRecord, s: Session): Promise<JudgeEntry> {
   const [scores, settings, doc] = await Promise.all([ctx.db.read("scores"), ctx.db.read("settings"), ctx.db.read("entries")]);
   const mine = scores.judges[s.key]?.scores[e.id] ?? null;
-  const scoreCount = countedSheets(scores, settings).filter(([, j]) => totalOf(j.scores[e.id]?.marks) !== null).length;
+  const scoreCount = marksOn(countedSheets(scores, settings), settings, e.id); // the pair's marks, like the dashboard
   return {
     ...inputOf(e),
     id: e.id,
