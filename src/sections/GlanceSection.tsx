@@ -1,34 +1,58 @@
+import { useId } from "react";
 import { ArrowUpRight } from "lucide-react";
 import Sheet from "@/components/blueprint/Sheet";
 import Countdown from "@/components/Countdown";
+import SubmitButton from "@/components/SubmitButton";
+import SubmitQr from "@/components/SubmitQr";
+import { SubmitNote } from "@/components/nav/SubmitNote";
 import DisplayHeading from "@/components/motion/DisplayHeading";
 import Reveal from "@/components/motion/Reveal";
 import { VENUE_MAP_URL } from "@/config/site";
+import { useSubmitClosed } from "@/hooks/useSubmitClosed";
 import { CTA, SECTIONS } from "@/content/copy";
 import PathBand from "./glance/PathBand";
 
 const CELLS = ["when", "where", "who", "cost"] as const;
 
 /**
- * At a glance. The heading and the theme line beside the launch clock, the
- * four facts (When / Where / Who / Cost) in one quiet row, then the two
- * routes: students and teachers register on one form, partners go to
- * /partner.
+ * At a glance. The heading and the theme line beside the submission clock
+ * (with Submit here and the /submit QR code), the four facts (When / Where /
+ * Who / Cost) in one quiet row, then the two routes: competitors submit,
+ * partners go to /partner.
  */
 export default function GlanceSection() {
   const s = SECTIONS.glance;
+  const noteId = useId();
+  const closed = useSubmitClosed();
   return (
     <Sheet id="glance">
-      <div className="grid gap-10 md:grid-cols-[minmax(0,1fr)_auto] md:items-end md:gap-16">
+      <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end lg:gap-16">
         <div>
           <DisplayHeading lines={s.lines} />
           <Reveal as="p" delay={0.1} className="mt-4 max-w-[38ch] font-body text-lg leading-relaxed text-foreground/75 md:mt-5 md:text-xl">
             {s.body}
           </Reveal>
         </div>
-        <Reveal delay={0.15}>
-          {/* The facts below carry the date and start time; the clock just counts. */}
-          <Countdown showDate={false} />
+        {/* The day's one action: the clock to the submission deadline, Submit
+            here, and (md+) the QR code for anyone reading this off a screen. */}
+        <Reveal delay={0.15} className="flex items-end gap-8 xl:gap-10">
+          <div className="min-w-0">
+            <Countdown />
+            {/* Phones get the button and this note from the sticky bar just
+                below: one Submit at a time. After the deadline the button
+                steps down to the ghost style (organizers can reopen an
+                entry, and the portal tells those teams what to do), and the
+                note and QR go. */}
+            <div className="mt-7 hidden flex-wrap items-center gap-x-6 gap-y-3 md:flex">
+              <SubmitButton
+                variant={closed ? "ghost" : "solid"}
+                aria-describedby={closed ? undefined : noteId}
+                className="min-h-[48px] px-7 py-3 text-[15px]"
+              />
+              {!closed && <SubmitNote id={noteId} url />}
+            </div>
+          </div>
+          {!closed && <SubmitQr className="hidden md:block" />}
         </Reveal>
       </div>
 
