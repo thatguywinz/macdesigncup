@@ -52,6 +52,9 @@ export default function TopPage() {
   const [saved, setSaved] = useState<Record<string, "saving" | "saved" | "error">>({});
   const [copied, setCopied] = useState(false);
   const timers = useRef<Record<string, number>>({});
+  // Notes typed here and not yet confirmed saved: a refresh never overwrites these.
+  const dirty = useRef<Record<string, string>>({});
+  const seq = useRef<Record<string, number>>({});
 
   const load = useCallback(
     () =>
@@ -59,10 +62,10 @@ export default function TopPage() {
         .then((d) => {
           setData(d);
           setError("");
-          // Server notes fill in only what hasn't been typed here.
+          // Notes saved from another laptop show up here, except ones being typed here.
           setWhy((cur) => {
             const next = { ...cur };
-            for (const r of d.rows) if (!(r.id in next)) next[r.id] = r.why;
+            for (const r of d.rows) if (!(r.id in dirty.current)) next[r.id] = r.why;
             return next;
           });
         })
@@ -72,17 +75,41 @@ export default function TopPage() {
 
   useEffect(() => {
     void load();
+    // The meeting may run on two laptops: pick up the other one's notes and places.
+    const t = window.setInterval(() => document.visibilityState === "visible" && void load(), 15_000);
+    return () => window.clearInterval(t);
   }, [load]);
 
+  const send = useCallback((id: string) => {
+    window.clearTimeout(timers.current[id]);
+    if (!(id in dirty.current)) return;
+    const text = dirty.current[id];
+    const n = (seq.current[id] = (seq.current[id] ?? 0) + 1);
+    api(`/judge/final/${id}`, { method: "PUT", body: { why: text }, keepalive: true })
+      .then(() => {
+        if (seq.current[id] !== n) return; // a newer save is on its way
+        if (dirty.current[id] === text) delete dirty.current[id];
+        setSaved((s) => ({ ...s, [id]: "saved" }));
+      })
+      .catch(() => seq.current[id] === n && setSaved((s) => ({ ...s, [id]: "error" })));
+  }, []);
+
+  // Leaving the page or closing the laptop mid-sentence still saves the note.
+  useEffect(() => {
+    const flush = () => Object.keys(dirty.current).forEach(send);
+    window.addEventListener("pagehide", flush);
+    return () => {
+      window.removeEventListener("pagehide", flush);
+      flush();
+    };
+  }, [send]);
+
   const saveWhy = (id: string, text: string) => {
+    dirty.current[id] = text;
     setWhy((w) => ({ ...w, [id]: text }));
     setSaved((s) => ({ ...s, [id]: "saving" }));
     window.clearTimeout(timers.current[id]);
-    timers.current[id] = window.setTimeout(() => {
-      api(`/judge/final/${id}`, { method: "PUT", body: { why: text } })
-        .then(() => setSaved((s) => ({ ...s, [id]: "saved" })))
-        .catch(() => setSaved((s) => ({ ...s, [id]: "error" })));
-    }, 700);
+    timers.current[id] = window.setTimeout(() => send(id), 700);
   };
 
   const setAward = (id: string, award: string) =>
@@ -258,6 +285,7 @@ export default function TopPage() {
                           maxLength={2000}
                           placeholder="What set it apart: the idea, the modelling, the pitch…"
                           onChange={(e) => saveWhy(r.id, e.target.value)}
+                          onBlur={() => send(r.id)}
                         />
                       </label>
                     </div>

@@ -718,3 +718,47 @@ describe("day of (organizers, 2026-11-14)", () => {
     expect((await call("/sheet/abcdefabcdefabcdefabcdefabcdefab")).status).toBe(404);
   });
 });
+
+describe("pairs (review fixes)", () => {
+  const marks = (n: number) => ({ marks: { originality: n, technical: n, theme: n, communication: n } });
+  it("only the entry's own pair finishes it; a hidden entry still gets a slot", async () => {
+    const admin = await login("admin-demo", "Organizer");
+    await call("/judge/schedule", { body: { action: "clear" }, cookie: admin.cookie });
+    await call("/judge/settings", {
+      method: "PUT",
+      body: { judges: ["Pa One", "Pa Two", "Pb One"], rooms: { names: ["RA", "RB"], start: "2026-11-16T14:00:00-05:00", slotMinutes: 3, judgeRooms: { "Pa One": "RA", "Pa Two": "RA", "Pb One": "RB" } } },
+      cookie: admin.cookie,
+    });
+    const doc = await ctx.db.read("entries", { fresh: true });
+    for (const id of Object.keys(doc.entries)) await call(`/judge/entries/${id}`, { method: "DELETE", cookie: admin.cookie });
+    const a = await create({ title: "Room A Team" });
+    await call(`/entries/${a.id}/submit`, { body: {}, key: a.key });
+    const h = await create({ title: "Hidden Team" });
+    await call(`/entries/${h.id}/submit`, { body: {}, key: h.key });
+    await call(`/judge/entries/${h.id}`, { method: "PATCH", body: { hidden: true }, cookie: admin.cookie });
+    await call("/judge/schedule", { body: { action: "make" }, cookie: admin.cookie });
+    const st = await ctx.db.read("settings", { fresh: true });
+    expect(st.schedule?.[h.id]).toBeTruthy();
+    // Put team A in RA for the test.
+    await ctx.db.mutate("settings", (x) => {
+      x.schedule![a.id] = { room: "RA", at: "2026-11-16T19:00:00.000Z" };
+    });
+    const pa1 = await login("judge-demo", "Pa One");
+    const pa2 = await login("judge-demo", "Pa Two");
+    const pb1 = await login("judge-demo", "Pb One");
+    await call(`/judge/entries/${a.id}/score`, { method: "PUT", body: marks(10), cookie: pb1.cookie });
+    await call(`/judge/entries/${a.id}/score`, { method: "PUT", body: marks(20), cookie: pa1.cookie });
+    let card = (await call("/judge/entries", { cookie: pa2.cookie })).json;
+    expect(card.cards.find((c: { id: string }) => c.id === a.id).scoreCount).toBe(1); // the outsider's mark doesn't count toward it
+    expect(card.nextToMark).toBe(a.id);
+    expect((await call("/judge/entries", { cookie: pb1.cookie })).json.nextToMark).not.toBe(a.id);
+    await call(`/judge/entries/${a.id}/score`, { method: "PUT", body: marks(15), cookie: pa2.cookie });
+    card = (await call("/judge/entries", { cookie: pa2.cookie })).json;
+    expect(card.cards.find((c: { id: string }) => c.id === a.id).scoreCount).toBe(2);
+    const row = (await call("/judge/results", { cookie: admin.cookie })).json.rows.find((r: { id: string }) => r.id === a.id);
+    expect(row.average).toBe(70); // the pair's marks only
+    expect(row.complete).toBe(true);
+    await call("/judge/schedule", { body: { action: "clear" }, cookie: admin.cookie });
+    await call("/judge/settings", { method: "PUT", body: { judges: [], rooms: { names: ["WFL632", "WFL634", "WFL637"], judgeRooms: {} } }, cookie: admin.cookie });
+  });
+});

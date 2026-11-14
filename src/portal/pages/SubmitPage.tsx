@@ -192,7 +192,7 @@ export default function SubmitPage() {
     setLoading(true);
     api<{ entry: OwnEntry }>(`/entries/${routeId}`, { editKey: key })
       .then(({ entry }) => {
-        const { id, status: _s, submittedAt: _a, late: _l, files: _f, locked: _k, notices: _n, ...input } = entry;
+        const { id, status: _s, submittedAt: _a, late: _l, files: _f, locked: _k, unlocked: _u, notices: _n, ...input } = entry;
         setForm(input);
         setFiles(filesFrom(entry));
         if (entry.files.some((f) => f.slot === "video") && !entry.videoLink) setVideoMode("upload");
@@ -278,21 +278,25 @@ export default function SubmitPage() {
 
   // ── Validation per step ───────────────────
   const deadline = status ? Date.parse(status.deadline) : null;
-  const closedForNew = status ? !status.open : false;
+  const closedForNew = status ? !status.open || (deadline !== null && now >= deadline) : false;
   const codeRequired = status?.codeRequired ?? true;
-  const locked = saved?.locked ?? false;
+  // Locked by the server, or the clock passed the deadline while this page was open
+  // (no late submissions: only an entry organizers reopened stays editable).
+  const pastDeadline = deadline !== null && now >= deadline;
+  const locked = (saved?.locked ?? false) || (pastDeadline && !(saved?.unlocked ?? false));
   const submitted = saved?.status === "submitted";
 
   const hasVideoNow = videoMode === "link" ? !!parseVideoLink(form.videoLink) : files.video.length > 0;
   const hasVisual = files.image.length > 0 || hasVideoNow || files.model.length > 0;
   /** Everything still in the way of submitting, from the same rules the server applies. */
   const needed = useMemo(() => {
-    const p = parseEntry(form);
+    // An uploaded video replaces the link: a stale link left in the field mustn't block the team.
+    const p = parseEntry(videoMode === "upload" ? { ...form, videoLink: "" } : form);
     const e: FieldErrors = "errors" in p ? { ...p.errors } : {};
     if (!isEdit && codeRequired && !code.trim()) e.code = CODE_NEEDED;
     if (!hasVisual) e.visuals = VISUAL_NEEDED;
     return e;
-  }, [form, isEdit, codeRequired, code, hasVisual]);
+  }, [videoMode, form, isEdit, codeRequired, code, hasVisual]);
   const neededIn = (s: Step) => Object.fromEntries(Object.entries(needed).filter(([k, v]) => v && stepOf(k) === s)) as FieldErrors;
   const stepOk = (s: Step) => Object.keys(neededIn(s)).length === 0;
 
@@ -392,7 +396,7 @@ export default function SubmitPage() {
     const draft = mode === "draft";
     setFormError("");
     setDraftSaved("");
-    const parsed = parseEntry(form, { draft });
+    const parsed = parseEntry(videoMode === "upload" ? { ...form, videoLink: "" } : form, { draft });
     const errs: FieldErrors = "errors" in parsed ? { ...parsed.errors } : {};
     if (!isEdit && codeRequired && !code.trim()) errs.code = CODE_NEEDED;
     if (!hasVisual && !draft) errs.visuals = VISUAL_NEEDED;
@@ -617,8 +621,8 @@ export default function SubmitPage() {
         <DeadlineBar
           deadline={status.deadline}
           now={now}
-          closed={isEdit ? (saved ? locked : undefined) : !status.open}
-          reopened={isEdit && !locked && submitted}
+          closed={isEdit ? (saved ? locked : undefined) : !status.open || pastDeadline}
+          reopened={isEdit && !!saved?.unlocked && !locked}
         />
       )}
       {status?.devDefaults && (
@@ -1419,7 +1423,14 @@ function Done({
   )}`;
   return (
     <Shell section="Submitted">
-      {deadline && <DeadlineBar deadline={deadline} now={now} closed={entry.locked} reopened={!entry.locked && entry.status === "submitted"} />}
+      {deadline && (
+        <DeadlineBar
+          deadline={deadline}
+          now={now}
+          closed={entry.locked || (now >= Date.parse(deadline) && !entry.unlocked)}
+          reopened={entry.unlocked && !entry.locked}
+        />
+      )}
       <div className="grid gap-12 pt-12 md:pt-16 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.9fr)]">
         <div>
           <p className="flex items-center gap-2 font-body text-[15px] text-ember">
