@@ -41,7 +41,8 @@ interface Results {
 }
 
 const PLACES = ["1st place", "2nd place", "3rd place"];
-const f1 = (n: number | null | undefined) => (n === null || n === undefined ? "—" : n.toFixed(1));
+const f1 = (n: number | null | undefined) =>
+  n === null || n === undefined ? "—" : n.toFixed(1);
 const teamOf = (r: Row) => r.teamName || r.creditLine;
 
 export default function TopPage() {
@@ -49,34 +50,47 @@ export default function TopPage() {
   const [data, setData] = useState<Results | null>(null);
   const [error, setError] = useState("");
   const [why, setWhy] = useState<Record<string, string>>({});
-  const [saved, setSaved] = useState<Record<string, "saving" | "saved" | "error">>({});
+  const [saved, setSaved] = useState<
+    Record<string, "saving" | "saved" | "error">
+  >({});
   const [copied, setCopied] = useState(false);
   const timers = useRef<Record<string, number>>({});
   // Notes typed here and not yet confirmed saved: a refresh never overwrites these.
   const dirty = useRef<Record<string, string>>({});
   const seq = useRef<Record<string, number>>({});
+  // Counts local edits per note: a refresh that started before an edit mustn't bring back the older text.
+  const edits = useRef<Record<string, number>>({});
 
-  const load = useCallback(
-    () =>
-      api<Results>("/judge/results")
-        .then((d) => {
-          setData(d);
-          setError("");
-          // Notes saved from another laptop show up here, except ones being typed here.
-          setWhy((cur) => {
-            const next = { ...cur };
-            for (const r of d.rows) if (!(r.id in dirty.current)) next[r.id] = r.why;
-            return next;
-          });
-        })
-        .catch((e: ApiError) => (e.status === 401 ? signOut() : setError(e.message))),
-    [signOut],
-  );
+  const load = useCallback(() => {
+    const before = { ...edits.current };
+    return api<Results>("/judge/results")
+      .then((d) => {
+        setData(d);
+        setError("");
+        // Notes saved from another laptop show up here, except ones being typed here.
+        setWhy((cur) => {
+          const next = { ...cur };
+          for (const r of d.rows)
+            if (
+              !(r.id in dirty.current) &&
+              (edits.current[r.id] ?? 0) === (before[r.id] ?? 0)
+            )
+              next[r.id] = r.why;
+          return next;
+        });
+      })
+      .catch((e: ApiError) =>
+        e.status === 401 ? signOut() : setError(e.message),
+      );
+  }, [signOut]);
 
   useEffect(() => {
     void load();
     // The meeting may run on two laptops: pick up the other one's notes and places.
-    const t = window.setInterval(() => document.visibilityState === "visible" && void load(), 15_000);
+    const t = window.setInterval(
+      () => document.visibilityState === "visible" && void load(),
+      15_000,
+    );
     return () => window.clearInterval(t);
   }, [load]);
 
@@ -85,13 +99,20 @@ export default function TopPage() {
     if (!(id in dirty.current)) return;
     const text = dirty.current[id];
     const n = (seq.current[id] = (seq.current[id] ?? 0) + 1);
-    api(`/judge/final/${id}`, { method: "PUT", body: { why: text }, keepalive: true })
+    api(`/judge/final/${id}`, {
+      method: "PUT",
+      body: { why: text },
+      keepalive: true,
+    })
       .then(() => {
         if (seq.current[id] !== n) return; // a newer save is on its way
         if (dirty.current[id] === text) delete dirty.current[id];
         setSaved((s) => ({ ...s, [id]: "saved" }));
       })
-      .catch(() => seq.current[id] === n && setSaved((s) => ({ ...s, [id]: "error" })));
+      .catch(
+        () =>
+          seq.current[id] === n && setSaved((s) => ({ ...s, [id]: "error" })),
+      );
   }, []);
 
   // Leaving the page or closing the laptop mid-sentence still saves the note.
@@ -106,6 +127,7 @@ export default function TopPage() {
 
   const saveWhy = (id: string, text: string) => {
     dirty.current[id] = text;
+    edits.current[id] = (edits.current[id] ?? 0) + 1;
     setWhy((w) => ({ ...w, [id]: text }));
     setSaved((s) => ({ ...s, [id]: "saving" }));
     window.clearTimeout(timers.current[id]);
@@ -114,7 +136,16 @@ export default function TopPage() {
 
   const setAward = (id: string, award: string) =>
     api(`/judge/entries/${id}`, { method: "PATCH", body: { award } })
-      .then(() => setData((d) => (d ? { ...d, rows: d.rows.map((r) => (r.id === id ? { ...r, award } : r)) } : d)))
+      .then(() =>
+        setData((d) =>
+          d
+            ? {
+                ...d,
+                rows: d.rows.map((r) => (r.id === id ? { ...r, award } : r)),
+              }
+            : d,
+        ),
+      )
       .catch((e: ApiError) => setError(e.message));
 
   const ranked = data?.rows.filter((r) => r.rank !== null) ?? [];
@@ -125,9 +156,15 @@ export default function TopPage() {
 
   const summary = () => {
     if (!data) return "";
-    const lines = [`Mackenzie Design Cup 2026: final results`, `Ranked by each entry's judging-pair average, out of ${data.maxTotal}.`, ""];
+    const lines = [
+      `Mackenzie Design Cup 2026: final results`,
+      `Ranked by each entry's judging-pair average, out of ${data.maxTotal}.`,
+      "",
+    ];
     top.forEach((r) => {
-      lines.push(`${r.award || `#${r.rank}`}: ${teamOf(r)}, "${r.title}" (${r.members.map((m) => m.name).join(", ")}). Average ${f1(r.average)}${r.tied ? " (tied)" : ""}.`);
+      lines.push(
+        `${r.award || `#${r.rank}`}: ${teamOf(r)}, "${r.title}" (${r.members.map((m) => m.name).join(", ")}). Average ${f1(r.average)}${r.tied ? " (tied)" : ""}.`,
+      );
       const w = (why[r.id] ?? "").trim();
       if (w) lines.push(`Why: ${w}`);
       lines.push("");
@@ -142,7 +179,9 @@ export default function TopPage() {
         setCopied(true);
         window.setTimeout(() => setCopied(false), 2000);
       })
-      .catch(() => setError("Couldn't copy. Select the text in the printout instead."));
+      .catch(() =>
+        setError("Couldn't copy. Select the text in the printout instead."),
+      );
 
   return (
     <JudgeShell section="Top 5">
@@ -150,30 +189,51 @@ export default function TopPage() {
         <div>
           <h1 className="display-scene">Top 5</h1>
           <p className="mt-3 max-w-[42rem] font-body text-[15px] text-foreground/75">
-            Ranked by each entry's judging-pair average. For the final meeting: check the order, pick 1st to 3rd, and write down why each one won.
+            Ranked by each entry's judging-pair average. For the final meeting:
+            check the order, pick 1st to 3rd, and write down why each one won.
           </p>
         </div>
         <div className="flex flex-wrap gap-2 print:hidden">
-          <button type="button" className="btn-ghost p-btn focus-ember" onClick={() => void load()}>
+          <button
+            type="button"
+            className="btn-ghost p-btn focus-ember"
+            onClick={() => void load()}
+          >
             <RefreshCw size={15} strokeWidth={1.5} /> Refresh
           </button>
-          <button type="button" className="btn-ghost p-btn focus-ember" onClick={copy} disabled={!top.length}>
-            <Copy size={15} strokeWidth={1.5} /> {copied ? "Copied" : "Copy summary"}
+          <button
+            type="button"
+            className="btn-ghost p-btn focus-ember"
+            onClick={copy}
+            disabled={!top.length}
+          >
+            <Copy size={15} strokeWidth={1.5} />{" "}
+            {copied ? "Copied" : "Copy summary"}
           </button>
-          <button type="button" className="btn-ghost p-btn focus-ember" onClick={() => window.print()} disabled={!top.length}>
+          <button
+            type="button"
+            className="btn-ghost p-btn focus-ember"
+            onClick={() => window.print()}
+            disabled={!top.length}
+          >
             <Printer size={15} strokeWidth={1.5} /> Print
           </button>
         </div>
       </div>
 
-      {error && <p className="p-notice p-notice--bad mt-6 font-body">{error}</p>}
+      {error && (
+        <p className="p-notice p-notice--bad mt-6 font-body">{error}</p>
+      )}
 
       {data && total > 0 && (
-        <p className={`p-notice mt-6 font-body text-sm ${incomplete ? "" : "p-notice--calm"}`}>
+        <p
+          className={`p-notice mt-6 font-body text-sm ${incomplete ? "" : "p-notice--calm"}`}
+        >
           {incomplete
             ? `Not final yet: ${incomplete} of ${total} ${total === 1 ? "entry needs" : "entries need"} ${data.marksNeeded} marks. The order can still change.`
             : `Every entry has its ${data.marksNeeded} marks. This order is final unless a mark changes.`}
-          {tieAtTop && " There's a tie in the top 3: Ms. Neag breaks it. Set the places below."}
+          {tieAtTop &&
+            " There's a tie in the top 3: Ms. Neag breaks it. Set the places below."}
         </p>
       )}
 
@@ -183,41 +243,74 @@ export default function TopPage() {
         </p>
       ) : top.length === 0 ? (
         <p className="mt-12 max-w-[34rem] font-body text-foreground/75">
-          No marked entries yet. The ranking fills in as judging pairs save their marks.
+          No marked entries yet. The ranking fills in as judging pairs save
+          their marks.
         </p>
       ) : (
         <ol className="mt-8 flex flex-col gap-4">
           {top.map((r) => {
             const podium = (r.rank ?? 99) <= 3;
             return (
-              <li key={r.id} className={`j-top ${podium ? "j-top--podium" : ""}`}>
+              <li
+                key={r.id}
+                className={`j-top ${podium ? "j-top--podium" : ""}`}
+              >
                 <div className="j-top-rank" aria-label={`Rank ${r.rank}`}>
                   {r.rank}
                 </div>
                 <div className="j-top-body">
                   <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
-                    {r.thumb && <img src={r.thumb} alt="" className="h-24 w-full rounded-[2px] object-cover sm:h-20 sm:w-32 sm:shrink-0" />}
+                    {r.thumb && (
+                      <img
+                        src={r.thumb}
+                        alt=""
+                        className="h-24 w-full rounded-[2px] object-cover sm:h-20 sm:w-32 sm:shrink-0"
+                      />
+                    )}
                     <div className="min-w-0 flex-1">
-                      <p className="font-body text-[13px] text-ember">{teamOf(r)}</p>
-                      <h2 className="font-body normal-case text-[20px] font-semibold leading-snug tracking-[-0.01em] text-bone">{r.title}</h2>
+                      <p className="font-body text-[13px] text-ember">
+                        {teamOf(r)}
+                      </p>
+                      <h2 className="font-body normal-case text-[20px] font-semibold leading-snug tracking-[-0.01em] text-bone">
+                        {r.title}
+                      </h2>
                       <p className="mt-0.5 font-body text-sm text-foreground/75">
-                        {r.members.map((m) => m.name).join(", ")} · {[...new Set(r.members.map((m) => m.school))].join(", ")}
+                        {r.members.map((m) => m.name).join(", ")} ·{" "}
+                        {[...new Set(r.members.map((m) => m.school))].join(
+                          ", ",
+                        )}
                       </p>
                       <div className="mt-2 flex flex-wrap gap-1.5">
-                        {r.tied && <span className="p-tag p-tag--ember">Tied</span>}
-                        {!r.complete && <span className="p-tag p-tag--bad">{r.judgeCount} of {data.marksNeeded} marks</span>}
-                        {r.openReviews > 0 && <span className="p-tag p-tag--ember">Needs review</span>}
+                        {r.tied && (
+                          <span className="p-tag p-tag--ember">Tied</span>
+                        )}
+                        {!r.complete && (
+                          <span className="p-tag p-tag--bad">
+                            {r.judgeCount} of {data.marksNeeded} marks
+                          </span>
+                        )}
+                        {r.openReviews > 0 && (
+                          <span className="p-tag p-tag--ember">
+                            Needs review
+                          </span>
+                        )}
                         {r.slot && (
                           <span className="p-tag p-mono">
                             {r.slot.room} · {clock(r.slot.at)}
                           </span>
                         )}
-                        {r.award && <span className="p-tag p-tag--solid">{r.award}</span>}
+                        {r.award && (
+                          <span className="p-tag p-tag--solid">{r.award}</span>
+                        )}
                       </div>
                     </div>
                     <div className="sm:text-right">
-                      <p className="font-display text-[40px] leading-none text-bone">{f1(r.average)}</p>
-                      <p className="p-mono mt-1 text-[11px] text-concrete">pair average /{data.maxTotal}</p>
+                      <p className="font-display text-[40px] leading-none text-bone">
+                        {f1(r.average)}
+                      </p>
+                      <p className="p-mono mt-1 text-[11px] text-concrete">
+                        pair average /{data.maxTotal}
+                      </p>
                     </div>
                   </div>
 
@@ -238,12 +331,16 @@ export default function TopPage() {
 
                   {r.notes.length > 0 && (
                     <details className="mt-3 font-body text-sm">
-                      <summary className="cursor-pointer text-concrete hover:text-foreground">Judges' notes ({r.notes.length})</summary>
+                      <summary className="cursor-pointer text-concrete hover:text-foreground">
+                        Judges' notes ({r.notes.length})
+                      </summary>
                       <ul className="mt-2 flex flex-col gap-2">
                         {r.notes.map((n, k) => (
                           <li key={k}>
                             <span className="text-concrete">{n.judge}: </span>
-                            <span className="whitespace-pre-line text-foreground/85">{n.notes}</span>
+                            <span className="whitespace-pre-line text-foreground/85">
+                              {n.notes}
+                            </span>
                           </li>
                         ))}
                       </ul>
@@ -253,8 +350,14 @@ export default function TopPage() {
                   {podium && (
                     <div className="mt-4 grid gap-3 border-t border-bone/10 pt-4 md:grid-cols-[12rem_1fr]">
                       <label className="flex flex-col gap-1.5">
-                        <span className="font-body text-[13px] font-medium text-foreground/85">Place</span>
-                        <select className="p-input" value={r.award} onChange={(e) => void setAward(r.id, e.target.value)}>
+                        <span className="font-body text-[13px] font-medium text-foreground/85">
+                          Place
+                        </span>
+                        <select
+                          className="p-input"
+                          value={r.award}
+                          onChange={(e) => void setAward(r.id, e.target.value)}
+                        >
                           <option value="">Not set</option>
                           {AWARDS.filter(Boolean).map((a) => (
                             <option key={a} value={a}>
@@ -266,7 +369,9 @@ export default function TopPage() {
                           <button
                             type="button"
                             className="p-link focus-ember self-start font-body text-[13px] print:hidden"
-                            onClick={() => void setAward(r.id, PLACES[(r.rank ?? 1) - 1])}
+                            onClick={() =>
+                              void setAward(r.id, PLACES[(r.rank ?? 1) - 1])
+                            }
                           >
                             Set as {PLACES[(r.rank ?? 1) - 1]}
                           </button>
@@ -275,8 +380,17 @@ export default function TopPage() {
                       <label className="flex flex-col gap-1.5">
                         <span className="flex items-baseline justify-between gap-3 font-body text-[13px] font-medium text-foreground/85">
                           Why they won
-                          <span className="p-mono text-[11px] font-normal text-concrete" aria-live="polite">
-                            {saved[r.id] === "saving" ? "Saving…" : saved[r.id] === "saved" ? "Saved" : saved[r.id] === "error" ? "Not saved, try again" : ""}
+                          <span
+                            className="p-mono text-[11px] font-normal text-concrete"
+                            aria-live="polite"
+                          >
+                            {saved[r.id] === "saving"
+                              ? "Saving…"
+                              : saved[r.id] === "saved"
+                                ? "Saved"
+                                : saved[r.id] === "error"
+                                  ? "Not saved, try again"
+                                  : ""}
                           </span>
                         </span>
                         <textarea
@@ -291,7 +405,10 @@ export default function TopPage() {
                     </div>
                   )}
 
-                  <Link to={`/judge/entry/${r.id}`} className="p-link focus-ember mt-3 inline-flex items-center gap-1 font-body text-sm print:hidden">
+                  <Link
+                    to={`/judge/entry/${r.id}`}
+                    className="p-link focus-ember mt-3 inline-flex items-center gap-1 font-body text-sm print:hidden"
+                  >
                     Open the entry <ArrowUpRight size={14} strokeWidth={1.6} />
                   </Link>
                 </div>
@@ -303,7 +420,8 @@ export default function TopPage() {
 
       {data && ranked.length > top.length && (
         <p className="mt-8 font-body text-sm text-concrete print:hidden">
-          {ranked.length - top.length} more ranked {ranked.length - top.length === 1 ? "entry" : "entries"} in{" "}
+          {ranked.length - top.length} more ranked{" "}
+          {ranked.length - top.length === 1 ? "entry" : "entries"} in{" "}
           <Link to="/judge/results" className="p-link focus-ember">
             Results
           </Link>
