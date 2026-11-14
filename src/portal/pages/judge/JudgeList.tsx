@@ -1,7 +1,7 @@
 // The judges' dashboard: every submitted entry as a card, newest first,
 // with what this judge has marked. Refreshes every 20 seconds while the tab
 // is visible, so entries appear as teams submit.
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowRight, Search } from "lucide-react";
 import { ApiError, api, clock, closesLabel } from "../../api";
@@ -60,6 +60,9 @@ export default function JudgeList() {
   }, [signOut]);
 
   const myRoom = data?.myRoom ?? null;
+  // With the schedule made, a judge with a room marks their room's teams (and any without a slot), not other rooms'.
+  const scheduled = !!data?.cards.some((c) => c.slot);
+  const mine = useCallback((c: JudgeCard) => !myRoom || !scheduled || !c.slot || c.slot.room === myRoom, [myRoom, scheduled]);
   const roomCount = myRoom ? (data?.cards.filter((c) => c.slot?.room === myRoom).length ?? 0) : 0;
   // A judge with a scheduled room starts on that room's list, in time order.
   const active: Filter = filter ?? (roomCount ? "room" : "all");
@@ -69,14 +72,14 @@ export default function JudgeList() {
     const list = data.cards.filter((c) => {
       if (active === "room" && c.slot?.room !== myRoom) return false;
       // To mark: still needs marks (an entry is done once its pair's MARKS_NEEDED are in) and not marked by you.
-      if (active === "todo" && (c.myTotal !== null || c.scoreCount >= MARKS_NEEDED)) return false;
+      if (active === "todo" && (c.myTotal !== null || c.scoreCount >= MARKS_NEEDED || !mine(c))) return false;
       if (active === "done" && c.scoreCount < MARKS_NEEDED) return false;
       if (active === "review" && !c.openReviews) return false;
       if (!q) return true;
       return [c.teamName, c.title, c.creditLine, ...c.members, ...c.schools, ...c.software].some((s) => s && s.toLowerCase().includes(q));
     });
     return active === "room" ? list.sort((a, b) => String(a.slot?.at).localeCompare(String(b.slot?.at))) : list;
-  }, [data, active, query, myRoom]);
+  }, [data, active, query, myRoom, mine]);
 
   const marked = data?.cards.filter((c) => c.myTotal !== null).length ?? 0;
   const done = data?.cards.filter((c) => c.scoreCount >= MARKS_NEEDED).length ?? 0;
@@ -134,7 +137,7 @@ export default function JudgeList() {
         </div>
       ) : (
         total > 0 &&
-        done + marked >= total && (
+        !data?.cards.some((c) => c.myTotal === null && c.scoreCount < MARKS_NEEDED && mine(c)) && (
           <p className="p-notice p-notice--calm mt-6 font-body text-[15px]">Nothing left for you to mark. New ones show up here as teams submit.</p>
         )
       )}

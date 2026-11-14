@@ -45,7 +45,7 @@ import {
 } from "./auth.js";
 import { GRACE_SECONDS, type PortalConfig } from "./config.js";
 import { hmac, normalizeCode, randomId, randomSecret, safeEqual, sha256 } from "./crypto.js";
-import { DEFAULT_ROOMS, Db, filePath, type JudgeSheet, type RoomsSetup, type ScoresDoc, type SettingsDoc } from "./db.js";
+import { DEFAULT_ROOMS, Db, NO_CHANGE, filePath, type JudgeSheet, type RoomsSetup, type ScoresDoc, type SettingsDoc } from "./db.js";
 import { BASE_HEADERS, HttpError, assertSameOrigin, clientIp, fail, rateLimit, readJson, sendJson, type Req, type Res } from "./http.js";
 import { SNIFF_BYTES, sniff } from "./sniff.js";
 import { BlobStorage } from "./storage/blob.js";
@@ -182,6 +182,7 @@ async function ownView(ctx: PortalContext, w: Window, e: EntryRecord): Promise<O
     late,
     files: await Promise.all(e.files.map((f) => fileView(ctx, f))),
     locked: !canChange(w, e),
+    unlocked: e.unlocked,
     notices,
     videoCheck: e.videoCheck ?? null,
     slot: slotOf(w.settings, e.id),
@@ -321,8 +322,33 @@ function countedSheets(scores: ScoresDoc, settings: SettingsDoc): [string, Judge
   return Object.entries(scores.judges).filter(([key]) => !roster || roster.has(key));
 }
 
-/** How many counted judges have fully marked an entry. */
-const marksOn = (counted: [string, JudgeSheet][], id: string) => counted.filter(([, j]) => totalOf(j.scores[id]?.marks) !== null).length;
+/** The judges in the room an entry is scheduled in (its pair), or null before the schedule / for a room with nobody in it. */
+function pairKeys(settings: SettingsDoc, id: string): Set<string> | null {
+  const slot = slotOf(settings, id);
+  if (!slot) return null;
+  const keys = Object.entries(roomsOf(settings).judgeRooms)
+    .filter(([, room]) => room === slot.room)
+    .map(([key]) => key);
+  return keys.length ? new Set(keys) : null;
+}
+
+/**
+ * How many marks an entry has toward its MARKS_NEEDED: its pair's marks once
+ * it has a room with judges in it (an outsider's mark doesn't finish another
+ * pair's entry), else any counted judge's.
+ */
+const marksOn = (counted: [string, JudgeSheet][], settings: SettingsDoc, id: string) => {
+  const pair = pairKeys(settings, id);
+  return counted.filter(([key, j]) => (!pair || pair.has(key)) && totalOf(j.scores[id]?.marks) !== null).length;
+};
+
+/** With the schedule made, a judge with a room works on their room's teams and any team without a slot; nobody else's. */
+function inMyQueue(settings: SettingsDoc, judge: string, id: string): boolean {
+  const room = roomOfJudge(settings, judge);
+  if (!room || !settings.schedule) return true;
+  const slot = slotOf(settings, id);
+  return !slot || slot.room === room;
+}
 
 /**
  * Gives every submitted entry without a slot the next free time in the
@@ -342,7 +368,7 @@ function fillSchedule(st: SettingsDoc, entries: Record<string, EntryRecord>) {
   for (const s of Object.values(schedule)) next.set(s.room, Math.max(next.get(s.room)!, Date.parse(s.at) + step));
   const count = new Map(r.names.map((n) => [n, Object.values(schedule).filter((s) => s.room === n).length]));
   const waiting = Object.values(entries)
-    .filter((e) => e.status === "submitted" && !e.hidden && !schedule[e.id])
+    .filter((e) => e.status === "submitted" && !schedule[e.id])
     .sort((a, b) => String(a.submittedAt).localeCompare(String(b.submittedAt)));
   for (const e of waiting) {
     const room = r.names.reduce((best, n) => (count.get(n)! < count.get(best)! || (count.get(n) === count.get(best) && next.get(n)! < next.get(best)!) ? n : best));
@@ -364,15 +390,21 @@ async function ensureSchedule(ctx: PortalContext, w: Window): Promise<Window> {
   // Any submitted entry without a slot gets one: the first time at the
   // deadline, and again if organizers reopened submissions and more came in.
   const unslotted = (entries: Record<string, EntryRecord>, st: SettingsDoc) =>
-    Object.values(entries).some((e) => e.status === "submitted" && !e.hidden && !slotOf(st, e.id));
-  if (!unslotted((await ctx.db.read("entries")).entries, w.settings)) return w;
-  const doc = await ctx.db.read("entries", { fresh: true });
-  await ctx.db.mutate("settings", (st) => {
-    if (st.scheduleOff || !unslotted(doc.entries, st)) return;
-    fillSchedule(st, doc.entries);
-    st.autoScheduledAt ??= iso(w.now);
-  });
-  return windowOf(ctx);
+    Object.values(entries).some((e) => e.status === "submitted" && !slotOf(st, e.id));
+  try {
+    if (!unslotted((await ctx.db.read("entries")).entries, w.settings)) return w;
+    const doc = await ctx.db.read("entries", { fresh: true });
+    await ctx.db.mutate("settings", (st) => {
+      if (st.scheduleOff || !unslotted(doc.entries, st)) return NO_CHANGE;
+      fillSchedule(st, doc.entries);
+      st.autoScheduledAt ??= iso(w.now);
+    });
+    return await windowOf(ctx);
+  } catch (e) {
+    // Best effort: a page load must never fail because the schedule couldn't be written this time.
+    console.error("ensureSchedule", e);
+    return w;
+  }
 }
 
 /** The secret part of the Google Sheets link: changes with the session secret. */
@@ -848,7 +880,7 @@ on("GET", "/judge/entries", async (ctx, req, res) => {
           modelExt: firstOf(e, "model")?.ext ?? null,
           thumb: thumb ? await ctx.db.storage.signedGetUrl(thumb.path, DOWNLOAD_TTL) : (e.videoLink ? parseVideoLink(e.videoLink)?.thumb ?? null : null),
           myTotal: totalOf(mine[e.id]?.marks),
-          scoreCount: marksOn(counted, e.id),
+          scoreCount: marksOn(counted, w.settings, e.id),
           openReviews: openReviews(checksFor(e, all, w.settings)),
           specFails: spec && e.measure ? specCheck(e.measure, spec).filter((l) => l.ok === false).length : null,
           slot: slotOf(w.settings, e.id),
@@ -886,7 +918,7 @@ on("GET", "/judge/entries/:id", async (ctx, req, res, { id }) => {
     prev: i > 0 ? order[i - 1] : null,
     next: i >= 0 && i < order.length - 1 ? order[i + 1] : null,
     nextToMark: nextToMark(Object.values(doc.entries), scores, settings, s.key, id),
-    toMark: order.filter((x) => totalOf(mine[x]?.marks) === null && marksOn(countedSheets(scores, settings), x) < MARKS_NEEDED).length,
+    toMark: order.filter((x) => totalOf(mine[x]?.marks) === null && marksOn(countedSheets(scores, settings), settings, x) < MARKS_NEEDED && inMyQueue(settings, s.key, x)).length,
     total: order.length,
     marksCount: marksCount(settings, s.key),
   });
@@ -923,7 +955,7 @@ function nextToMark(all: EntryRecord[], scores: ScoresDoc, settings: SettingsDoc
   const scheduled = !!(room && settings.schedule);
   if (scheduled) {
     const queue = all
-      .filter((e) => e.status === "submitted" && e.id !== except && totalOf(mine[e.id]?.marks) === null && marksOn(counted, e.id) < MARKS_NEEDED && slotOf(settings, e.id)?.room === room)
+      .filter((e) => e.status === "submitted" && e.id !== except && totalOf(mine[e.id]?.marks) === null && marksOn(counted, settings, e.id) < MARKS_NEEDED && slotOf(settings, e.id)?.room === room)
       .sort((a, b) => slotOf(settings, a.id)!.at.localeCompare(slotOf(settings, b.id)!.at));
     if (queue.length) return queue[0].id;
   }
@@ -933,7 +965,7 @@ function nextToMark(all: EntryRecord[], scores: ScoresDoc, settings: SettingsDoc
   // are open to anyone.
   const pick = all
     .filter((e) => e.status === "submitted" && e.id !== except && totalOf(mine[e.id]?.marks) === null && !(scheduled && slotOf(settings, e.id)))
-    .map((e) => ({ e, n: marksOn(counted, e.id) }))
+    .map((e) => ({ e, n: marksOn(counted, settings, e.id) }))
     .filter((x) => x.n < MARKS_NEEDED)
     .sort((a, b) => a.n - b.n || String(a.e.submittedAt).localeCompare(String(b.e.submittedAt)))[0];
   return pick?.e.id ?? null;
@@ -963,9 +995,14 @@ async function results(ctx: PortalContext) {
   const rows = Object.values(doc.entries)
     .filter((e) => e.status === "submitted")
     .map((e) => {
-      const marked = counted
+      // The pair's marks make the result. If only someone outside the pair marked
+      // it (a stand-in), those still give it a score, but it isn't done.
+      const pair = pairKeys(settings, e.id);
+      const all = counted
         .map(([key, j]) => ({ key, score: j.scores[e.id] }))
         .filter((x) => totalOf(x.score?.marks) !== null);
+      const pairMarked = pair ? all.filter((x) => pair.has(x.key)) : all;
+      const marked = pairMarked.length ? pairMarked : all;
       const totals = marked.map((x) => totalOf(x.score.marks) as number);
       const average = totals.length ? totals.reduce((a, b) => a + b, 0) / totals.length : null;
       const perCriterion: Record<string, number | null> = {};
@@ -989,7 +1026,7 @@ async function results(ctx: PortalContext) {
         byJudge: Object.fromEntries(marked.map((x) => [x.key, totalOf(x.score.marks)])),
         notes: marked.filter((x) => x.score.notes).map((x) => ({ judge: scores.judges[x.key].name, notes: x.score.notes })),
         marks: marked.map((x) => ({ judge: scores.judges[x.key].name, total: totalOf(x.score.marks) as number })),
-        judgeCount: marked.length,
+        judgeCount: pairMarked.length,
         pair: roomJudges(slotOf(settings, e.id)?.room),
         openReviews: openReviews(checksFor(e, Object.values(doc.entries), settings)),
       };
@@ -1103,7 +1140,9 @@ on("GET", "/sheet/:key", async (ctx, _req, res, { key }) => {
   // "2:10 PM" like the site, not en-CA's "2:10 p.m.".
   const t = (ms: number) => new Date(ms).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: "America/Toronto" });
   const head = ["Time", "Room", "Judging pair", "Team", "Title", "Members", "Schools", "Marks in", "Status", "Pair average", "Rank", "Award", "Submitted", "Entry id"];
-  const rows = [...r.rows].sort((a, b) => String(a.slot?.at ?? "~").localeCompare(String(b.slot?.at ?? "~")) || a.slot?.room?.localeCompare(b.slot?.room ?? "") || 0);
+  const rows = [...r.rows].sort(
+    (a, b) => (a.slot ? 0 : 1) - (b.slot ? 0 : 1) || String(a.slot?.at ?? "").localeCompare(String(b.slot?.at ?? "")) || String(a.slot?.room ?? "").localeCompare(String(b.slot?.room ?? "")),
+  );
   const lines = [head.map(csvCell).join(",")];
   for (const row of rows) {
     lines.push(
@@ -1288,7 +1327,7 @@ on("POST", "/judge/schedule", async (ctx, req, res) => {
       // Cleared after the deadline: on purpose, so don't remake it by itself.
       // Cleared before (a test run): it makes itself at the deadline again.
       const w = Date.parse(st.deadlineOverride ?? ctx.cfg.deadline);
-      if (st.closed || (ctx.now?.() ?? Date.now()) >= w) st.scheduleOff = true;
+      if ((ctx.now?.() ?? Date.now()) >= w) st.scheduleOff = true;
       else delete st.scheduleOff;
       return;
     }

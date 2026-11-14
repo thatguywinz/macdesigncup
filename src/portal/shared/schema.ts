@@ -376,6 +376,8 @@ export interface OwnEntry extends EntryInput {
   late: boolean;
   files: FileView[];
   locked: boolean;
+  /** Organizers reopened this entry: it can still change after the deadline. */
+  unlocked: boolean;
   /** Neutral notes from the originality checks the team can answer in filesNote. */
   notices: string[];
   /** Whether the video link opened without signing in, last time we checked. */

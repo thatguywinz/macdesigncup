@@ -15,7 +15,7 @@ export class ApiError extends Error {
 
 const BASE = "/api/portal";
 
-export async function api<T>(path: string, init: { method?: string; body?: unknown; editKey?: string; signal?: AbortSignal } = {}): Promise<T> {
+export async function api<T>(path: string, init: { method?: string; body?: unknown; editKey?: string; signal?: AbortSignal; keepalive?: boolean } = {}): Promise<T> {
   const headers: Record<string, string> = { Accept: "application/json" };
   const method = init.method ?? (init.body === undefined ? "GET" : "POST");
   if (method !== "GET") headers["X-Portal"] = "1";
@@ -29,6 +29,8 @@ export async function api<T>(path: string, init: { method?: string; body?: unkno
       body: init.body === undefined ? undefined : JSON.stringify(init.body),
       credentials: "same-origin",
       signal: init.signal,
+      // Finishes even if the page is closing (a note typed just before leaving).
+      keepalive: init.keepalive,
     });
   } catch (e) {
     if ((e as Error).name === "AbortError") throw e;

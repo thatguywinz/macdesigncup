@@ -91,6 +91,9 @@ export interface SettingsDoc {
   closed: boolean;
 }
 
+/** Return this from a mutate() callback that decided not to change anything. */
+export const NO_CHANGE: unique symbol = Symbol("no change");
+
 const EMPTY = {
   entries: (): EntriesDoc => ({ v: 1, entries: {} }),
   scores: (): ScoresDoc => ({ v: 1, judges: {} }),
@@ -147,6 +150,8 @@ export class Db {
       const current = await this.storage.getDoc<DocType[N]>(path);
       const doc = current?.value ?? (EMPTY[name]() as DocType[N]);
       const result = fn(doc);
+      // Nothing to change: skip the write (and the ETag race with other writers).
+      if (result === NO_CHANGE) return result;
       try {
         const etag = await this.storage.putDoc(path, doc, current?.etag ?? null);
         this.cache.set(path, { at: Date.now(), value: structuredClone(doc), etag });
