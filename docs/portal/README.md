@@ -105,8 +105,10 @@ entries started on that laptop.
   at the opening ceremony and must not go in the code (it's public).
 - **Rooms and schedule** (`/judge/settings`): name the rooms, set the start
   time, end time and minutes per team (default 3: a 1-minute pitch plus
-  scoring while the next team sets up), put each judge in a room, then press **Make the
-  schedule** after submissions close. Every team sees "Your judging: room
+  scoring while the next team sets up), put each judging pair in a room. The
+  schedule **makes itself** the first time anyone loads the portal after
+  submissions close (organizers can press "Add new entries" or clear it; a
+  cleared schedule isn't remade by itself). Every team sees "Your judging: room
   WFL634 at 2:22 PM" on its entry page; each judge's dashboard opens on their
   room in time order, and "Save and judge next" follows it. Making it again
   only adds new entries; nobody's time moves. The Live board shows the
@@ -115,8 +117,22 @@ entries started on that laptop.
   the list has names, only those people can sign in as judges and only their
   marks count, so someone who overhears the passcode can't add made-up judges.
   Marks from anyone not on the list show on Results as "not counted".
+- **Two marks per entry** (`MARKS_NEEDED` in `src/portal/shared/judging.ts`):
+  each entry is judged by its room's pair. Once it has 2 counted marks it's
+  done: it leaves everyone's "To mark" list and "Up next". Results rank by
+  the average of its marks (the pair average); equal averages share a place.
+- **Top 5** (`/judge/top`, organizers): the leaderboard for the 15-minute
+  final meeting. Each of the top 5 shows the pair average, category averages,
+  each judge's total and notes; the top 3 get a place and a "why they won"
+  note (saved as typed, in settings `finalNotes`), then Copy summary or Print.
+- **Google Sheet**: Settings shows `=IMPORTDATA("…/api/portal/sheet/<key>")`.
+  Paste it into A1 of a new Google Sheet for a live list of every
+  submission: time, room, judging pair, team, members, marks in, status, pair
+  average, rank. No contact emails. The key is derived from
+  `PORTAL_SESSION_SECRET` (changing that secret changes the link).
+- Search on the dashboard matches team name, title, student, school.
 - Each judge sees only their own marks. The dashboard refreshes every 20
-  seconds, so entries show up as teams submit (early judging from 1:30 PM).
+  seconds, so entries show up as teams submit .
 - **Up next for you**: each judge's dashboard and "Save and judge next" go to
   the entry they haven't marked that has the fewest marks so far (oldest
   first), so every entry gets a first look before any gets a third.
@@ -206,14 +222,13 @@ seconds; orange in the last 30 minutes, red in the last 5) that stays in view
 while teams scroll. It uses the server's deadline and clock, so a moved
 deadline or a laptop with the wrong time still shows the right countdown.
 
-Submissions close at **2:00 PM on Nov 16** (`PORTAL_DEADLINE`, default
-`2026-11-16T14:00:00-05:00`). Organizers can move it or close early from
+Submissions close at **1:30 PM on Nov 16** (`PORTAL_DEADLINE`, default
+`2026-11-16T13:30:00-05:00`). Organizers can move it or close early from
 `/judge/settings`.
 
-A team whose upload is still running at 2:00 gets 10 more minutes to finish,
-and only if their entry was started before 2:00. Those entries are flagged
-**late** for the judges (the rules say late entries aren't judged; the flag
-leaves that call to the judges). Submitted entries lock at 2:00 exactly.
+**No late submissions** (`GRACE_SECONDS = 0`): at 1:30 the form locks, even
+for an upload still running. Organizers can still reopen one entry from its
+Organizer section if something went wrong.
 
 ## Deploying (when you say publish)
 
@@ -230,7 +245,7 @@ Nothing here is deployed yet. To turn it on in the Vercel project:
    | `PORTAL_JUDGE_PASSCODE` | 8+ characters, goes on the judges' sheet. |
    | `PORTAL_ADMIN_PASSCODE` | 10+ characters, organizers only, different from the judges'. |
    | `PORTAL_SESSION_SECRET` | 32+ random characters (`openssl rand -base64 32`). |
-   | `PORTAL_DEADLINE` | Optional. ISO time, default 2:00 PM Nov 16. |
+   | `PORTAL_DEADLINE` | Optional. ISO time, default 1:30 PM Nov 16. |
 
    If any of these are missing on Vercel, the API answers 503 instead of
    running with the local passcodes.
