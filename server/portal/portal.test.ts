@@ -14,7 +14,7 @@ import { dispatch, type PortalContext } from "./routes";
 let server: http.Server;
 let base = "";
 let dir = "";
-let clock = Date.parse("2026-11-16T13:00:00-05:00");
+let clock = Date.parse("2026-11-16T12:00:00-05:00");
 let ctx: PortalContext;
 
 /** A binary STL: one triangle. */
@@ -123,7 +123,7 @@ afterAll(() => {
 
 beforeEach(() => {
   resetRateLimits();
-  clock = Date.parse("2026-11-16T13:00:00-05:00");
+  clock = Date.parse("2026-11-16T12:00:00-05:00");
 });
 
 describe("teams", () => {
@@ -262,15 +262,15 @@ describe("teams", () => {
     expect((await call("/entries", { body: { code: "MDC-DEMO", entry: entry({ videoLink: "https://evil.example/v" }) } })).json.errors.videoLink).toBeTruthy();
   });
 
-  it("closes at the deadline, with grace for drafts already started", async () => {
+  it("closes at 1:30 PM sharp: no late submissions, even for drafts already started", async () => {
     const { id, key } = await create();
     await upload(id, key, "model", "a.stl", tinyStl());
-    clock = Date.parse("2026-11-16T14:05:00-05:00"); // 5 minutes late
+    clock = Date.parse("2026-11-16T13:29:00-05:00");
+    expect((await call("/status")).json.open).toBe(true);
+    clock = Date.parse("2026-11-16T13:30:00-05:00");
+    expect((await call("/status")).json.open).toBe(false);
     expect((await call("/entries", { body: { code: "MDC-DEMO", entry: entry() } })).status).toBe(409);
-    const sub = await call(`/entries/${id}/submit`, { body: {}, key });
-    expect(sub.status).toBe(200);
-    expect(sub.json.entry.late).toBe(true);
-    clock = Date.parse("2026-11-16T14:20:00-05:00"); // past grace
+    expect((await call(`/entries/${id}/submit`, { body: {}, key })).status).toBe(409);
     expect((await call(`/entries/${id}`, { method: "PUT", body: { entry: entry({ title: "Changed" }) }, key })).status).toBe(409);
   });
 
@@ -602,5 +602,75 @@ describe("judging schedule", () => {
 
     await call("/judge/schedule", { body: { action: "clear" }, cookie: admin.cookie });
     await call("/judge/settings", { method: "PUT", body: { judges: [], rooms: { names: ["WFL632", "WFL634", "WFL637"], judgeRooms: {} } }, cookie: admin.cookie });
+  });
+});
+
+describe("day of (organizers, 2026-11-14)", () => {
+  const marks = (n: number) => ({ marks: { originality: n, technical: n, theme: n, communication: n } });
+
+  it("makes the schedule by itself once submissions close", async () => {
+    await ctx.db.mutate("settings", (st) => {
+      delete st.schedule;
+      delete st.autoScheduledAt;
+    });
+    const { id, key } = await create({ title: "Auto Slot" });
+    await call(`/entries/${id}/submit`, { body: {}, key });
+    const admin = await login("admin-demo", "Organizer");
+    expect((await call("/judge/settings", { cookie: admin.cookie })).json.autoScheduledAt).toBeNull();
+    clock = Date.parse("2026-11-16T13:31:00-05:00");
+    const st = await call("/judge/settings", { cookie: admin.cookie });
+    expect(st.json.autoScheduledAt).toBeTruthy();
+    expect(st.json.scheduled).toBeGreaterThan(0);
+    expect((await call(`/entries/${id}`, { key })).json.entry.slot?.room).toBeTruthy();
+    // Cleared on purpose: it stays cleared.
+    await call("/judge/schedule", { body: { action: "clear" }, cookie: admin.cookie });
+    expect((await call("/judge/settings", { cookie: admin.cookie })).json.scheduled).toBe(0);
+  });
+
+  it("an entry with two marks is done: nobody else is sent to it, and it ranks by the pair's average", async () => {
+    const admin = await login("admin-demo", "Organizer");
+    await call("/judge/settings", { method: "PUT", body: { judges: ["Pair One", "Pair Two", "Third Judge"] }, cookie: admin.cookie });
+    const { id, key } = await create({ title: "Pair Marked", teamName: "Pair Team" });
+    await call(`/entries/${id}/submit`, { body: {}, key });
+    const one = await login("judge-demo", "Pair One");
+    const two = await login("judge-demo", "Pair Two");
+    const third = await login("judge-demo", "Third Judge");
+    await call(`/judge/entries/${id}/score`, { method: "PUT", body: marks(20), cookie: one.cookie });
+    await call(`/judge/entries/${id}/score`, { method: "PUT", body: marks(15), cookie: two.cookie });
+    const list = await call("/judge/entries", { cookie: third.cookie });
+    expect(list.json.nextToMark).not.toBe(id);
+    const card = list.json.cards.find((c: { id: string }) => c.id === id);
+    expect(card.scoreCount).toBe(2);
+    expect(card.teamName).toBe("Pair Team");
+    const res = await call("/judge/results", { cookie: admin.cookie });
+    const row = res.json.rows.find((r: { id: string }) => r.id === id);
+    expect(row.average).toBe(70);
+    expect(row.complete).toBe(true);
+    expect(row.rank).toBeGreaterThan(0);
+    expect(res.json.marksNeeded).toBe(2);
+    await call("/judge/settings", { method: "PUT", body: { judges: [] }, cookie: admin.cookie });
+  });
+
+  it("keeps the organizers' notes on why a winner won", async () => {
+    const admin = await login("admin-demo", "Organizer");
+    const judge = await login("judge-demo");
+    const { id, key } = await create({ title: "Winner" });
+    await call(`/entries/${id}/submit`, { body: {}, key });
+    expect((await call(`/judge/final/${id}`, { method: "PUT", body: { why: "Clean topology" }, cookie: judge.cookie })).status).toBe(403);
+    expect((await call(`/judge/final/${id}`, { method: "PUT", body: { why: "Clean topology" }, cookie: admin.cookie })).status).toBe(200);
+    const res = await call("/judge/results", { cookie: admin.cookie });
+    expect(res.json.rows.find((r: { id: string }) => r.id === id).why).toBe("Clean topology");
+  });
+
+  it("serves the Google Sheets feed only with the secret key, without emails", async () => {
+    const admin = await login("admin-demo", "Organizer");
+    const { sheetPath } = (await call("/judge/settings", { cookie: admin.cookie })).json;
+    expect(sheetPath).toMatch(/^\/api\/portal\/sheet\/[A-Za-z0-9]{32}$/);
+    const r = await fetch(new URL(sheetPath, base));
+    expect(r.status).toBe(200);
+    const text = await r.text();
+    expect(text.split("\r\n")[0]).toContain("Judging pair");
+    expect(text).not.toMatch(/@/);
+    expect((await call("/sheet/abcdefabcdefabcdefabcdefabcdefab")).status).toBe(404);
   });
 });

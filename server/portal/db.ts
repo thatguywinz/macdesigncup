@@ -79,6 +79,10 @@ export interface SettingsDoc {
   rooms?: RoomsSetup;
   /** entry id -> its judging room and time (made by organizers after submissions close). */
   schedule?: Record<string, { room: string; at: string }>;
+  /** When the schedule was made by itself at the deadline (or cleared on purpose): it isn't remade by itself after that. */
+  autoScheduledAt?: string;
+  /** Top 5 meeting: entry id -> why it placed, written by organizers. */
+  finalNotes?: Record<string, string>;
   /** Replaces the configured deadline (an organizer extended or moved it). */
   deadlineOverride: string | null;
   /** Organizer closed submissions early, whatever the clock says. */

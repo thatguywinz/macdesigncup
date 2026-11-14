@@ -425,6 +425,9 @@ export interface JudgeEntry extends EntryInput {
 export interface JudgeCard {
   id: string;
   title: string;
+  teamName: string;
+  /** Members' names, for search. */
+  members: string[];
   creditLine: string;
   memberCount: number;
   schools: string[];

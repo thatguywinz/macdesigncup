@@ -10,22 +10,21 @@
 //   PORTAL_SESSION_SECRET    signs session cookies and local upload links;
 //                            32+ random characters
 //   PORTAL_DEADLINE          ISO time submissions close (default: the run
-//                            sheet's 2:00 PM on Nov 16, 2026)
+//                            sheet's 1:30 PM on Nov 16, 2026)
 //   PORTAL_STORAGE           "blob" (Vercel Blob, private store) or "local"
 //                            (files under .data/portal, dev only)
 //   BLOB_READ_WRITE_TOKEN    set by Vercel when a private Blob store is
 //                            connected to the project
 // ─────────────────────────────────────────────
 
-/** Submissions close at 2:00 PM on event day (src/config/site.ts TIMES.submit). */
-export const DEFAULT_DEADLINE = "2026-11-16T14:00:00-05:00";
+/** Submissions close at 1:30 PM on event day (organizers, 2026-11-14; src/config/site.ts TIMES.submit). */
+export const DEFAULT_DEADLINE = "2026-11-16T13:30:00-05:00";
 
 /**
- * An upload that started before the deadline may finish this long after it,
- * so a team whose 60 MB file is still uploading at 1:59 isn't cut off.
- * Entries finished in the window are flagged late for the judges.
+ * No late submissions (organizers, 2026-11-14): the form locks at the
+ * deadline exactly. Kept as a constant so the grace logic stays in one place.
  */
-export const GRACE_SECONDS = 10 * 60;
+export const GRACE_SECONDS = 0;
 
 export const SESSION_HOURS = 14;
 

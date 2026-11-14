@@ -70,8 +70,8 @@ export default function RoomsSection({
     <section className="border-t border-bone/10 py-7">
       <h2 className="p-block-title">Judging rooms and schedule</h2>
       <p className="p-hint mt-1 max-w-[38rem]">
-        After submissions close, make the schedule: every team gets a room and a time, shown on their entry page, and each judge works through their
-        room in order. Entries already given a time keep it if you make it again.
+        The schedule makes itself the moment submissions close: every team gets a room and a time, shown on their entry page, and each judging pair
+        works through their room in order. Pressing the button adds any entries without a time; entries that have one keep it.
       </p>
 
       <div className="mt-5 grid max-w-[46rem] gap-4 sm:grid-cols-[minmax(0,1fr)_auto_auto_auto]">
@@ -142,7 +142,7 @@ export default function RoomsSection({
         )}
         <span className="font-body text-sm text-concrete">
           {scheduled ? `${scheduled} ${scheduled === 1 ? "entry has" : "entries have"} a time. See it on Live.` : `Starts ${when(rooms.start)}.`}
-          {open && !scheduled ? " Submissions are still open; make it after they close." : ""}
+          {open && !scheduled ? " It's made by itself when submissions close." : ""}
         </span>
       </div>
       {scheduleEnds && (

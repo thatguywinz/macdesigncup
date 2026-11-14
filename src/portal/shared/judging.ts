@@ -84,6 +84,16 @@ export const MARK_MIN = 0;
 export const MARK_MAX = 25;
 export const MAX_TOTAL = CRITERIA.length * MARK_MAX;
 
+/**
+ * Marks an entry needs: its judging pair's two (organizers, 2026-11-14). Once
+ * it has them it's done and nobody else is sent to it; its result is the
+ * average of its marks.
+ */
+export const MARKS_NEEDED = 2;
+
+/** The leaderboard the organizers' final meeting looks at. */
+export const TOP_COUNT = 5;
+
 /** The level (0 to 3) a mark falls in. */
 export const levelOf = (v: number) => RANGES.findIndex(([lo, hi]) => v >= lo && v <= hi);
 
