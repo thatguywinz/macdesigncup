@@ -31,7 +31,7 @@ const PNG = Buffer.from("89504e470d0a1a0a0000000d4948445200000001000000010806000
 
 const entry = (over: Record<string, unknown> = {}) => ({
   title: "Tidal Lamp",
-  teamName: "",
+  teamName: "Team Tide",
   members: [
     { name: "Avery Lin", school: "William Lyon Mackenzie CI", grade: "11" },
     { name: "Sam Okafor", school: "William Lyon Mackenzie CI", grade: "10" },
@@ -164,6 +164,22 @@ describe("teams", () => {
     const r = await call("/entries", { body: { code: "MDC-DEMO", entry: entry({ title: "", original: false, members: [] }) } });
     expect(r.status).toBe(422);
     expect(Object.keys(r.json.errors)).toEqual(expect.arrayContaining(["title", "original", "members"]));
+  });
+
+  it("needs a team name to submit, but not to save a draft", async () => {
+    for (const teamName of ["", "   "]) {
+      const r = await call("/entries", { body: { code: "MDC-DEMO", entry: entry({ teamName }) } });
+      expect(r.status).toBe(422);
+      expect(r.json.errors.teamName).toMatch(/team a name/i);
+    }
+    // A draft saves without one, then submitting it is refused until it has one.
+    const d = await call("/entries", { body: { code: "MDC-DEMO", entry: entry({ teamName: "" }), draft: true } });
+    expect(d.status).toBe(201);
+    const refused = await call(`/entries/${d.json.id}/submit`, { body: {}, key: d.json.editKey });
+    expect(refused.status).toBe(422);
+    expect(Object.keys(refused.json.errors)).toContain("teamName");
+    expect((await call(`/entries/${d.json.id}`, { method: "PUT", body: { entry: entry({ teamName: "Tide" }), draft: true }, key: d.json.editKey })).status).toBe(200);
+    expect((await call(`/entries/${d.json.id}/submit`, { body: {}, key: d.json.editKey })).status).toBe(200);
   });
 
   it("needs the edit key, and the same answer for wrong key and no entry", async () => {
