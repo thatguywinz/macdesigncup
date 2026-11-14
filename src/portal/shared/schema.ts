@@ -170,6 +170,7 @@ export function parseEntry(raw: unknown, opts: { draft?: boolean } = {}): Parsed
   tooLong("title", title, LIMITS.title, "The title");
 
   const teamName = str(r.teamName, LIMITS.teamName);
+  if (!teamName) need("teamName", "Give your team a name (even a team of one).");
   tooLong("teamName", teamName, LIMITS.teamName, "The team name");
 
   const rawMembers = Array.isArray(r.members) ? r.members.slice(0, TEAM_MAX + 1) : [];
@@ -215,7 +216,6 @@ export function parseEntry(raw: unknown, opts: { draft?: boolean } = {}): Parsed
   tooManyWords("aiNote", aiNote);
 
   const credit = r.credit === "team" ? "team" : "names";
-  if (credit === "team" && !teamName) need("teamName", "Add a team name, or credit your names instead.");
 
   const shareable = r.shareable !== false;
   const original = r.original === true;

@@ -47,7 +47,7 @@ function stl(header: string, tris = 1): Buffer {
 
 const entry = (over: Record<string, unknown> = {}) => ({
   title: "Entry",
-  teamName: "",
+  teamName: "Team Tide",
   members: [{ name: "Avery Lin", school: "WLMAC", grade: "11" }],
   contactEmail: "a@example.com",
   software: ["Blender"],

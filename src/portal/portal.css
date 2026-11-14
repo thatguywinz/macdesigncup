@@ -126,6 +126,56 @@
   color: hsl(var(--bone));
 }
 
+/* The submit form's steps: 1 · 2 · 3, the current one lit, finished ones ticked. */
+.p-steps { display: flex; align-items: center; gap: 0.5rem; border-bottom: 1px solid hsl(var(--bone) / 0.09); padding-bottom: 0.75rem; }
+.p-steps li { display: flex; align-items: center; gap: 0.5rem; min-width: 0; }
+.p-steps li + li { flex: 1 1 auto; }
+.p-steps li + li::before {
+  content: ""; flex: 1 1 auto; min-width: 0.75rem; height: 1px;
+  background: hsl(var(--bone) / 0.16);
+}
+.p-steps li[data-state="done"] + li::before,
+.p-steps li[data-state="done"] + li[data-state]::before { background: hsl(var(--ember) / 0.55); }
+.p-step {
+  display: inline-flex; align-items: center; gap: 0.5rem;
+  min-height: 2.75rem; padding: 0 0.15rem;
+  font: 500 0.875rem/1.2 "Archivo Variable", system-ui, sans-serif;
+  color: hsl(var(--concrete));
+  white-space: nowrap;
+  transition: color 0.15s;
+}
+.p-step:hover { color: hsl(var(--foreground)); }
+.p-step-num {
+  display: grid; place-items: center; flex-shrink: 0;
+  width: 1.75rem; height: 1.75rem;
+  border: 1px solid hsl(var(--bone) / 0.25); border-radius: 2px;
+  font: 400 0.75rem/1 "Space Mono", ui-monospace, monospace;
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+}
+.p-step[data-state="current"] { color: hsl(var(--bone)); font-weight: 600; }
+.p-step[data-state="current"] .p-step-num { background: hsl(var(--ember)); border-color: hsl(var(--ember)); color: hsl(var(--background)); font-weight: 700; }
+.p-step[data-state="done"] { color: hsl(var(--foreground) / 0.85); }
+.p-step[data-state="done"] .p-step-num { border-color: hsl(var(--ember)); color: hsl(var(--ember)); }
+.p-step-title {
+  font: 600 1.375rem/1.2 "Archivo Variable", system-ui, sans-serif;
+  letter-spacing: -0.015em;
+  color: hsl(var(--bone));
+}
+
+/* The review on the last step. */
+.p-review { display: flex; flex-direction: column; gap: 0.75rem; }
+.p-review-group { border: 1px solid hsl(var(--bone) / 0.1); background: hsl(220 7% 5.5%); padding: 0.9rem 1rem; }
+.p-review-group[data-ok="false"] { border-color: hsl(6 90% 60% / 0.55); }
+
+/* Back / Next, kept in reach at the bottom of the screen. */
+.p-stepnav {
+  position: sticky; bottom: 0; z-index: 10;
+  margin-top: 2rem; padding: 0.875rem 0 calc(0.875rem + env(safe-area-inset-bottom));
+  border-top: 1px solid hsl(var(--bone) / 0.12);
+  background: hsl(var(--background) / 0.96);
+  backdrop-filter: blur(8px);
+}
+
 /* File drop zone. */
 .p-drop {
   position: relative;

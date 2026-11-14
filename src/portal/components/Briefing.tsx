@@ -5,7 +5,16 @@ import { CRITERIA, MARK_MAX, MAX_TOTAL } from "../shared/judging";
 import type { Slot } from "../shared/schema";
 import { clock } from "../api";
 
-export function JudgingBriefing({ className = "", open = false }: { className?: string; open?: boolean }) {
+export function JudgingBriefing({
+  className = "",
+  open = false,
+  deadline,
+}: {
+  className?: string;
+  open?: boolean;
+  /** The submission deadline from /api/portal/status, so the time here always matches the server's. */
+  deadline?: string | null;
+}) {
   return (
     <section aria-labelledby="brief-h" className={`max-w-[40rem] border border-bone/10 bg-[hsl(220_7%_5.5%)] p-5 ${className}`}>
       <h2 id="brief-h" className="font-body text-[17px] font-semibold tracking-[-0.01em] text-bone">
@@ -16,7 +25,7 @@ export function JudgingBriefing({ className = "", open = false }: { className?: 
           <CalendarClock size={18} strokeWidth={1.5} className="mt-0.5 shrink-0 text-ember" aria-hidden="true" />
           <span>
             Judging runs <span className="text-foreground">2:10 to 3:20 PM</span> in WFL632, WFL634 and WFL637. You get your room and time after
-            submissions close at 2:00. It shows on your entry's edit page too.
+            submissions close{deadline ? ` at ${clock(deadline)}` : ""}. It shows on your entry's edit page too.
           </span>
         </li>
         <li className="flex gap-3">

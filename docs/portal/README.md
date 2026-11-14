@@ -40,15 +40,21 @@ To try the production build instead: `npm run build && npm run preview`
 
 ## What a team submits (three steps)
 
-1. **Your design**: entry code (if on), title, a few words on what it is and
-   how it fits the theme (up to 80 words), and at least one picture (render or
-   screenshot). The first picture is the entry's cover. A video, 3D model, CAD
-   link, sketches, project file and a note for judges are optional, folded
-   under "Add more".
-2. **Your team**: names, schools, grades, contact email, team name, and how the
-   public page credits them.
-3. **Submit**: software, AI use (pure prompt-to-3D isn't allowed), the
-   own-work confirmation.
+A stepper (1 Team · 2 Design · 3 Check & submit) with Back/Next in a bar at
+the bottom of the screen. Next only moves on when that step's required fields
+pass (same `parseEntry` rules as the server); errors show on the step. An
+existing entry (edit link) opens on step 3's review and can jump to any step.
+
+1. **Team**: entry code (if on), team name (required to submit), names,
+   schools, grades, contact email.
+2. **Design**: title, a few words on what it is and how it fits the theme (up
+   to 80 words), software, and at least one picture (render or screenshot).
+   The first picture is the entry's cover. A video, 3D model, CAD link,
+   sketches, project file and a note for judges are optional, folded under
+   "Add more".
+3. **Check & submit**: a compact review of steps 1 and 2 (each with Edit), AI
+   use (pure prompt-to-3D isn't allowed), how the public page credits them,
+   the own-work confirmation, Submit entry.
 
 Text boxes are limited by words, not characters (summary 80, extra note 120,
 AI note 40, files note 60), with a live "12/80 words" counter. To submit, an
@@ -57,8 +63,8 @@ entry needs one thing to look at: a picture, a video or a model.
 The form and the "Submitted" page both show **"Then you present: be ready"**:
 judging 2:10 to 3:20 PM in WFL632/634/637, present from your own laptop
 (HDMI or USB-C), a 1-minute pitch, and the rubric's four categories with
-what top marks look like. A **Needed to submit** checklist ticks off as they
-go. What a team types is kept on that laptop until the entry is first saved.
+what top marks look like; the submission close time comes from the server's
+deadline. What a team types is kept on that laptop until the entry is first saved.
 
 ### Entry code: on or off
 
