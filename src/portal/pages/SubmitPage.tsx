@@ -2,10 +2,12 @@
 // day's entry code; an existing one is opened with its private edit link
 // (the key rides in the URL fragment, which browsers never send to servers).
 //
-// The form is three steps: 1 Team, 2 Design, 3 Check & submit. A new entry
-// moves forward only when the step's required fields pass (the same
-// parseEntry rules the server runs); an existing entry opens on the review
-// and can jump to any step.
+// The form asks one thing at a time, five short steps that each fit on one
+// screen: 1 Entry (code, team name), 2 Team, 3 Design, 4 Files, 5 Submit.
+// Optional extras sit behind "Add more" / "Sharing options", so a step only
+// grows when a team opens them. A new entry moves forward only when the
+// step's required fields pass (the same parseEntry rules the server runs);
+// an existing entry opens on the review and can jump to any step.
 //
 // Submitting runs in order: save the details (creating the entry if new),
 // upload each new file with its own progress bar, capture a still of the
@@ -14,7 +16,7 @@
 // pressing the button again picks up where it stopped.
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, ArrowRight, Check, Copy, ExternalLink, FileBox, ImagePlus, PenTool, Plus, Trash2, Upload, Video, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, ChevronDown, Copy, ExternalLink, FileBox, ImagePlus, Mail, PenTool, Plus, RefreshCw, Trash2, Upload, Video, X } from "lucide-react";
 import VideoPlayer, { captureVideoFrame } from "../components/VideoPlayer";
 import { VideoChoice, VideoGuide } from "../components/VideoStep";
 import { JudgingBriefing, SlotNotice } from "../components/Briefing";
@@ -23,7 +25,7 @@ import { parseVideoLink } from "../shared/video";
 import Shell from "../components/Shell";
 import { Field, Progress } from "../components/fields";
 import { ApiError, api, clock, when } from "../api";
-import { countdown, forgetEntry, rememberEntry, savedEntries, useMediaQuery, useNow, usePortalStatus } from "../hooks";
+import { countdown, forgetEntry, rememberEntry, savedEntries, useNow, usePortalStatus } from "../hooks";
 import { SLOTS, checkFile, extOf, formatBytes, isViewable, type FileSlot } from "../shared/formats";
 import {
   GRADES,
@@ -44,6 +46,7 @@ import {
 import { uploadFile } from "../upload";
 import { CAD_LINK_HINT, UNITS, formatMeasure, hasSpec, specCheck, type Measure, type Spec, type Units } from "../shared/checks";
 import ModelViewer, { type CaptureFn, type ModelSource } from "../viewer/ModelViewer";
+import "../submit.css";
 
 type Item = { kind: "existing"; view: FileView } | { kind: "new"; key: string; file: File; progress: number; error?: string };
 
@@ -61,15 +64,19 @@ const newKey = () => Math.random().toString(36).slice(2);
 
 // ── Steps ─────────────────────────────────────
 
-type Step = 0 | 1 | 2;
-const STEP_NAMES = ["Team", "Design", "Check & submit"] as const;
-const LAST: Step = 2;
+type Step = 0 | 1 | 2 | 3 | 4;
+const STEPS: Step[] = [0, 1, 2, 3, 4];
+const STEP_NAMES = ["Entry", "Team", "Design", "Files", "Submit"] as const;
+const LAST: Step = 4;
+const REVIEW_FIELDS = ["aiUse", "aiNote", "original", "filesNote", "credit", "shareable"];
 
 /** Which step shows a field (and so which step an error sends the team back to). */
 function stepOf(field: string): Step {
-  if (field === "code" || field === "teamName" || field === "contactEmail" || field.startsWith("members")) return 0;
-  if (field === "aiNote" || field === "original" || field === "filesNote" || field === "credit" || field === "shareable") return 2;
-  return 1;
+  if (field === "code" || field === "teamName") return 0;
+  if (field === "contactEmail" || field.startsWith("members")) return 1;
+  if (field === "title" || field === "summary" || field === "software" || field === "softwareOther") return 2;
+  if (REVIEW_FIELDS.includes(field)) return 4;
+  return 3;
 }
 
 const CODE_NEEDED = "Enter the code from the screen at the front of the room.";
@@ -118,7 +125,7 @@ function editKeyFor(id: string | undefined, hash: string): string {
   return savedEntries().find((s) => s.id === id)?.key ?? "";
 }
 
-const asStep = (n: unknown): Step => (n === 1 || n === 2 ? n : 0);
+const asStep = (n: unknown): Step => (n === 1 || n === 2 || n === 3 || n === 4 ? n : 0);
 
 export default function SubmitPage() {
   const { id: routeId } = useParams();
@@ -153,13 +160,11 @@ export default function SubmitPage() {
   const [reached, setReached] = useState<Step>(step);
   const captureRef = useRef<CaptureFn | null>(null);
   const savedAxis = useRef<"y" | "z">("y");
-  const stepsRef = useRef<HTMLElement>(null);
   const stepHeadingRef = useRef<HTMLHeadingElement>(null);
   /** The next step change should scroll to the first error, not the top. */
   const errorScroll = useRef(false);
 
   const isEdit = !!entryId;
-  const wide = useMediaQuery("(min-width: 1024px)");
 
   useEffect(() => {
     if (entryId) return;
@@ -305,13 +310,13 @@ export default function SubmitPage() {
   const neededIn = (s: Step) => Object.fromEntries(Object.entries(needed).filter(([k, v]) => v && stepOf(k) === s)) as FieldErrors;
   const stepOk = (s: Step) => Object.keys(neededIn(s)).length === 0;
 
-  // The extras open by themselves once they hold something.
+  // "Add more" opens by itself once it holds something (or has an error).
   const hasExtras =
-    files.video.length + files.model.length + files.progress.length + files.source.length > 0 ||
+    files.video.length + files.progress.length + files.source.length > 0 ||
     !!form.videoLink ||
     !!form.cadLink ||
     !!form.process ||
-    !!(errors.video || errors.videoLink || errors.model || errors.cadLink || errors.progress || errors.source || errors.process);
+    !!(errors.video || errors.videoLink || errors.cadLink || errors.progress || errors.source || errors.process);
   // The first picture: the entry's cover.
   const firstImage = files.image[0];
   const [coverUrl, setCoverUrl] = useState<string | null>(null);
@@ -328,6 +333,9 @@ export default function SubmitPage() {
     requestAnimationFrame(() =>
       requestAnimationFrame(() => {
         const el = document.querySelector<HTMLElement>("[data-field-error]");
+        // An error inside a closed disclosure: open it first.
+        const box = el?.closest("details");
+        if (box && !box.open) box.open = true;
         el?.scrollIntoView({ block: "center", behavior: "smooth" });
         el?.querySelector<HTMLElement>("input:not([type=hidden]), textarea, select")?.focus({ preventScroll: true });
       }),
@@ -380,7 +388,7 @@ export default function SubmitPage() {
     setReached((r) => (target > r ? target : r));
   }
 
-  // A new step: focus its heading and bring the stepper into view.
+  // A new step: focus its heading and start at the top.
   const firstStep = useRef(true);
   useEffect(() => {
     if (firstStep.current) {
@@ -388,18 +396,19 @@ export default function SubmitPage() {
       return;
     }
     stepHeadingRef.current?.focus({ preventScroll: true });
+    // The "we kept what you typed" note has done its job once the team moves on.
+    setRestored(false);
     if (errorScroll.current) {
       errorScroll.current = false;
       revealError();
     } else {
-      const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-      stepsRef.current?.scrollIntoView({ block: "start", behavior: reduce ? "auto" : "smooth" });
+      window.scrollTo({ top: 0 });
     }
   }, [step]);
 
   function onSubmit(ev: FormEvent) {
     ev.preventDefault();
-    // Enter (or the main button) on steps 1 and 2 of a new entry means Next.
+    // Enter (or the main button) before the last step of a new entry means Next.
     if (step < LAST && !submitted) void goTo((step + 1) as Step);
     else void save("submit");
   }
@@ -429,6 +438,9 @@ export default function SubmitPage() {
     // Only the chosen kind of video goes: a link replaces an upload and vice versa.
     if (videoMode === "upload") parsed.value.videoLink = "";
     const dropVideoFile = videoMode === "link" ? files.video.filter((x) => x.kind === "existing").map((x) => (x as Extract<Item, { kind: "existing" }>).view.id) : [];
+    // The preview only measures while it's on screen: when it hasn't this
+    // time, keep the saved measurement (unless the model is gone).
+    const measureToSend = measure ?? (modelItem ? undefined : null);
 
     let id = entryId;
     let key = editKey;
@@ -450,7 +462,7 @@ export default function SubmitPage() {
       } else if (finishingNow) {
         // Past the deadline, finishing an on-time Submit: details can't change, so go straight to the files.
       } else {
-        const res = await api<{ entry: OwnEntry }>(`/entries/${id}`, { method: "PUT", body: { entry: parsed.value, draft, measure }, editKey: key });
+        const res = await api<{ entry: OwnEntry }>(`/entries/${id}`, { method: "PUT", body: { entry: parsed.value, draft, measure: measureToSend }, editKey: key });
         setSaved(res.entry);
         rememberEntry({ id, key, title: parsed.value.title, at: new Date().toISOString() });
       }
@@ -612,16 +624,15 @@ export default function SubmitPage() {
   }
 
   const until = deadline ? clock(status?.deadline) : "";
-  const lastName = submitted ? "Check & save" : STEP_NAMES[LAST];
-  const stepName = (s: Step) => (s === LAST ? lastName : STEP_NAMES[s]);
   const shownStepErrors = Object.entries(errors).some(([k, v]) => v && stepOf(k) === step);
   const uploading = (Object.keys(files) as (keyof Files)[])
     .filter((slot) => slot !== "video" || videoMode === "upload")
     .flatMap((slot) => files[slot].filter((x): x is Extract<Item, { kind: "new" }> => x.kind === "new"));
+  const showUploads = step === LAST && uploading.length > 0 && (!!busy || uploading.some((u) => u.progress > 0 || u.error));
 
-  // The model viewer: beside the form on wide screens; in the design step (and
-  // on the review when there's no picture) on phones. Only one is ever mounted,
-  // so the thumbnail capture has one canvas.
+  // The model viewer: on the Files step, and on the review when there's no
+  // picture (its still becomes the cover). Only one is ever mounted, so the
+  // thumbnail capture has one canvas.
   const viewer = modelItem ? (
     <ModelViewer
       source={modelSource}
@@ -633,507 +644,560 @@ export default function SubmitPage() {
       spec={status?.spec ?? null}
       captureRef={captureRef}
       label="Preview of your model"
-      className="aspect-[4/3] w-full"
+      className="sf-viewer w-full"
       empty={<PreviewEmpty />}
     />
   ) : null;
 
-  const missing = <span className="text-[hsl(6_90%_66%)]">Missing</span>;
+  const missing = <span className="sf-missing">Missing</span>;
+  // Finishing an on-time Submit after the deadline: only files can still go up.
+  const finishing = finishingNow && pastDeadline;
+  const titles: Record<Step, string> = {
+    0: isEdit ? "Your team name" : "Start your entry",
+    1: "Who's on the team?",
+    2: "About your design",
+    3: "Add your files",
+    4: submitted ? "Check and save" : "Check and submit",
+  };
+  const subs: Record<Step, ReactNode> = {
+    0: null,
+    1: `1 to ${TEAM_MAX} people, as registered.`,
+    2: "What judges read before you present.",
+    3: "At least one picture, or your 3D model.",
+    4: isEdit ? (submitted ? `Submitted at ${clock(saved?.submittedAt)}. You can change it until ${until || "submissions close"}.` : finishing ? null : "Not submitted yet.") : null,
+  };
+  const softwareLine = form.software.map((s) => (s === "Other" && form.softwareOther ? form.softwareOther : s)).join(", ");
+  const filesLine = [
+    files.image.length && `${files.image.length} ${files.image.length === 1 ? "picture" : "pictures"}`,
+    modelItem && "3D model",
+    hasVideoNow && (videoMode === "link" ? "video link" : "video"),
+    files.progress.length && `${files.progress.length} progress ${files.progress.length === 1 ? "shot" : "shots"}`,
+    files.source.length && "project file",
+    form.cadLink && "CAD link",
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  const firstMember = form.members[0];
+  const membersLine =
+    form.members.length === 1
+      ? firstMember?.name
+        ? `${firstMember.name}, Gr ${firstMember.grade}${firstMember.school ? `, ${firstMember.school}` : ""}`
+        : ""
+      : form.members.map((m) => m.name || "?").join(", ");
 
   return (
     <Shell section={isEdit ? "Edit your entry" : "Submit your design"}>
-      {status && (
-        <DeadlineBar
-          deadline={status.deadline}
-          now={now}
-          closed={isEdit ? (saved ? locked : undefined) : !status.open || pastDeadline}
-          reopened={isEdit && !!saved?.unlocked && !locked}
-        />
-      )}
-      {status?.devDefaults && (
-        <p className="p-notice p-notice--calm mt-6 font-body text-sm">
-          Local preview.{codeRequired ? <> Entry code <span className="p-mono text-ember">MDC-DEMO</span>.</> : " No entry code needed."} Files are saved on this computer only.
-        </p>
-      )}
+      <div className="sf">
+        {status && (
+          <DeadlineBar
+            deadline={status.deadline}
+            now={now}
+            closed={isEdit ? (saved ? locked : undefined) : !status.open || pastDeadline}
+            reopened={isEdit && !!saved?.unlocked && !locked}
+            wide={step === 3 && !!modelItem}
+          />
+        )}
+        <form onSubmit={onSubmit} noValidate className="sf-form">
+          <div className="sf-body">
+            <div className="sf-wrap" data-wide={step === 3 && modelItem ? "true" : undefined}>
+              <h1 className="sr-only">{isEdit ? form.title || "Your entry" : "Submit your design"}</h1>
 
-      <div className="grid gap-x-12 pt-8 md:pt-12 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.8fr)]">
-        <div className="min-w-0">
-          <h1 className="display-scene">{isEdit ? form.title || "Your entry" : "Submit your design"}</h1>
-          <p className="mt-3 max-w-[36rem] font-body text-[17px] leading-relaxed text-foreground/75">
-            {isEdit
-              ? submitted
-                ? `Submitted at ${clock(saved?.submittedAt)}. You can change it until ${until || "submissions close"}.`
-                : "Not submitted yet. Finish the steps and press Submit entry."
-              : `Three short steps. Keep it brief: judges hear the rest when you present.${until ? ` Press Submit entry before ${until}; a big file can finish uploading after.` : ""}`}
-          </p>
-          {saved?.slot && <SlotNotice slot={saved.slot} />}
-          {restored && !isEdit && (
-            <p className="p-notice p-notice--calm mt-5 max-w-[36rem] font-body text-sm">
-              We kept what you typed on this device. Pick your files again if you'd added any.{" "}
-              <button type="button" className="p-link focus-ember" onClick={startOver}>
-                Start a fresh entry
-              </button>
-            </p>
-          )}
-          {!isEdit && step === 0 && <SavedList />}
-          {finishingNow && pastDeadline && (
-            <p className="p-notice mt-5 font-body" role="status">
-              You pressed Submit before the deadline, so you can still finish: press Submit entry again to upload your files, before{" "}
-              {clock(saved?.finishingUntil)}. Your details can't change now.
-            </p>
-          )}
-          {locked &&
-            (saved?.status === "draft" ? (
-              <p className="p-notice mt-5 font-body" role="alert">
-                Submissions closed before this entry was submitted, so judges won't see it. Find an organizer right away.
-              </p>
-            ) : (
-              <p className="p-notice mt-5 font-body">Submissions are closed, so this entry can't be changed. Judges can see it as it is.</p>
-            ))}
+              <nav aria-label="Steps" className="sf-steps">
+                <ol>
+                  {STEPS.map((s) => {
+                    const state = s === step ? "current" : stepOk(s) && (isEdit || s < reached) ? "done" : s < step ? "visited" : "todo";
+                    return (
+                      <li key={s}>
+                        <button type="button" className="sf-step focus-ember" data-state={state} aria-current={s === step ? "step" : undefined} onClick={() => void goTo(s)}>
+                          <span className="sf-step-bar" aria-hidden="true" />
+                          <span className="sf-step-name">
+                            <span className="sr-only">Step {s + 1}: </span>
+                            {s === LAST && submitted ? "Save" : STEP_NAMES[s]}
+                            {state === "done" && <span className="sr-only"> (complete)</span>}
+                          </span>
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ol>
+              </nav>
 
-          <nav ref={stepsRef} aria-label="Steps" className="mt-8 scroll-mt-36">
-            <ol className="p-steps">
-              {([0, 1, 2] as Step[]).map((s) => {
-                const state = s === step ? "current" : stepOk(s) && (isEdit || s < reached) ? "done" : "todo";
-                return (
-                  <li key={s} data-state={state}>
-                    <button type="button" className="p-step focus-ember" data-state={state} aria-current={s === step ? "step" : undefined} onClick={() => void goTo(s)}>
-                      <span className="p-step-num" aria-hidden="true">
-                        {state === "done" ? <Check size={14} strokeWidth={2.5} /> : s + 1}
-                      </span>
-                      <span className="p-step-name">
-                        <span className="sr-only">Step {s + 1}: </span>
-                        {stepName(s)}
-                        {state === "done" && <span className="sr-only"> (complete)</span>}
-                      </span>
-                    </button>
-                  </li>
-                );
-              })}
-            </ol>
-          </nav>
-
-          <form onSubmit={onSubmit} noValidate className="mt-2">
-            <fieldset disabled={locked || !!busy} className="min-w-0">
-              <section aria-labelledby="step-h" className="flex flex-col gap-6 pt-6">
-                <div>
-                  <h2 id="step-h" ref={stepHeadingRef} tabIndex={-1} className="p-step-title focus:outline-none">
-                    {step === 0 ? "Your team" : step === 1 ? "Your design" : submitted ? "Check and save" : "Check and submit"}
-                  </h2>
-                  <p className="p-hint mt-1">
-                    {step === 0
-                      ? `1 to ${TEAM_MAX} people, as registered.`
-                      : step === 1
-                        ? "What judges look at before you present."
-                        : submitted
-                          ? "A last look, then save your changes."
-                          : "A last look, two questions, then send it in."}
+              {status?.devDefaults && step === 0 && (
+                <p className="sf-note">
+                  Local preview.{codeRequired ? <> Entry code <span className="p-mono text-ember">MDC-DEMO</span>.</> : " No entry code needed."} Files stay on this computer.
+                </p>
+              )}
+              {restored && !isEdit && (
+                <p className="sf-note">
+                  We kept what you typed here. Pick your files again if you'd added any.{" "}
+                  <button type="button" className="p-link focus-ember" onClick={startOver}>
+                    Start fresh
+                  </button>
+                </p>
+              )}
+              {finishing && (
+                <p className="p-notice sf-alert font-body" role="status">
+                  You pressed Submit before the deadline, so you can still finish: press Submit entry again to upload your files, before {clock(saved?.finishingUntil)}. Your details
+                  can't change now.
+                </p>
+              )}
+              {locked &&
+                (saved?.status === "draft" ? (
+                  <p className="p-notice p-notice--bad sf-alert font-body" role="alert">
+                    Submissions closed before this entry was submitted, so judges won't see it. Find an organizer right away.
                   </p>
-                </div>
+                ) : (
+                  <p className="p-notice sf-alert font-body">Submissions are closed, so this entry can't be changed. Judges can see it as it is.</p>
+                ))}
 
-                {/* ── Step 1: Team ── */}
-                {step === 0 && (
-                  <>
-                    {!isEdit && codeRequired && (
-                      <Field label="Entry code" hint="On the screen at the front of the room." error={errors.code}>
-                        {(p) => (
-                          <input
-                            {...p}
-                            className="p-input p-mono max-w-[16rem] uppercase tracking-[0.08em]"
-                            autoComplete="off"
-                            autoCapitalize="characters"
-                            spellCheck={false}
-                            value={code}
-                            onChange={(e) => {
-                              setCode(e.target.value);
-                              setErrors((x) => ({ ...x, code: undefined }));
-                            }}
-                          />
-                        )}
-                      </Field>
-                    )}
-                    <Field label="Team name" hint="Judges find your entry by this name: use the one you registered with." error={errors.teamName} counter={{ value: form.teamName.length, max: LIMITS.teamName }}>
-                      {(p) => <input {...p} className="p-input" autoComplete="off" value={form.teamName} maxLength={LIMITS.teamName + 10} onChange={(e) => set("teamName", e.target.value)} />}
-                    </Field>
-                    {form.members.map((m, i) => (
-                      <fieldset key={i} className="relative border-l border-bone/10 pl-4">
-                        <legend className="p-label float-left mb-3 w-full leading-9">Member {i + 1}</legend>
-                        {form.members.length > 1 && (
-                          <button
-                            type="button"
-                            className="btn-ghost p-btn p-btn-sm absolute right-0 top-0 border-transparent text-concrete hover:text-foreground"
-                            aria-label={`Remove ${m.name || `member ${i + 1}`}`}
-                            onClick={() => set("members", form.members.filter((_, j) => j !== i))}
-                          >
-                            <X size={15} strokeWidth={1.5} /> Remove
-                          </button>
-                        )}
-                        <div className="clear-left grid grid-cols-[minmax(0,1fr)_5.5rem] gap-4 sm:grid-cols-[minmax(0,1.2fr)_minmax(0,1.3fr)_6rem] sm:items-start">
-                          <div className="col-span-2 sm:col-span-1">
-                            <Field label="Full name" error={errors[`members.${i}.name`]}>
-                              {(p) => <input {...p} className="p-input" autoComplete={i === 0 ? "name" : "off"} value={m.name} onChange={(e) => setMember(i, { name: e.target.value })} />}
-                            </Field>
-                          </div>
-                          <Field label="School" error={errors[`members.${i}.school`]}>
-                            {(p) => <input {...p} className="p-input" value={m.school} onChange={(e) => setMember(i, { school: e.target.value })} />}
-                          </Field>
-                          <Field label="Grade" error={errors[`members.${i}.grade`]}>
-                            {(p) => (
-                              <select {...p} className="p-select" value={m.grade} onChange={(e) => setMember(i, { grade: e.target.value as (typeof GRADES)[number] })}>
-                                {GRADES.map((g) => (
-                                  <option key={g} value={g}>
-                                    {g}
-                                  </option>
-                                ))}
-                              </select>
-                            )}
-                          </Field>
-                        </div>
-                      </fieldset>
-                    ))}
-                    {errors.members && (
-                      <p className="p-error" data-field-error="true">
-                        {errors.members}
-                      </p>
-                    )}
-                    {form.members.length < TEAM_MAX && (
-                      <button
-                        type="button"
-                        className="btn-ghost p-btn p-btn-sm self-start"
-                        onClick={() => set("members", [...form.members, { name: "", school: form.members[0]?.school ?? "", grade: form.members[0]?.grade ?? "10" }])}
-                      >
-                        <Plus size={15} strokeWidth={1.5} /> Add a team member
-                      </button>
-                    )}
-                    <Field label="Contact email" hint="For prizes. Never shown publicly." error={errors.contactEmail}>
-                      {(p) => <input {...p} type="email" className="p-input" autoComplete="email" inputMode="email" value={form.contactEmail} onChange={(e) => set("contactEmail", e.target.value)} />}
-                    </Field>
-                  </>
-                )}
+              <fieldset disabled={locked || !!busy} className="min-w-0">
+                <section key={step} aria-labelledby="step-h" className="sf-step-body" data-step={step}>
+                  <div className="sf-head">
+                    <h2 id="step-h" ref={stepHeadingRef} tabIndex={-1} className="sf-title focus:outline-none">
+                      {titles[step]}
+                    </h2>
+                    {subs[step] && <p className="sf-sub">{subs[step]}</p>}
+                  </div>
 
-                {/* ── Step 2: Design ── */}
-                {step === 1 && (
-                  <>
-                    <Field label="Title" error={errors.title} counter={{ value: form.title.length, max: LIMITS.title }}>
-                      {(p) => <input {...p} className="p-input" value={form.title} maxLength={LIMITS.title + 20} onChange={(e) => set("title", e.target.value)} />}
-                    </Field>
-                    <Field
-                      label="What you made and how it fits the theme"
-                      hint="Two or three sentences."
-                      error={errors.summary}
-                      counter={{ value: wordCount(form.summary), max: WORDS.summary, unit: "words" }}
-                    >
-                      {(p) => <textarea {...p} className="p-textarea min-h-[6rem]" value={form.summary} onChange={(e) => set("summary", e.target.value)} />}
-                    </Field>
-                    <fieldset data-field-error={errors.software ? "true" : undefined}>
-                      <legend className="p-label">Software you used</legend>
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        {SOFTWARE.map((s) => (
-                          <label key={s} className="p-chip">
+                  {/* ── 1 Entry ── */}
+                  {step === 0 && (
+                    <>
+                      {!isEdit && codeRequired && (
+                        <Field label="Entry code" hint="It's on the screen at the front of the room." error={errors.code}>
+                          {(p) => (
                             <input
-                              type="checkbox"
-                              className="sr-only"
-                              checked={form.software.includes(s)}
-                              onChange={(e) => set("software", e.target.checked ? [...form.software, s] : form.software.filter((x) => x !== s))}
+                              {...p}
+                              className="p-input sf-input-lg p-mono max-w-[16rem] uppercase tracking-[0.08em]"
+                              autoComplete="off"
+                              autoCapitalize="characters"
+                              spellCheck={false}
+                              value={code}
+                              onChange={(e) => {
+                                setCode(e.target.value);
+                                setErrors((x) => ({ ...x, code: undefined }));
+                              }}
                             />
-                            {form.software.includes(s) && <Check size={14} strokeWidth={2} aria-hidden="true" />}
-                            {s}
-                          </label>
+                          )}
+                        </Field>
+                      )}
+                      <Field label="What's your team called?" hint="Judges find you by this name." error={errors.teamName} counter={{ value: form.teamName.length, max: LIMITS.teamName }}>
+                        {(p) => <input {...p} className="p-input sf-input-lg" autoComplete="off" value={form.teamName} maxLength={LIMITS.teamName + 10} onChange={(e) => set("teamName", e.target.value)} />}
+                      </Field>
+                      {!isEdit && <SavedList compact />}
+                    </>
+                  )}
+
+                  {/* ── 2 Team ── */}
+                  {step === 1 && (
+                    <>
+                      <div className="flex flex-col gap-4">
+                        {form.members.map((m, i) => (
+                          <fieldset key={i} className="sf-member">
+                            <legend className="sf-member-h">
+                              <span>Member {i + 1}</span>
+                              {form.members.length > 1 && (
+                                <button
+                                  type="button"
+                                  className="sf-textbtn focus-ember"
+                                  aria-label={`Remove ${m.name || `member ${i + 1}`}`}
+                                  onClick={() => set("members", form.members.filter((_, j) => j !== i))}
+                                >
+                                  <X size={14} strokeWidth={1.6} aria-hidden="true" /> Remove
+                                </button>
+                              )}
+                            </legend>
+                            <div className="sf-member-grid">
+                              <div className="sf-member-name">
+                                <Field label="Full name" error={errors[`members.${i}.name`]}>
+                                  {(p) => <input {...p} className="p-input" autoComplete={i === 0 ? "name" : "off"} value={m.name} onChange={(e) => setMember(i, { name: e.target.value })} />}
+                                </Field>
+                              </div>
+                              <Field label="School" error={errors[`members.${i}.school`]}>
+                                {(p) => <input {...p} className="p-input" value={m.school} onChange={(e) => setMember(i, { school: e.target.value })} />}
+                              </Field>
+                              <Field label="Grade" error={errors[`members.${i}.grade`]}>
+                                {(p) => (
+                                  <select {...p} className="p-select" value={m.grade} onChange={(e) => setMember(i, { grade: e.target.value as (typeof GRADES)[number] })}>
+                                    {GRADES.map((g) => (
+                                      <option key={g} value={g}>
+                                        {g}
+                                      </option>
+                                    ))}
+                                  </select>
+                                )}
+                              </Field>
+                            </div>
+                          </fieldset>
                         ))}
                       </div>
-                      {errors.software && <p className="p-error">{errors.software}</p>}
-                    </fieldset>
-                    {form.software.includes("Other") && (
-                      <Field label="Other software" error={errors.softwareOther}>
-                        {(p) => <input {...p} className="p-input max-w-[22rem]" value={form.softwareOther} onChange={(e) => set("softwareOther", e.target.value)} />}
+                      {errors.members && (
+                        <p className="p-error" data-field-error="true">
+                          {errors.members}
+                        </p>
+                      )}
+                      {form.members.length < TEAM_MAX && (
+                        <button
+                          type="button"
+                          className="btn-ghost p-btn p-btn-sm self-start"
+                          onClick={() => set("members", [...form.members, { name: "", school: form.members[0]?.school ?? "", grade: form.members[0]?.grade ?? "10" }])}
+                        >
+                          <Plus size={15} strokeWidth={1.5} aria-hidden="true" /> Add a teammate
+                        </button>
+                      )}
+                      <Field label="Contact email" hint="For prizes. Never shown publicly." error={errors.contactEmail}>
+                        {(p) => <input {...p} type="email" className="p-input" autoComplete="email" inputMode="email" value={form.contactEmail} onChange={(e) => set("contactEmail", e.target.value)} />}
                       </Field>
-                    )}
-                    <FilePicker
-                      slot="image"
-                      label="Pictures of your design"
-                      hint="Up to 4 renders or screenshots (PNG, JPG, WebP). The first is your cover. No picture? Add a video or 3D model below."
-                      items={files.image}
-                      error={errors.image ?? errors.visuals}
-                      onAdd={(l) => addFiles("image", l)}
-                      onRemove={(it) => removeItem("image", it)}
-                      icon={<ImagePlus size={20} strokeWidth={1.4} />}
-                      multiple
-                    />
+                    </>
+                  )}
 
-                    <details className="group" open={hasExtras || undefined}>
-                      <summary className="focus-ember flex cursor-pointer list-none items-center gap-2 font-body text-[15px] text-foreground/90 marker:hidden">
-                        <Plus size={15} strokeWidth={1.6} className="shrink-0 text-ember transition-transform group-open:rotate-45" aria-hidden="true" />
-                        <span>
-                          Add more: video, 3D model, CAD link, project file <span className="text-concrete">optional</span>
-                        </span>
-                      </summary>
-                      <div className="mt-6 flex flex-col gap-7 border-l border-bone/10 pl-4">
-                        <div className="flex flex-col gap-4">
-                          <p className="p-label">
-                            Video <span className="ml-1.5 font-normal text-concrete">optional</span>
-                          </p>
-                          <p className="p-hint -mt-3">A short screen recording or turntable. Shown on your entry's page.</p>
-                          <VideoChoice
-                            mode={videoMode}
-                            onMode={(m) => {
-                              setVideoMode(m);
-                              setErrors((x) => ({ ...x, video: undefined, videoLink: undefined }));
-                            }}
-                            link={form.videoLink}
-                            onLink={(v) => set("videoLink", v)}
-                            error={errors.video ?? errors.videoLink}
-                            savedCheck={saved && saved.videoLink === form.videoLink ? saved.videoCheck : null}
-                            upload={
-                              <FilePicker
-                                slot="video"
-                                label="Video file"
-                                hint="MP4, MOV or WebM, up to 150 MB. Bigger? Use a YouTube (Unlisted) or Drive link."
-                                items={files.video}
-                                error={errors.video}
-                                onAdd={(l) => addFiles("video", l)}
-                                onRemove={(it) => removeItem("video", it)}
-                                icon={<Video size={20} strokeWidth={1.4} />}
+                  {/* ── 3 Design ── */}
+                  {step === 2 && (
+                    <>
+                      <Field label="Title" error={errors.title} counter={{ value: form.title.length, max: LIMITS.title }}>
+                        {(p) => <input {...p} className="p-input sf-input-lg" value={form.title} maxLength={LIMITS.title + 20} onChange={(e) => set("title", e.target.value)} />}
+                      </Field>
+                      <Field
+                        label="What did you make?"
+                        hint="A sentence or two: what it is and how it fits the theme."
+                        error={errors.summary}
+                        counter={{ value: wordCount(form.summary), max: WORDS.summary, unit: "words" }}
+                      >
+                        {(p) => <textarea {...p} rows={3} className="p-textarea sf-textarea" value={form.summary} onChange={(e) => set("summary", e.target.value)} />}
+                      </Field>
+                      <fieldset data-field-error={errors.software ? "true" : undefined}>
+                        <legend className="p-label">Software you used</legend>
+                        <div className="sf-chips">
+                          {SOFTWARE.map((s) => (
+                            <label key={s} className="p-chip">
+                              <input
+                                type="checkbox"
+                                className="sr-only"
+                                checked={form.software.includes(s)}
+                                onChange={(e) => set("software", e.target.checked ? [...form.software, s] : form.software.filter((x) => x !== s))}
                               />
-                            }
-                          />
-                          <VideoGuide />
-                          {!wide && (videoLocalUrl || linkedPreview) && <VideoPlayer title={form.title || "Your video"} link={linkedPreview} localUrl={videoLocalUrl} />}
+                              {form.software.includes(s) && <Check size={14} strokeWidth={2} aria-hidden="true" />}
+                              {s}
+                            </label>
+                          ))}
                         </div>
+                        {errors.software && <p className="p-error">{errors.software}</p>}
+                      </fieldset>
+                      {form.software.includes("Other") && (
+                        <Field label="Other software" error={errors.softwareOther}>
+                          {(p) => <input {...p} className="p-input max-w-[22rem]" value={form.softwareOther} onChange={(e) => set("softwareOther", e.target.value)} />}
+                        </Field>
+                      )}
+                    </>
+                  )}
 
-                        {!wide && viewer}
+                  {/* ── 4 Files ── */}
+                  {step === 3 && (
+                    <div className="sf-files">
+                      <div className="sf-files-pics">
+                        <FilePicker
+                          slot="image"
+                          label="Pictures"
+                          ariaName="pictures of your design"
+                          hint="Renders or screenshots (PNG, JPG, WebP). The first is your cover."
+                          items={files.image}
+                          error={errors.image ?? errors.visuals}
+                          onAdd={(l) => addFiles("image", l)}
+                          onRemove={(it) => removeItem("image", it)}
+                          icon={<ImagePlus size={22} strokeWidth={1.4} />}
+                          cta="Add pictures"
+                          tiles
+                          multiple
+                        />
+                      </div>
+                      <div className="sf-files-model">
                         <FilePicker
                           slot="model"
                           label="3D model"
-                          optional
-                          hint="GLB, STL, OBJ, 3MF or PLY, up to 250 MB. GLB keeps colours and materials."
+                          ariaName="3D model"
+                          hint="GLB, STL, OBJ, 3MF or PLY, up to 250 MB."
                           items={files.model}
                           error={errors.model}
                           onAdd={(l) => addFiles("model", l)}
                           onRemove={(it) => removeItem("model", it)}
-                          icon={<FileBox size={20} strokeWidth={1.4} />}
+                          icon={<FileBox size={22} strokeWidth={1.4} />}
+                          cta="Add your model"
                         />
-                        {modelItem && <ModelChecks units={form.units} onUnits={(u) => set("units", u)} measure={measure} spec={status?.spec ?? null} hasModel={!!modelItem} />}
-                        <Field label="Link to your CAD document" optional hint={`View-only share link (${CAD_LINK_HINT}).`} error={errors.cadLink}>
-                          {(p) => <input {...p} type="url" inputMode="url" className="p-input" placeholder="https://cad.onshape.com/documents/…" value={form.cadLink} onChange={(e) => set("cadLink", e.target.value)} />}
-                        </Field>
-                        <FilePicker
-                          slot="progress"
-                          label="Sketches and progress shots"
-                          optional
-                          hint="Each is timestamped when it uploads, so press Save draft as you go."
-                          items={files.progress}
-                          error={errors.progress}
-                          onAdd={(l) => addFiles("progress", l)}
-                          onRemove={(it) => removeItem("progress", it)}
-                          icon={<PenTool size={20} strokeWidth={1.4} />}
-                          multiple
-                        />
-                        <FilePicker
-                          slot="source"
-                          label="Project file"
-                          optional
-                          hint="The file you modelled in (.f3d, .blend, .step…), up to 250 MB. Only judges can download it."
-                          items={files.source}
-                          error={errors.source}
-                          onAdd={(l) => addFiles("source", l)}
-                          onRemove={(it) => removeItem("source", it)}
-                          icon={<Upload size={20} strokeWidth={1.4} />}
-                        />
-                        <Field
-                          label="Anything else for the judges"
-                          optional
-                          hint="A detail you're proud of, or how it would be made."
-                          error={errors.process}
-                          counter={{ value: wordCount(form.process), max: WORDS.process, unit: "words" }}
-                        >
-                          {(p) => <textarea {...p} className="p-textarea min-h-[5rem]" value={form.process} onChange={(e) => set("process", e.target.value)} />}
-                        </Field>
                       </div>
-                    </details>
-                  </>
-                )}
+                      {viewer && <div className="sf-files-preview">{viewer}</div>}
 
-                {/* ── Step 3: Check & submit ── */}
-                {step === LAST && (
-                  <>
-                    <div className="p-review">
-                      <ReviewGroup title="Team" ok={stepOk(0)} onEdit={() => void goTo(0)} locked={locked}>
-                        <ReviewRow label="Team name">{form.teamName || missing}</ReviewRow>
-                        <ReviewRow label={form.members.length > 1 ? "Members" : "Member"}>
-                          {form.members.some((m) => m.name)
-                            ? form.members.map((m, i) => (
-                                <span key={i} className="block">
-                                  {m.name || missing}
-                                  <span className="text-concrete">
-                                    {" "}
-                                    · Gr {m.grade}
-                                    {m.school ? ` · ${m.school}` : ""}
-                                  </span>
-                                </span>
-                              ))
-                            : missing}
-                        </ReviewRow>
-                        <ReviewRow label="Email">{form.contactEmail ? <span className="break-all">{form.contactEmail}</span> : missing}</ReviewRow>
-                        {!isEdit && codeRequired && <ReviewRow label="Entry code">{code.trim() ? <span className="p-mono uppercase">{code.trim()}</span> : missing}</ReviewRow>}
-                      </ReviewGroup>
-                      <ReviewGroup title="Design" ok={stepOk(1)} onEdit={() => void goTo(1)} locked={locked}>
-                        <ReviewRow label="Title">{form.title || missing}</ReviewRow>
-                        <ReviewRow label="About">{needed.summary ? missing : <span className="line-clamp-3">{form.summary}</span>}</ReviewRow>
-                        <ReviewRow label="Software">
-                          {form.software.length ? form.software.map((s) => (s === "Other" && form.softwareOther ? form.softwareOther : s)).join(", ") : missing}
-                        </ReviewRow>
-                        <ReviewRow label="Files">
-                          {hasVisual || files.progress.length || files.source.length ? (
-                            [
-                              files.image.length && `${files.image.length} ${files.image.length === 1 ? "picture" : "pictures"}`,
-                              modelItem && "3D model",
-                              hasVideoNow && (videoMode === "link" ? "video link" : "video"),
-                              files.progress.length && `${files.progress.length} progress ${files.progress.length === 1 ? "shot" : "shots"}`,
-                              files.source.length && "project file",
-                              form.cadLink && "CAD link",
-                            ]
-                              .filter(Boolean)
-                              .join(" · ")
-                          ) : (
-                            missing
-                          )}
-                        </ReviewRow>
-                      </ReviewGroup>
-                      {!wide && (coverUrl ? <img src={coverUrl} alt="Your cover picture" className="aspect-video w-full rounded-[2px] border border-bone/10 bg-[#0d0e10] object-contain" /> : viewer)}
+                      <details className="sf-more sf-files-more" open={hasExtras || undefined}>
+                        <summary className="sf-more-sum focus-ember">
+                          <Plus size={16} strokeWidth={1.6} className="sf-more-icon" aria-hidden="true" />
+                          <span>
+                            Add more <span className="text-concrete">(optional)</span>
+                            <span className="sf-more-hint">Video, CAD link, sketches, project file, notes</span>
+                          </span>
+                        </summary>
+                        <div className="sf-more-body">
+                          <div className="flex flex-col gap-3">
+                            <p className="p-label">Video</p>
+                            <p className="p-hint -mt-2">A short screen recording or turntable. Shown on your entry's page.</p>
+                            <VideoChoice
+                              mode={videoMode}
+                              onMode={(m) => {
+                                setVideoMode(m);
+                                setErrors((x) => ({ ...x, video: undefined, videoLink: undefined }));
+                              }}
+                              link={form.videoLink}
+                              onLink={(v) => set("videoLink", v)}
+                              error={errors.video ?? errors.videoLink}
+                              savedCheck={saved && saved.videoLink === form.videoLink ? saved.videoCheck : null}
+                              upload={
+                                <FilePicker
+                                  slot="video"
+                                  label="Video file"
+                                  ariaName="video file"
+                                  hint="MP4, MOV or WebM, up to 150 MB. Bigger? Use a YouTube (Unlisted) or Drive link."
+                                  items={files.video}
+                                  error={errors.video}
+                                  onAdd={(l) => addFiles("video", l)}
+                                  onRemove={(it) => removeItem("video", it)}
+                                  icon={<Video size={20} strokeWidth={1.4} />}
+                                  cta="Add a video"
+                                />
+                              }
+                            />
+                            <VideoGuide />
+                            {(videoLocalUrl || linkedPreview) && <VideoPlayer title={form.title || "Your video"} link={linkedPreview} localUrl={videoLocalUrl} />}
+                          </div>
+                          {modelItem && <ModelChecks units={form.units} onUnits={(u) => set("units", u)} measure={measure} spec={status?.spec ?? null} hasModel={!!modelItem} />}
+                          <Field label="Link to your CAD document" optional hint={`View-only share link (${CAD_LINK_HINT}).`} error={errors.cadLink}>
+                            {(p) => <input {...p} type="url" inputMode="url" className="p-input" placeholder="https://cad.onshape.com/documents/…" value={form.cadLink} onChange={(e) => set("cadLink", e.target.value)} />}
+                          </Field>
+                          <FilePicker
+                            slot="progress"
+                            label="Sketches and progress shots"
+                            ariaName="sketches and progress shots"
+                            optional
+                            hint="Each is timestamped when it uploads, so press Save draft as you go."
+                            items={files.progress}
+                            error={errors.progress}
+                            onAdd={(l) => addFiles("progress", l)}
+                            onRemove={(it) => removeItem("progress", it)}
+                            icon={<PenTool size={20} strokeWidth={1.4} />}
+                            cta="Add sketches"
+                            multiple
+                          />
+                          <FilePicker
+                            slot="source"
+                            label="Project file"
+                            ariaName="project file"
+                            optional
+                            hint="The file you modelled in (.f3d, .blend, .step…), up to 250 MB. Only judges can download it."
+                            items={files.source}
+                            error={errors.source}
+                            onAdd={(l) => addFiles("source", l)}
+                            onRemove={(it) => removeItem("source", it)}
+                            icon={<Upload size={20} strokeWidth={1.4} />}
+                            cta="Add your project file"
+                          />
+                          <Field
+                            label="Anything else for the judges"
+                            optional
+                            hint="A detail you're proud of, or how it would be made."
+                            error={errors.process}
+                            counter={{ value: wordCount(form.process), max: WORDS.process, unit: "words" }}
+                          >
+                            {(p) => <textarea {...p} className="p-textarea min-h-[5rem]" value={form.process} onChange={(e) => set("process", e.target.value)} />}
+                          </Field>
+                        </div>
+                      </details>
                     </div>
+                  )}
 
-                    <fieldset>
-                      <legend className="p-label">AI tools</legend>
-                      <p className="p-hint mt-1">Fine as a helper. Pure prompt-to-3D isn't allowed.</p>
-                      <div className="p-seg mt-2" role="radiogroup">
-                        <label>
-                          <input type="radio" name="ai" className="sr-only" checked={form.aiUse === "none"} onChange={() => set("aiUse", "none")} />
-                          Didn't use any
-                        </label>
-                        <label>
-                          <input type="radio" name="ai" className="sr-only" checked={form.aiUse === "some"} onChange={() => set("aiUse", "some")} />
-                          Used some
-                        </label>
-                      </div>
-                    </fieldset>
-                    {form.aiUse === "some" && (
-                      <Field label="What did AI help with?" error={errors.aiNote} counter={{ value: wordCount(form.aiNote), max: WORDS.aiNote, unit: "words" }}>
-                        {(p) => <textarea {...p} className="p-textarea min-h-[4.5rem]" value={form.aiNote} onChange={(e) => set("aiNote", e.target.value)} />}
-                      </Field>
-                    )}
+                  {/* ── 5 Check & submit ── */}
+                  {step === LAST && (
+                    <>
+                      {saved?.slot && <SlotNotice slot={saved.slot} className="" />}
 
-                    <fieldset>
-                      <legend className="p-label">On your entry's public page, credit</legend>
-                      <div className="p-seg mt-2" role="radiogroup">
-                        <label>
-                          <input type="radio" name="credit" className="sr-only" checked={form.credit === "team"} onChange={() => set("credit", "team")} />
-                          Team name
-                        </label>
-                        <label>
-                          <input type="radio" name="credit" className="sr-only" checked={form.credit === "names"} onChange={() => set("credit", "names")} />
-                          First names
-                        </label>
-                      </div>
-                      <p className="p-hint mt-2">
-                        Shown as <span className="text-foreground">{publicCredit(form) || "your first names"}</span>. Never surnames, schools or emails.
-                      </p>
-                    </fieldset>
-                    <label className="flex cursor-pointer items-start gap-3 font-body text-[15px] text-foreground/85">
-                      <input type="checkbox" className="mt-1 h-4 w-4 shrink-0 accent-[hsl(24_100%_54%)]" checked={form.shareable} onChange={(e) => set("shareable", e.target.checked)} />
-                      <span>
-                        Anyone with the link can see our entry
-                        <span className="p-hint block">Untick to keep it to your team and the judges. Scores are always private.</span>
-                      </span>
-                    </label>
-
-                    {saved && saved.notices.length > 0 && (
-                      <div className="p-notice font-body text-[15px]" role="status">
-                        <p className="font-medium text-foreground">Our file check noticed something judges will ask about:</p>
-                        <ul className="mt-2 list-disc pl-5 text-foreground/85">
-                          {saved.notices.map((n, i) => (
-                            <li key={i}>{n}</li>
+                      {/* Uploads run while the team is on the review: shown first, where they can't be missed. */}
+                      {showUploads && (
+                        <ul className="sf-uploads" aria-label="Uploads">
+                          {uploading.map((u) => (
+                            <li key={u.key}>
+                              <p className="flex justify-between gap-3 font-body text-sm">
+                                <span className="truncate">{u.file.name}</span>
+                                <span className="p-mono shrink-0 text-concrete">{u.error ? "failed" : u.progress > 0 ? `${Math.round(u.progress * 100)}%` : "waiting"}</span>
+                              </p>
+                              <Progress value={u.progress} />
+                              {u.error && <p className="p-error">{u.error}</p>}
+                            </li>
                           ))}
                         </ul>
-                        <p className="mt-2 text-sm text-foreground/70">That's not a judgement: files can carry odd metadata. If there's an explanation, add it below.</p>
+                      )}
+
+                      <ul className="sf-summary" aria-label="Your entry">
+                        <SummaryRow name="Entry" ok={stepOk(0)} onEdit={() => void goTo(0)} locked={locked || finishing}>
+                          {form.teamName || missing}
+                          {!isEdit && codeRequired && (
+                            <span className="text-concrete">
+                              {" "}
+                              · code <span className="p-mono uppercase">{code.trim() || "missing"}</span>
+                            </span>
+                          )}
+                        </SummaryRow>
+                        <SummaryRow name="Team" ok={stepOk(1)} onEdit={() => void goTo(1)} locked={locked || finishing}>
+                          {membersLine || missing}
+                          {form.contactEmail && <span className="text-concrete"> · {form.contactEmail}</span>}
+                        </SummaryRow>
+                        <SummaryRow name="Design" ok={stepOk(2)} onEdit={() => void goTo(2)} locked={locked || finishing}>
+                          {form.title || missing}
+                          {softwareLine && <span className="text-concrete"> · {softwareLine}</span>}
+                        </SummaryRow>
+                        <SummaryRow name="Files" ok={stepOk(3)} onEdit={() => void goTo(3)} locked={locked} thumb={coverUrl}>
+                          {filesLine || missing}
+                        </SummaryRow>
+                      </ul>
+                      {!coverUrl && viewer && <div className="sf-review-viewer">{viewer}</div>}
+
+                      <fieldset>
+                        <legend className="p-label">Did you use AI tools?</legend>
+                        <p className="p-hint mt-0.5">Fine as a helper. Pure prompt-to-3D isn't allowed.</p>
+                        <div className="p-seg mt-2" role="radiogroup" aria-label="Did you use AI tools?">
+                          <label>
+                            <input type="radio" name="ai" className="sr-only" checked={form.aiUse === "none"} onChange={() => set("aiUse", "none")} />
+                            No
+                          </label>
+                          <label>
+                            <input type="radio" name="ai" className="sr-only" checked={form.aiUse === "some"} onChange={() => set("aiUse", "some")} />
+                            Yes, some
+                          </label>
+                        </div>
+                      </fieldset>
+                      {form.aiUse === "some" && (
+                        <Field label="What did AI help with?" error={errors.aiNote} counter={{ value: wordCount(form.aiNote), max: WORDS.aiNote, unit: "words" }}>
+                          {(p) => <textarea {...p} rows={2} className="p-textarea min-h-[4rem]" value={form.aiNote} onChange={(e) => set("aiNote", e.target.value)} />}
+                        </Field>
+                      )}
+
+                      <div data-field-error={errors.original ? "true" : undefined}>
+                        <label className="sf-confirm">
+                          <input type="checkbox" checked={form.original} aria-invalid={errors.original ? true : undefined} onChange={(e) => set("original", e.target.checked)} />
+                          <span>We modelled this today, after the theme reveal, and it's our own work.</span>
+                        </label>
+                        {errors.original && <p className="p-error">{errors.original}</p>}
                       </div>
-                    )}
-                    {saved?.notices.length || form.filesNote ? (
-                      <Field
-                        label="Anything judges should know about your files?"
-                        optional
-                        hint="For example: you converted the file or used a part from a library."
-                        error={errors.filesNote}
-                        counter={{ value: wordCount(form.filesNote), max: WORDS.filesNote, unit: "words" }}
-                      >
-                        {(p) => <textarea {...p} className="p-textarea min-h-[4.5rem]" value={form.filesNote} onChange={(e) => set("filesNote", e.target.value)} />}
-                      </Field>
-                    ) : null}
 
-                    <div data-field-error={errors.original ? "true" : undefined}>
-                      <label className="flex cursor-pointer items-start gap-3 border border-bone/15 bg-[hsl(220_7%_5.5%)] p-4 font-body text-[15px] text-foreground/90">
-                        <input type="checkbox" className="mt-1 h-4 w-4 shrink-0 accent-[hsl(24_100%_54%)]" checked={form.original} onChange={(e) => set("original", e.target.checked)} />
-                        <span>We modelled this today, after the theme reveal, and it's our own work.</span>
-                      </label>
-                      {errors.original && <p className="p-error">{errors.original}</p>}
-                    </div>
-                  </>
-                )}
-              </section>
-            </fieldset>
+                      <details className="sf-more" open={!!errors.filesNote || undefined}>
+                        <summary className="sf-more-sum focus-ember">
+                          <ChevronDown size={16} strokeWidth={1.6} className="sf-more-chev" aria-hidden="true" />
+                          <span>
+                            Sharing options{saved?.notices.length ? " and file notes" : ""}
+                            {saved?.notices.length && !form.filesNote ? (
+                              <span className="sf-more-hint text-ember">Our file check has a question for you. Open to answer it.</span>
+                            ) : (
+                              <span className="sf-more-hint">
+                                Credited as {publicCredit(form) || "your first names"} · {form.shareable ? "anyone with the link can view" : "team and judges only"}
+                              </span>
+                            )}
+                          </span>
+                        </summary>
+                        <div className="sf-more-body">
+                          <fieldset>
+                            <legend className="p-label">On your entry's public page, credit</legend>
+                            <div className="p-seg mt-2" role="radiogroup" aria-label="Credit on the public page">
+                              <label>
+                                <input type="radio" name="credit" className="sr-only" checked={form.credit === "team"} onChange={() => set("credit", "team")} />
+                                Team name
+                              </label>
+                              <label>
+                                <input type="radio" name="credit" className="sr-only" checked={form.credit === "names"} onChange={() => set("credit", "names")} />
+                                First names
+                              </label>
+                            </div>
+                            <p className="p-hint mt-2">
+                              Shown as <span className="text-foreground">{publicCredit(form) || "your first names"}</span>. Never surnames, schools or emails.
+                            </p>
+                          </fieldset>
+                          <label className="flex cursor-pointer items-start gap-3 font-body text-[15px] text-foreground/85">
+                            <input type="checkbox" className="mt-1 h-4 w-4 shrink-0 accent-[hsl(24_100%_54%)]" checked={form.shareable} onChange={(e) => set("shareable", e.target.checked)} />
+                            <span>
+                              Anyone with the link can see our entry
+                              <span className="p-hint block">Untick to keep it to your team and the judges. Scores are always private.</span>
+                            </span>
+                          </label>
+                          {saved && saved.notices.length > 0 && (
+                            <div className="p-notice font-body text-[15px]" role="status">
+                              <p className="font-medium text-foreground">Our file check noticed something judges will ask about:</p>
+                              <ul className="mt-2 list-disc pl-5 text-foreground/85">
+                                {saved.notices.map((n, i) => (
+                                  <li key={i}>{n}</li>
+                                ))}
+                              </ul>
+                              <p className="mt-2 text-sm text-foreground/70">That's not a judgement: files can carry odd metadata. If there's an explanation, add it below.</p>
+                            </div>
+                          )}
+                          <Field
+                            label="Anything judges should know about your files?"
+                            optional
+                            hint="For example: you converted the file or used a part from a library."
+                            error={errors.filesNote}
+                            counter={{ value: wordCount(form.filesNote), max: WORDS.filesNote, unit: "words" }}
+                          >
+                            {(p) => <textarea {...p} rows={2} className="p-textarea min-h-[4rem]" value={form.filesNote} onChange={(e) => set("filesNote", e.target.value)} />}
+                          </Field>
+                        </div>
+                      </details>
 
-            {/* Uploads run while the team is on the review: show them here too. */}
-            {step === LAST && uploading.some((u) => u.progress > 0 || u.error) && (
-              <ul className="mt-6 flex flex-col gap-2" aria-label="Uploads">
-                {uploading.map((u) => (
-                  <li key={u.key}>
-                    <p className="flex justify-between gap-3 font-body text-sm">
-                      <span className="truncate">{u.file.name}</span>
-                      <span className="p-mono shrink-0 text-concrete">{u.error ? "failed" : `${Math.round(u.progress * 100)}%`}</span>
-                    </p>
-                    <Progress value={u.progress} />
-                    {u.error && <p className="p-error">{u.error}</p>}
-                  </li>
-                ))}
-              </ul>
-            )}
+                      {until && !submitted && !locked && !pastDeadline && (
+                        <p className="sf-rule">
+                          Press Submit before <span className="text-foreground">{until}</span>. Big files can finish uploading after.
+                        </p>
+                      )}
+                    </>
+                  )}
+                </section>
+              </fieldset>
+            </div>
+          </div>
 
-            <div className="p-stepnav">
-              {(draftSaved || formError || busy || (shownStepErrors && !formError)) && (
-                <div className="mb-3 flex flex-col gap-2">
+          {/* Back / Next, always in reach at the bottom of the screen. */}
+          <div className="sf-bar">
+            <div className="sf-wrap" data-wide={step === 3 && modelItem ? "true" : undefined}>
+              {(draftSaved || formError || busy || shownStepErrors) && (
+                <div className="sf-bar-msg">
                   {busy && (
-                    <p className="font-body text-sm text-foreground/85" role="status">
+                    <p className="text-foreground/85" role="status">
                       {busy}
                     </p>
                   )}
                   {draftSaved && !busy && (
-                    <p className="p-notice p-notice--calm font-body text-sm" role="status">
+                    <p className="text-foreground/85" role="status">
                       {draftSaved}
                     </p>
                   )}
                   {formError && !busy && (
-                    <p className="p-notice p-notice--bad font-body text-sm" role="alert">
+                    <p className="sf-bar-bad" role="alert">
                       {formError}
                     </p>
                   )}
                   {shownStepErrors && !formError && !busy && (
-                    <p className="font-body text-sm text-[hsl(6_90%_66%)]" role="alert">
+                    <p className="sf-bar-bad" role="alert">
                       Check the fields marked in red to continue.
                     </p>
                   )}
                 </div>
               )}
-              <div className="flex items-center gap-2 sm:gap-3">
-                {step > 0 && (
-                  <button type="button" className="btn-ghost p-btn px-3 sm:px-4" onClick={() => void goTo((step - 1) as Step)}>
-                    <ArrowLeft size={16} strokeWidth={1.6} aria-hidden="true" /> Back
-                  </button>
-                )}
-                <span className="p-mono hidden text-concrete sm:inline">
-                  {step + 1} / {LAST + 1}
-                </span>
-                <div className="ml-auto flex items-center gap-2 sm:gap-3">
+              <div className="sf-bar-row" data-crowded={submitted && step < LAST ? "true" : undefined}>
+                <div className="sf-bar-left">
+                  {step > 0 && (
+                    <button type="button" className="btn-ghost p-btn sf-back" aria-label="Back" onClick={() => void goTo((step - 1) as Step)}>
+                      <ArrowLeft size={16} strokeWidth={1.6} aria-hidden="true" />
+                      <span className="sf-back-text">Back</span>
+                    </button>
+                  )}
+                </div>
+                <p className="sf-count" aria-hidden="true">
+                  {step + 1} of {LAST + 1}
+                </p>
+                <div className="sf-bar-right">
                   {!submitted && step > 0 && (
-                    <button type="button" className="btn-ghost p-btn px-3 sm:px-4" disabled={!!busy || locked} onClick={() => void save("draft")}>
+                    <button type="button" className="sf-textbtn sf-draft focus-ember" disabled={!!busy || locked} onClick={() => void save("draft")}>
                       Save draft
                     </button>
                   )}
@@ -1143,83 +1207,48 @@ export default function SubmitPage() {
                     </button>
                   )}
                   {step < LAST && !submitted ? (
-                    <button type="submit" className="btn-portal p-btn px-4 sm:px-5">
-                      <span>
-                        Next<span className="hidden sm:inline">: {STEP_NAMES[step + 1]}</span>
-                      </span>
+                    <button type="submit" className="btn-portal p-btn sf-next">
+                      Next
                       <ArrowRight size={16} strokeWidth={1.8} aria-hidden="true" />
                     </button>
                   ) : (
-                    <button type="submit" className="btn-portal p-btn min-w-[8.5rem] px-4 sm:min-w-[10rem] sm:px-5" disabled={!!busy || locked}>
+                    <button type="submit" className="btn-portal p-btn sf-next sf-submit" disabled={!!busy || locked}>
                       {busy ? "Working…" : submitted ? "Save changes" : "Submit entry"}
                     </button>
                   )}
                 </div>
               </div>
             </div>
-          </form>
-
-          {!wide && step === LAST && <JudgingBriefing className="mt-10" deadline={status?.deadline} judging={status?.judging} />}
-        </div>
-
-        {wide && (
-          <aside aria-label="Preview">
-            <div className="sticky top-36 flex flex-col gap-4">
-              {coverUrl ? (
-                <img src={coverUrl} alt="Your cover picture" className="aspect-video w-full rounded-[2px] border border-bone/10 bg-[#0d0e10] object-contain" />
-              ) : (
-                !(videoLocalUrl || linkedPreview) &&
-                !modelItem &&
-                step > 0 && (
-                  <div className="grid aspect-video place-items-center border border-bone/10 bg-[#0d0e10] p-6 text-center font-body text-sm text-concrete">
-                    Your pictures show up here.
-                  </div>
-                )
-              )}
-              {(videoLocalUrl || linkedPreview) && <VideoPlayer title={form.title || "Your video"} link={linkedPreview} localUrl={videoLocalUrl} />}
-              {viewer}
-              <JudgingBriefing deadline={status?.deadline} judging={status?.judging} />
-            </div>
-          </aside>
-        )}
+          </div>
+        </form>
       </div>
     </Shell>
   );
 }
 
-/** One part of the review: what the team entered, and a way back to change it. */
-function ReviewGroup({ title, ok, onEdit, locked, children }: { title: string; ok: boolean; onEdit: () => void; locked: boolean; children: ReactNode }) {
+/** One line of the review: a part of the entry, and a way back to change it. */
+function SummaryRow({ name, ok, onEdit, locked, thumb, children }: { name: string; ok: boolean; onEdit: () => void; locked: boolean; thumb?: string | null; children: ReactNode }) {
   return (
-    <div className="p-review-group" data-ok={ok}>
-      <div className="flex items-center justify-between gap-3">
-        <h3 className="font-body text-[15px] font-semibold text-bone">
-          {title}
-          {!ok && <span className="ml-2 font-normal text-[hsl(6_90%_66%)]">needs a look</span>}
-        </h3>
-        {!locked && (
-          <button type="button" className="p-link focus-ember font-body text-sm" onClick={onEdit}>
-            Edit<span className="sr-only"> {title.toLowerCase()}</span>
-          </button>
-        )}
-      </div>
-      <dl className="mt-3 flex flex-col gap-2">{children}</dl>
-    </div>
-  );
-}
-
-function ReviewRow({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <div className="grid grid-cols-[5.5rem_minmax(0,1fr)] gap-3 font-body text-sm">
-      <dt className="text-concrete">{label}</dt>
-      <dd className="min-w-0 text-foreground/90">{children}</dd>
-    </div>
+    <li className="sf-sumrow" data-ok={ok}>
+      <span className="sf-sumrow-name">
+        {name}
+        {!ok && <span className="sr-only"> (needs a look)</span>}
+      </span>
+      <span className="sf-sumrow-val">{children}</span>
+      {thumb && <img src={thumb} alt="Your cover picture" className="sf-sumrow-thumb" />}
+      {!locked && (
+        <button type="button" className="sf-textbtn focus-ember" onClick={onEdit}>
+          Edit<span className="sr-only"> {name.toLowerCase()}</span>
+        </button>
+      )}
+    </li>
   );
 }
 
 /**
- * Under the model picker: the units the file is in (STL and OBJ don't say),
- * what the model measures, and the organizers' size spec if there is one, so
- * a team knows before submitting whether it fits.
+ * Under "Add more" once there's a model: the units the file is in (STL and
+ * OBJ don't say), what the model measures, and the organizers' size spec if
+ * there is one, so a team knows before submitting whether it fits.
  */
 function ModelChecks({
   units,
@@ -1239,9 +1268,9 @@ function ModelChecks({
   // A Blender GLB is in metres; read as millimetres it comes out a few mm across.
   const suggest: Units | null = measure && units === "mm" && largest < 5 ? "m" : measure && units === "m" && largest > 20_000 ? "mm" : null;
   return (
-    <div className="flex flex-col gap-3 border-l border-bone/10 pl-4">
+    <div className="flex flex-col gap-3">
       <label className="flex flex-wrap items-center gap-3">
-        <span className="p-label">Units in the file</span>
+        <span className="p-label">Units in the model file</span>
         <select className="p-select w-auto min-w-[6rem]" value={units} onChange={(e) => onUnits(e.target.value as Units)}>
           {UNITS.map((u) => (
             <option key={u} value={u}>
@@ -1272,7 +1301,7 @@ function ModelChecks({
         <div>
           <p className="p-label">Size spec{spec.note ? `: ${spec.note}` : ""}</p>
           {!hasModel || !measure ? (
-            <p className="p-hint mt-1">Add your model to check it against the spec.</p>
+            <p className="p-hint mt-1">Open the Files step with your model to check it against the spec.</p>
           ) : (
             <ul className="mt-1.5 flex flex-col gap-1 font-body text-sm">
               {lines.map((l) => (
@@ -1288,21 +1317,21 @@ function ModelChecks({
   );
 }
 
-
 function PreviewEmpty() {
   return (
     <div className="flex flex-col items-center gap-3 text-center">
       <FileBox size={28} strokeWidth={1.2} className="text-bone/40" aria-hidden="true" />
-      <p className="max-w-[24ch] font-body text-sm text-concrete">Add your model and it shows up here, in 3D, before you submit.</p>
+      <p className="max-w-[24ch] font-body text-sm text-concrete">Your model shows up here, in 3D.</p>
     </div>
   );
 }
 
-function SavedList() {
+/** Entries started on this laptop, and a way for the next team to start clean. */
+function SavedList({ compact = false }: { compact?: boolean }) {
   const [list, setList] = useState(savedEntries);
   if (!list.length) return null;
   return (
-    <div className="mt-6 max-w-[38rem]">
+    <div className={compact ? "sf-saved" : "mt-6 max-w-[38rem]"}>
       <p className="p-hint">
         Started on this laptop:{" "}
         <button
@@ -1318,15 +1347,15 @@ function SavedList() {
           Not your team? Clear this laptop
         </button>
       </p>
-      <ul className="mt-2 flex flex-col gap-1">
+      <ul className="mt-1.5 flex flex-wrap gap-x-5 gap-y-1">
         {list.map((s) => (
-          <li key={s.id} className="flex items-center gap-3 font-body text-[15px]">
+          <li key={s.id} className="flex items-center gap-2 font-body text-[15px]">
             <Link to={`/submit/edit/${s.id}#k=${s.key}`} className="p-link focus-ember">
               {s.title || "Untitled entry"}
             </Link>
             <button
               type="button"
-              className="text-concrete hover:text-foreground"
+              className="grid h-7 w-7 place-items-center text-concrete hover:text-foreground"
               aria-label={`Forget ${s.title || "this entry"} on this laptop`}
               onClick={() => {
                 forgetEntry(s.id);
@@ -1342,9 +1371,68 @@ function SavedList() {
   );
 }
 
+/** A file input dressed as a drop zone. */
+function DropZone({
+  slot,
+  ariaLabel,
+  multiple,
+  onAdd,
+  icon,
+  title,
+  sub,
+  tile,
+}: {
+  slot: keyof Files;
+  ariaLabel: string;
+  multiple?: boolean;
+  onAdd: (files: FileList) => void;
+  icon: ReactNode;
+  title: string;
+  sub?: string;
+  tile?: boolean;
+}) {
+  const [over, setOver] = useState(false);
+  return (
+    <label
+      className="sf-drop"
+      data-over={over}
+      data-tile={tile || undefined}
+      onDragOver={(e) => {
+        e.preventDefault();
+        setOver(true);
+      }}
+      onDragLeave={() => setOver(false)}
+      onDrop={(e) => {
+        e.preventDefault();
+        setOver(false);
+        if (e.dataTransfer.files.length) onAdd(e.dataTransfer.files);
+      }}
+    >
+      <input
+        type="file"
+        accept={SLOTS[slot].accept}
+        multiple={multiple}
+        aria-label={ariaLabel}
+        onChange={(e) => {
+          if (e.target.files?.length) onAdd(e.target.files);
+          e.target.value = "";
+        }}
+      />
+      <span className="sf-drop-icon" aria-hidden="true">
+        {icon}
+      </span>
+      <span className="sf-drop-text">
+        <span className="sf-drop-title">{title}</span>
+        {sub && <span className="sf-drop-sub">{sub}</span>}
+      </span>
+    </label>
+  );
+}
+
 function FilePicker({
   slot,
   label,
+  ariaName,
   hint,
   optional,
   items,
@@ -1352,85 +1440,130 @@ function FilePicker({
   onAdd,
   onRemove,
   icon,
+  cta,
   multiple,
+  tiles,
 }: {
   slot: keyof Files;
   label: string;
+  /** How the file input is announced: "Choose <ariaName>". */
+  ariaName: string;
   hint: string;
   optional?: boolean;
   items: Item[];
   error?: string;
   onAdd: (files: FileList) => void;
   onRemove: (item: Item) => void;
-  icon: React.ReactNode;
+  icon: ReactNode;
+  cta: string;
   multiple?: boolean;
+  /** Pictures: thumbnails in a row instead of a list. */
+  tiles?: boolean;
 }) {
-  const [over, setOver] = useState(false);
-  const full = items.length >= SLOTS[slot].maxCount;
+  const max = SLOTS[slot].maxCount;
+  const full = items.length >= max;
+  const single = max === 1;
+  const itemErrors = items.filter((it): it is Extract<Item, { kind: "new" }> => it.kind === "new" && !!it.error);
   return (
     <div data-field-error={error ? "true" : undefined}>
-      <p className="p-label">
-        {label}
-        {optional && <span className="ml-1.5 font-normal text-concrete">optional</span>}
-      </p>
-      <p className="p-hint mt-1">{hint}</p>
-      {items.length > 0 && (
-        <ul className="mt-3 flex flex-col gap-2">
-          {items.map((it) => (
-            <FileRow key={it.kind === "new" ? it.key : it.view.id} item={it} onRemove={() => onRemove(it)} />
-          ))}
-        </ul>
-      )}
-      {(!full || SLOTS[slot].maxCount === 1) && (
-        <label
-          className="p-drop mt-3"
-          data-over={over}
-          onDragOver={(e) => {
-            e.preventDefault();
-            setOver(true);
-          }}
-          onDragLeave={() => setOver(false)}
-          onDrop={(e) => {
-            e.preventDefault();
-            setOver(false);
-            if (e.dataTransfer.files.length) onAdd(e.dataTransfer.files);
-          }}
-        >
-          <input
-            type="file"
-            accept={SLOTS[slot].accept}
-            multiple={multiple}
-            aria-label={`${items.length && SLOTS[slot].maxCount === 1 ? "Replace" : "Choose"} ${label.toLowerCase()}`}
-            onChange={(e) => {
-              if (e.target.files?.length) onAdd(e.target.files);
-              e.target.value = "";
-            }}
-          />
-          <span className="flex items-center gap-2 font-body text-[15px] text-foreground/90">
-            <span className="text-ember">{icon}</span>
-            {items.length && SLOTS[slot].maxCount === 1 ? "Replace the file" : "Drop a file here, or choose one"}
+      <div className="flex items-baseline justify-between gap-3">
+        <p className="p-label">
+          {label}
+          {optional && <span className="ml-1.5 font-normal text-concrete">optional</span>}
+        </p>
+        {multiple && items.length > 0 && (
+          <span className="p-mono text-[11px] text-concrete">
+            {items.length}/{max}
           </span>
-        </label>
+        )}
+      </div>
+      <p className="p-hint mt-0.5">{hint}</p>
+      {tiles && items.length > 0 ? (
+        <ul className="sf-tiles">
+          {items.map((it, i) => (
+            <PictureTile key={it.kind === "new" ? it.key : it.view.id} item={it} cover={i === 0} onRemove={() => onRemove(it)} />
+          ))}
+          {!full && (
+            <li>
+              <DropZone slot={slot} ariaLabel={`Choose ${ariaName}`} multiple={multiple} onAdd={onAdd} icon={<Plus size={20} strokeWidth={1.5} />} title="Add" tile />
+            </li>
+          )}
+        </ul>
+      ) : (
+        <>
+          {items.length > 0 && (
+            <ul className="mt-2 flex flex-col gap-2">
+              {items.map((it) => (
+                <FileRow
+                  key={it.kind === "new" ? it.key : it.view.id}
+                  item={it}
+                  onRemove={() => onRemove(it)}
+                  replace={single ? { slot, ariaLabel: `Replace ${ariaName}`, onAdd } : undefined}
+                />
+              ))}
+            </ul>
+          )}
+          {!full && (
+            <div className="mt-2">
+              <DropZone slot={slot} ariaLabel={`Choose ${ariaName}`} multiple={multiple} onAdd={onAdd} icon={icon} title={cta} sub="or drop a file here" />
+            </div>
+          )}
+        </>
       )}
+      {tiles && itemErrors.map((it) => <p key={it.key} className="p-error">{`${it.file.name}: ${it.error}`}</p>)}
       {error && <p className="p-error">{error}</p>}
     </div>
   );
 }
 
-function FileRow({ item, onRemove }: { item: Item; onRemove: () => void }) {
+/** A picked file's local preview (or the saved copy's address). */
+function useThumb(item: Item, isImage: boolean) {
+  const [thumb] = useState(() => (isImage && item.kind === "new" ? URL.createObjectURL(item.file) : isImage && item.kind === "existing" ? item.view.url : ""));
+  useEffect(() => () => void (thumb.startsWith("blob:") && URL.revokeObjectURL(thumb)), [thumb]);
+  return thumb;
+}
+
+function PictureTile({ item, cover, onRemove }: { item: Item; cover: boolean; onRemove: () => void }) {
+  const name = item.kind === "new" ? item.file.name : item.view.name;
+  const thumb = useThumb(item, true);
+  const failed = item.kind === "new" && !!item.error;
+  return (
+    <li className="sf-tile" data-failed={failed || undefined}>
+      <img src={thumb} alt={name} />
+      {cover && <span className="sf-tile-tag">Cover</span>}
+      <button type="button" className="sf-tile-x focus-ember" aria-label={`Remove ${name}`} onClick={onRemove}>
+        <X size={14} strokeWidth={2} aria-hidden="true" />
+      </button>
+      {item.kind === "new" && item.progress > 0 && (
+        <span className="sf-tile-progress">
+          <Progress value={item.progress} />
+        </span>
+      )}
+    </li>
+  );
+}
+
+function FileRow({
+  item,
+  onRemove,
+  replace,
+}: {
+  item: Item;
+  onRemove: () => void;
+  replace?: { slot: keyof Files; ariaLabel: string; onAdd: (files: FileList) => void };
+}) {
   const name = item.kind === "new" ? item.file.name : item.view.name;
   const size = item.kind === "new" ? item.file.size : item.view.size;
   const ext = extOf(name);
   const isImage = ["png", "jpg", "jpeg", "webp"].includes(ext);
-  const [thumb] = useState(() => (isImage && item.kind === "new" ? URL.createObjectURL(item.file) : isImage && item.kind === "existing" ? item.view.url : ""));
-  useEffect(() => () => void (thumb.startsWith("blob:") && URL.revokeObjectURL(thumb)), [thumb]);
+  const thumb = useThumb(item, isImage);
   return (
     <li>
-      <div className="p-file">
+      <div className="p-file sf-file">
         {thumb ? (
-          <img src={thumb} alt="" className="h-10 w-10 rounded-[2px] object-cover" />
+          <img src={thumb} alt="" className="h-9 w-9 rounded-[2px] object-cover" />
         ) : (
-          <span className="p-mono grid h-10 w-10 place-items-center rounded-[2px] border border-bone/10 text-[10px] uppercase text-concrete">{ext}</span>
+          <span className="p-mono grid h-9 w-9 place-items-center rounded-[2px] border border-bone/10 text-[10px] uppercase text-concrete">{ext}</span>
         )}
         <div className="min-w-0">
           <p className="truncate font-body text-sm text-foreground">{name}</p>
@@ -1440,9 +1573,26 @@ function FileRow({ item, onRemove }: { item: Item; onRemove: () => void }) {
             {item.kind === "new" && !item.error && item.progress === 0 && " · ready to upload"}
           </p>
         </div>
-        <button type="button" className="btn-ghost p-btn p-btn-sm border-transparent" aria-label={`Remove ${name}`} onClick={onRemove}>
-          <Trash2 size={15} strokeWidth={1.5} />
-        </button>
+        <div className="flex items-center">
+          {replace && (
+            <label className="sf-replace focus-ember" title="Replace">
+              <input
+                type="file"
+                accept={SLOTS[replace.slot].accept}
+                aria-label={replace.ariaLabel}
+                className="sr-only"
+                onChange={(e) => {
+                  if (e.target.files?.length) replace.onAdd(e.target.files);
+                  e.target.value = "";
+                }}
+              />
+              <RefreshCw size={15} strokeWidth={1.5} aria-hidden="true" />
+            </label>
+          )}
+          <button type="button" className="btn-ghost p-btn p-btn-sm border-transparent" aria-label={`Remove ${name}`} onClick={onRemove}>
+            <Trash2 size={15} strokeWidth={1.5} />
+          </button>
+        </div>
       </div>
       {item.kind === "new" && item.progress > 0 && <Progress value={item.progress} />}
       {item.kind === "new" && item.error && <p className="p-error">{item.error}</p>}
@@ -1475,130 +1625,106 @@ function Done({
   )}`;
   return (
     <Shell section="Submitted">
-      {deadline && (
-        <DeadlineBar
-          deadline={deadline}
-          now={now}
-          closed={entry.locked || (now >= Date.parse(deadline) && !entry.unlocked)}
-          reopened={entry.unlocked && !entry.locked}
-        />
-      )}
-      <div className="grid gap-12 pt-12 md:pt-16 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.9fr)]">
-        <div>
-          <p className="flex items-center gap-2 font-body text-[15px] text-ember">
-            <Check size={18} strokeWidth={2} aria-hidden="true" /> Submitted at {clock(entry.submittedAt)}
-            {entry.late && <span className="p-tag p-tag--bad ml-2">After the deadline</span>}
-          </p>
-          <h1 className="display-scene mt-3">{entry.title}</h1>
-          <p className="mt-4 max-w-[36rem] font-body text-lg leading-relaxed text-foreground">
-            You're done. You can close this page.
-          </p>
-          <p className="mt-2 max-w-[36rem] font-body text-[15px] leading-relaxed text-foreground/75">
-            The judges have it. Keep both links: the first shows your design {entry.shareable ? "to anyone" : "to your team and the judges"}, the second lets your team edit until submissions close.
-          </p>
-          {entry.slot ? (
-            <SlotNotice slot={entry.slot} />
-          ) : (
-            <p className="mt-6 max-w-[36rem] border-l-2 border-ember pl-4 font-body text-[15px] text-foreground/90">
-              Your judging room and time appear on your edit link when submissions close{deadline ? ` at ${clock(deadline)}` : ""}.
-            </p>
-          )}
-          <JudgingBriefing className="mt-8" open deadline={deadline} judging={judging} />
-
-          <div className="mt-10 flex flex-col gap-8">
-            <LinkBox
-              label={entry.shareable ? "Share link" : "Share link (team and judges only)"}
-              hint={entry.shareable ? "Your video and design. Send it to anyone." : "You turned off public viewing. Only judges can open it."}
-              url={share}
-              open
-            />
-            <LinkBox label="Edit link" hint="Private. Anyone with it can change your entry." url={edit} />
-          </div>
-
-          <div className="mt-10 flex flex-wrap gap-3">
-            <a href={mail} className="btn-ghost p-btn focus-ember">
-              Email both links to {entry.contactEmail}
-            </a>
-            <button type="button" className="btn-ghost p-btn" onClick={onEdit}>
-              Keep editing
-            </button>
-          </div>
-          <p className="mt-6 max-w-[36rem] font-body text-sm text-concrete">
-            On a shared or school laptop?{" "}
-            <button
-              type="button"
-              className="p-link focus-ember"
-              onClick={() => {
-                forgetEntry(entry.id);
-                writeTyped(null);
-                window.location.assign("/submit");
-              }}
-            >
-              Remove this entry from this laptop
-            </button>{" "}
-            so the next team starts fresh. Copy your edit link first: it's the only way back in.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4">
-          {entry.files.find((f) => f.slot === "image") && (
-            <img src={entry.files.find((f) => f.slot === "image")!.url} alt={`${entry.title}, cover`} className="aspect-video w-full rounded-[2px] border border-bone/10 object-contain" />
-          )}
-          <VideoPlayer
-            title={entry.title}
-            file={entry.files.find((f) => f.slot === "video") ?? null}
-            link={(() => {
-              const v = entry.videoLink ? parseVideoLink(entry.videoLink) : null;
-              return v ? { url: v.url, host: v.host, embed: v.embed } : null;
-            })()}
+      <div className="sf">
+        {deadline && (
+          <DeadlineBar
+            deadline={deadline}
+            now={now}
+            closed={entry.locked || (now >= Date.parse(deadline) && !entry.unlocked)}
+            reopened={entry.unlocked && !entry.locked}
           />
-          {entry.files.some((f) => f.slot === "model") && (
-            <ModelViewer
-              source={(() => {
-                const m = entry.files.find((f) => f.slot === "model");
-                return m && isViewable(m.ext) ? { kind: "url", url: m.url, ext: m.ext } : null;
-              })()}
-              upAxis={entry.upAxis}
-              units={entry.units}
-              label={`${entry.title}, 3D model`}
-              className="aspect-[4/3] w-full"
-            />
-          )}
+        )}
+        <div className="sf-body">
+          <div className="sf-wrap sf-done">
+            <span className="sf-done-mark" aria-hidden="true">
+              <Check size={30} strokeWidth={2.4} />
+            </span>
+            <h1 className="sf-title">You're done. You can close this page.</h1>
+            <p className="sf-sub">
+              <span className="text-foreground">{entry.title}</span> was submitted at {clock(entry.submittedAt)}.
+              {entry.late && <span className="p-tag p-tag--bad ml-2">After the deadline</span>}
+            </p>
+
+            {entry.slot ? (
+              <SlotNotice slot={entry.slot} className="" />
+            ) : (
+              <p className="sf-room">Your judging room and time appear on your edit link{deadline ? ` at ${clock(deadline)}` : " when submissions close"}.</p>
+            )}
+
+            <div className="sf-done-edit">
+              <CopyButton url={edit} label="Copy edit link" className="btn-portal p-btn sf-done-main" />
+              <p className="p-hint">Your private way back in: your team can change the entry until submissions close. Don't share it.</p>
+              <input readOnly value={edit} className="p-input p-mono sf-done-url" onFocus={(e) => e.currentTarget.select()} aria-label="Edit link" />
+            </div>
+
+            <div className="sf-done-row">
+              <CopyButton url={share} label="Copy share link" className="btn-ghost p-btn p-btn-sm" />
+              <a href={share} target="_blank" rel="noopener" className="btn-ghost p-btn p-btn-sm focus-ember">
+                <ExternalLink size={14} strokeWidth={1.5} aria-hidden="true" /> {entry.shareable ? "Open your page" : "Open (team and judges only)"}
+              </a>
+              <a href={mail} className="btn-ghost p-btn p-btn-sm focus-ember">
+                <Mail size={14} strokeWidth={1.5} aria-hidden="true" /> Email both links
+              </a>
+            </div>
+
+            <p className="sf-done-small">
+              <button type="button" className="p-link focus-ember" onClick={onEdit}>
+                Keep editing
+              </button>
+              <span>
+                School laptop?{" "}
+                <button
+                  type="button"
+                  className="p-link focus-ember"
+                  onClick={() => {
+                    forgetEntry(entry.id);
+                    writeTyped(null);
+                    window.location.assign("/submit");
+                  }}
+                >
+                  Remove this entry from this laptop
+                </button>{" "}
+                (copy your edit link first)
+              </span>
+            </p>
+
+            <details className="sf-more">
+              <summary className="sf-more-sum focus-ember">
+                <ChevronDown size={16} strokeWidth={1.6} className="sf-more-chev" aria-hidden="true" />
+                <span>
+                  What happens next
+                  <span className="sf-more-hint">You present from your own laptop: a 1-minute pitch</span>
+                </span>
+              </summary>
+              <div className="sf-more-body">
+                <JudgingBriefing bare className="-mt-4" deadline={deadline} judging={judging} />
+              </div>
+            </details>
+          </div>
         </div>
       </div>
     </Shell>
   );
 }
 
-function LinkBox({ label, hint, url, open }: { label: string; hint: string; url: string; open?: boolean }) {
+function CopyButton({ url, label, className }: { url: string; label: string; className: string }) {
   const [copied, setCopied] = useState(false);
   return (
-    <div>
-      <p className="p-label">{label}</p>
-      <p className="p-hint mt-0.5">{hint}</p>
-      <div className="mt-2 flex items-stretch gap-2">
-        <input readOnly value={url} className="p-input p-mono min-w-0 flex-1 text-[12px]" onFocus={(e) => e.currentTarget.select()} aria-label={label} />
-        <button
-          type="button"
-          className="btn-ghost p-btn shrink-0"
-          onClick={async () => {
-            try {
-              await navigator.clipboard.writeText(url);
-              setCopied(true);
-              setTimeout(() => setCopied(false), 1800);
-            } catch {
-              /* clipboard blocked: the field is selectable */
-            }
-          }}
-        >
-          {copied ? <Check size={15} strokeWidth={2} /> : <Copy size={15} strokeWidth={1.5} />}
-          {copied ? "Copied" : "Copy"}
-        </button>
-        {open && (
-          <a href={url} target="_blank" rel="noopener" className="btn-ghost p-btn shrink-0" aria-label="Open the share page in a new tab">
-            <ExternalLink size={15} strokeWidth={1.5} />
-          </a>
-        )}
-      </div>
-    </div>
+    <button
+      type="button"
+      className={className}
+      onClick={async () => {
+        try {
+          await navigator.clipboard.writeText(url);
+          setCopied(true);
+          setTimeout(() => setCopied(false), 1800);
+        } catch {
+          /* clipboard blocked: the link is in a selectable field */
+        }
+      }}
+    >
+      {copied ? <Check size={15} strokeWidth={2} aria-hidden="true" /> : <Copy size={15} strokeWidth={1.5} aria-hidden="true" />}
+      <span aria-live="polite">{copied ? "Copied" : label}</span>
+    </button>
   );
 }

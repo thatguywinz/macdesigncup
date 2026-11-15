@@ -8,11 +8,14 @@ import { clock } from "../api";
 export function JudgingBriefing({
   className = "",
   open = false,
+  bare = false,
   deadline,
   judging,
 }: {
   className?: string;
   open?: boolean;
+  /** No frame or heading: for inside a disclosure that already names it. */
+  bare?: boolean;
   /** The submission deadline from /api/portal/status, so the time here always matches the server's. */
   deadline?: string | null;
   /** When and where judging runs, from /api/portal/status. */
@@ -21,10 +24,12 @@ export function JudgingBriefing({
   const rooms = judging?.rooms.length ? judging.rooms : ["WFL632", "WFL634", "WFL637"];
   const roomList = rooms.length > 1 ? `${rooms.slice(0, -1).join(", ")} and ${rooms.at(-1)}` : rooms[0];
   return (
-    <section aria-labelledby="brief-h" className={`max-w-[40rem] border border-bone/10 bg-[hsl(220_7%_5.5%)] p-5 ${className}`}>
-      <h2 id="brief-h" className="font-body text-[17px] font-semibold tracking-[-0.01em] text-bone">
-        Then you present: be ready
-      </h2>
+    <section aria-labelledby={bare ? undefined : "brief-h"} className={bare ? className : `max-w-[40rem] border border-bone/10 bg-[hsl(220_7%_5.5%)] p-5 ${className}`}>
+      {!bare && (
+        <h2 id="brief-h" className="font-body text-[17px] font-semibold tracking-[-0.01em] text-bone">
+          Then you present: be ready
+        </h2>
+      )}
       <ul className="mt-4 flex flex-col gap-3 font-body text-[15px] leading-relaxed text-foreground/85">
         <li className="flex gap-3">
           <CalendarClock size={18} strokeWidth={1.5} className="mt-0.5 shrink-0 text-ember" aria-hidden="true" />
@@ -75,9 +80,9 @@ export function JudgingBriefing({
 }
 
 /** "Your judging: WFL634 at 2:26 PM". */
-export function SlotNotice({ slot }: { slot: Slot }) {
+export function SlotNotice({ slot, className = "mt-6" }: { slot: Slot; className?: string }) {
   return (
-    <p className="mt-6 max-w-[40rem] border border-ember/60 bg-ember/10 px-4 py-3 font-body text-[15px] text-foreground" role="status">
+    <p className={`${className} max-w-[40rem] border border-ember/60 bg-ember/10 px-4 py-3 font-body text-[15px] text-foreground`} role="status">
       <span className="font-semibold">Your judging:</span> room <span className="p-mono text-ember">{slot.room}</span> at{" "}
       <span className="p-mono text-ember">{clock(slot.at)}</span>. Be there a few minutes early with your laptop ready.
     </p>
