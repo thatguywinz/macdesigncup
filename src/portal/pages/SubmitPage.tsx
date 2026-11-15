@@ -593,12 +593,13 @@ export default function SubmitPage() {
     );
   }
 
-  if (!isEdit && closedForNew && status) {
+  // A Submit pressed in time keeps its page until it finishes (it may still be uploading).
+  if (!isEdit && closedForNew && status && !busy) {
     return (
       <Shell section="Submit your design">
         <div className="max-w-[40rem] py-20">
           <h1 className="display-scene">Submissions are closed</h1>
-          <p className="mt-4 font-body text-lg text-foreground/75">They closed at {clock(status.deadline)}. If you've already submitted, open your edit link to see your entry.</p>
+          <p className="mt-4 font-body text-lg text-foreground/75">They closed at {clock(status.deadline)}. If you've already submitted, open your edit link to see your entry. If you were in the middle of submitting, find an organizer now.</p>
           <SavedList />
         </div>
       </Shell>
