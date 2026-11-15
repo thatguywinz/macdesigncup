@@ -956,7 +956,7 @@ function nextToMark(all: EntryRecord[], scores: ScoresDoc, settings: SettingsDoc
   if (scheduled) {
     const queue = all
       .filter((e) => e.status === "submitted" && e.id !== except && totalOf(mine[e.id]?.marks) === null && marksOn(counted, settings, e.id) < MARKS_NEEDED && slotOf(settings, e.id)?.room === room)
-      .sort((a, b) => slotOf(settings, a.id)!.at.localeCompare(slotOf(settings, b.id)!.at));
+      .sort((a, b) => slotOf(settings, a.id)!.at.localeCompare(slotOf(settings, b.id)!.at) || String(a.submittedAt).localeCompare(String(b.submittedAt)));
     if (queue.length) return queue[0].id;
   }
   // A judge with a room never gets sent to another room's teams: those are
