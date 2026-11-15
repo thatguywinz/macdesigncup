@@ -2,7 +2,7 @@
 // when judging starts and how long each team gets, put each judge in a room,
 // then press "Make the schedule" once submissions close. Every team then sees
 // its room and time on its entry page, and each judge gets their room's queue.
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { when } from "../../api";
 
 export interface RoomsSettings {
@@ -11,6 +11,13 @@ export interface RoomsSettings {
   end: string;
   slotMinutes: number;
   judgeRooms: Record<string, string>;
+}
+
+/** What pressing a schedule button did. needsForce: judges already saved marks, so clearing waits for a second yes. */
+export interface ScheduleResult {
+  ok: boolean;
+  needsForce?: boolean;
+  message?: string;
 }
 
 /** ISO -> value for <input type="datetime-local"> in this browser's time zone. */
@@ -45,21 +52,41 @@ export default function RoomsSection({
   scheduleEnds: string | null;
   open: boolean;
   busy: boolean;
-  onSave: (body: Record<string, unknown>, msg: string) => void;
-  onSchedule: (action: "make" | "clear") => void;
+  onSave: (body: Record<string, unknown>, msg: string) => Promise<boolean>;
+  onSchedule: (action: "make" | "clear", force?: boolean) => Promise<ScheduleResult>;
 }) {
   const [names, setNames] = useState(rooms.names.join(", "));
   const [start, setStart] = useState(localInput(rooms.start));
   const [end, setEnd] = useState(localInput(rooms.end));
   const [minutes, setMinutes] = useState(String(rooms.slotMinutes));
   const [seats, setSeats] = useState<Record<string, string>>({});
+  // Seats picked here and not saved yet: a judges-list save keeps them.
+  const seatEdits = useRef(new Set<string>());
+  // Clearing the schedule asks first ("ask"), and again if judges already saved marks ("force").
+  const [clearStep, setClearStep] = useState<"" | "ask" | "force">("");
+  const [clearMsg, setClearMsg] = useState("");
+  // The rooms changed on the server (this section saved, or first load): show them.
   useEffect(() => {
     setNames(rooms.names.join(", "));
     setStart(localInput(rooms.start));
     setEnd(localInput(rooms.end));
     setMinutes(String(rooms.slotMinutes));
-    setSeats(Object.fromEntries(judges.map((j) => [j, rooms.judgeRooms[keyOf(j)] ?? ""])));
+    seatEdits.current.clear();
+  }, [rooms]);
+  useEffect(() => {
+    setSeats((cur) => Object.fromEntries(judges.map((j) => [j, seatEdits.current.has(j) ? (cur[j] ?? "") : (rooms.judgeRooms[keyOf(j)] ?? "")])));
   }, [rooms, judges]);
+
+  async function clearSchedule(force: boolean) {
+    const r = await onSchedule("clear", force);
+    if (r.ok) {
+      setClearStep("");
+      setClearMsg("");
+    } else if (r.needsForce) {
+      setClearStep("force");
+      setClearMsg(r.message ?? "");
+    }
+  }
 
   const roomList = names
     .split(/[,\n]/)
@@ -103,7 +130,11 @@ export default function RoomsSection({
             {judges.map((j) => (
               <li key={j} className="flex items-center justify-between gap-3 py-2 font-body text-[15px]">
                 <span className="truncate text-foreground">{j}</span>
-                <select className="p-select w-40" value={seats[j] ?? ""} onChange={(e) => setSeats((s) => ({ ...s, [j]: e.target.value }))} aria-label={`Room for ${j}`}>
+                <select className="p-select w-40" value={seats[j] ?? ""} onChange={(e) => {
+                    seatEdits.current.add(j);
+                    const v = e.target.value;
+                    setSeats((s) => ({ ...s, [j]: v }));
+                  }} aria-label={`Room for ${j}`}>
                   <option value="">Any room</option>
                   {roomList.map((r) => (
                     <option key={r} value={r}>
@@ -121,12 +152,13 @@ export default function RoomsSection({
         type="button"
         className="btn-ghost p-btn mt-4"
         disabled={busy || !roomList.length || !start || !end}
-        onClick={() =>
-          onSave(
+        onClick={async () => {
+          const ok = await onSave(
             { rooms: { names: roomList, start: new Date(start).toISOString(), end: new Date(end).toISOString(), slotMinutes: Number(minutes), judgeRooms: Object.fromEntries(Object.entries(seats).filter(([, r]) => r)) } },
             "Rooms saved.",
-          )
-        }
+          );
+          if (ok) seatEdits.current.clear();
+        }}
       >
         Save rooms
       </button>
@@ -136,7 +168,7 @@ export default function RoomsSection({
           {scheduled ? "Add new entries to the schedule" : "Make the schedule"}
         </button>
         {scheduled > 0 && (
-          <button type="button" className="btn-ghost p-btn" disabled={busy} onClick={() => onSchedule("clear")}>
+          <button type="button" className="btn-ghost p-btn" disabled={busy || !!clearStep} aria-expanded={!!clearStep} onClick={() => setClearStep("ask")}>
             Clear it
           </button>
         )}
@@ -151,6 +183,37 @@ export default function RoomsSection({
             ? `The last team finishes at ${when(scheduleEnds)}, after judging ends (${when(rooms.end)}). Shorten the minutes per team or add a room, then clear and make it again.`
             : `The last team finishes at ${when(scheduleEnds)}.`}
         </p>
+      )}
+      {clearStep && scheduled > 0 && (
+        <div className="mt-4 max-w-[38rem] border border-[hsl(var(--destructive)/0.45)] p-4" role="alertdialog" aria-labelledby="clear-h" aria-describedby="clear-d">
+          <p id="clear-h" className="font-body text-[15px] font-semibold text-bone">
+            {clearStep === "force" ? (clearMsg.split(".")[0] || "Judges have already saved marks") + ". Clear anyway?" : "Clear the schedule?"}
+          </p>
+          <p id="clear-d" className="mt-1.5 font-body text-sm text-foreground/85">
+            Teams will move to other rooms and the marks already given may stop counting. Only do this if the schedule is wrong.
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button
+              type="button"
+              className="btn-ghost p-btn p-btn-sm border-[hsl(var(--destructive)/0.6)] text-[hsl(6_90%_66%)]"
+              disabled={busy}
+              onClick={() => void clearSchedule(clearStep === "force")}
+            >
+              {clearStep === "force" ? "Clear anyway" : "Clear the schedule"}
+            </button>
+            <button
+              type="button"
+              className="btn-ghost p-btn p-btn-sm"
+              disabled={busy}
+              onClick={() => {
+                setClearStep("");
+                setClearMsg("");
+              }}
+            >
+              Keep it
+            </button>
+          </div>
+        </div>
       )}
     </section>
   );

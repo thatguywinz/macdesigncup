@@ -262,6 +262,13 @@ async function judgeView(ctx: PortalContext, e: EntryRecord, s: Session): Promis
     modelMeta: firstOf(e, "model")?.meta ?? null,
     videoCheck: e.videoCheck ?? null,
     slot: slotOf(settings, e.id),
+    pairNames: (() => {
+      const room = slotOf(settings, e.id)?.room;
+      if (!room) return [];
+      return Object.entries(roomsOf(settings).judgeRooms)
+        .filter(([, r]) => r === room)
+        .map(([key]) => (settings.judges ?? []).find((n) => judgeKey(n) === key) ?? key);
+    })(),
   };
 }
 

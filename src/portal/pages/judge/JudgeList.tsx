@@ -66,20 +66,35 @@ export default function JudgeList() {
   const roomCount = myRoom ? (data?.cards.filter((c) => c.slot?.room === myRoom).length ?? 0) : 0;
   // A judge with a scheduled room starts on that room's list, in time order.
   const active: Filter = filter ?? (roomCount ? "room" : "all");
+  const q = fold(query);
+  // A search looks through every entry, whatever the filter: a judge typing a
+  // team's name wants that team, even if it presents in another room.
   const cards = useMemo(() => {
     if (!data) return [];
-    const q = query.trim().toLowerCase();
+    if (q) {
+      return data.cards
+        .map((c, i) => ({ c, i, rank: matchRank(c, q) }))
+        .filter((x) => x.rank !== null)
+        .sort((a, b) => a.rank! - b.rank! || a.i - b.i)
+        .map((x) => x.c);
+    }
     const list = data.cards.filter((c) => {
       if (active === "room" && c.slot?.room !== myRoom) return false;
       // To mark: still needs marks (an entry is done once its pair's MARKS_NEEDED are in) and not marked by you.
       if (active === "todo" && (c.myTotal !== null || c.scoreCount >= MARKS_NEEDED || !mine(c))) return false;
       if (active === "done" && c.scoreCount < MARKS_NEEDED) return false;
       if (active === "review" && !c.openReviews) return false;
-      if (!q) return true;
-      return [c.teamName, c.title, c.creditLine, ...c.members, ...c.schools, ...c.software].some((s) => s && s.toLowerCase().includes(q));
+      return true;
     });
-    return active === "room" ? list.sort((a, b) => String(a.slot?.at).localeCompare(String(b.slot?.at))) : list;
-  }, [data, active, query, myRoom, mine]);
+    // My room and To mark run in schedule order (earliest slot first), then entries without a time.
+    if (active === "room" || active === "todo") {
+      return list
+        .map((c, i) => ({ c, i }))
+        .sort((a, b) => (a.c.slot ? 0 : 1) - (b.c.slot ? 0 : 1) || String(a.c.slot?.at ?? "").localeCompare(String(b.c.slot?.at ?? "")) || a.i - b.i)
+        .map((x) => x.c);
+    }
+    return list;
+  }, [data, active, q, myRoom, mine]);
 
   const marked = data?.cards.filter((c) => c.myTotal !== null).length ?? 0;
   const done = data?.cards.filter((c) => c.scoreCount >= MARKS_NEEDED).length ?? 0;
@@ -153,7 +168,16 @@ export default function JudgeList() {
               ["review", "Needs review"],
             ] as [Filter, string][]
           ).map(([f, label]) => (
-            <button key={f} type="button" className="p-chip" aria-pressed={active === f} onClick={() => setFilter(f)}>
+            <button
+              key={f}
+              type="button"
+              className="p-chip"
+              aria-pressed={!q && active === f}
+              onClick={() => {
+                setFilter(f);
+                setQuery("");
+              }}
+            >
               {label}
             </button>
           ))}
@@ -161,9 +185,23 @@ export default function JudgeList() {
         <label className="relative block sm:w-72">
           <span className="sr-only">Search by team name, title, student or school</span>
           <Search size={15} strokeWidth={1.5} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-concrete" aria-hidden="true" />
-          <input className="p-input pl-9" placeholder="Team name, title, student, school" value={query} onChange={(e) => setQuery(e.target.value)} />
+          <input
+            className="p-input pl-9"
+            type="search"
+            placeholder="Team name, title, student, school"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
         </label>
       </div>
+      {q && data && (
+        <p className="mt-3 font-body text-[13px] text-concrete" role="status">
+          {cards.length ? `${cards.length} ${cards.length === 1 ? "match" : "matches"} from all rooms, closest first.` : ""}{" "}
+          <button type="button" className="p-link focus-ember" onClick={() => setQuery("")}>
+            Clear search
+          </button>
+        </p>
+      )}
 
       {error && <p className="p-notice p-notice--bad mt-6 font-body text-sm">{error}</p>}
 
@@ -182,7 +220,7 @@ export default function JudgeList() {
               to see how marking works.
             </>
           ) : (
-            "No entries match."
+            q ? `No team, title, student or school matches "${query.trim()}". Check the spelling, or try part of the team name.` : "No entries here."
           )}
         </p>
       ) : (
@@ -203,14 +241,14 @@ export default function JudgeList() {
                       </span>
                     ) : c.scoreCount >= MARKS_NEEDED ? (
                       <span className="p-tag border-transparent bg-background/80">Done</span>
-                    ) : (
+                    ) : mine(c) ? (
                       <span className="p-tag p-tag--ember bg-background/80">To mark</span>
-                    )}
+                    ) : null}
                   </span>
                 </div>
                 <div className="flex flex-1 flex-col gap-1.5 p-4">
-                  {c.teamName && <span className="font-body text-[13px] text-ember">{c.teamName}</span>}
-                  <span className="font-body text-[17px] font-semibold leading-snug tracking-[-0.01em] text-bone">{c.title}</span>
+                  <span className="font-body text-[17px] font-semibold leading-snug tracking-[-0.01em] text-bone">{c.teamName || c.title}</span>
+                  {c.teamName && <span className="font-body text-[15px] leading-snug text-foreground/85">{c.title}</span>}
                   <span className="font-body text-sm text-foreground/75">
                     {c.members.join(", ") || c.creditLine}
                     {c.memberCount > 1 ? ` · team of ${c.memberCount}` : ""}
@@ -239,4 +277,56 @@ export default function JudgeList() {
       )}
     </JudgeShell>
   );
+}
+
+/** Lower case, accents off ("José" -> "jose"), spaces collapsed: how names are compared in search. */
+function fold(s: string): string {
+  return s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
+}
+
+/** Edit distance (a swapped pair of letters counts as one), stopping early once it passes `max`. */
+function within(a: string, b: string, max: number): boolean {
+  if (Math.abs(a.length - b.length) > max) return false;
+  let before: number[] = [];
+  let prev = Array.from({ length: b.length + 1 }, (_, j) => j);
+  for (let i = 1; i <= a.length; i++) {
+    const cur = [i];
+    let best = i;
+    for (let j = 1; j <= b.length; j++) {
+      cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+      if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) cur[j] = Math.min(cur[j], before[j - 2] + 1);
+      best = Math.min(best, cur[j]);
+    }
+    if (best > max) return false;
+    before = prev;
+    prev = cur;
+  }
+  return prev[b.length] <= max;
+}
+
+/** A query word matches a word: its start, or (4+ letters) one typo off the word or its start. */
+function wordHit(token: string, word: string): boolean {
+  if (word.startsWith(token)) return true;
+  if (token.length < 4) return false;
+  return within(token, word, 1) || within(token, word.slice(0, token.length), 1);
+}
+
+/**
+ * How well a card matches a folded query, best first (null: no match).
+ * 0 team name exactly, 1 team name starts with it, 2 team name contains it,
+ * 3 another field starts with it, 4 another field contains it,
+ * 5 every word of the query starts a word somewhere (or is one typo off).
+ */
+function matchRank(c: JudgeCard, q: string): number | null {
+  const team = fold(c.teamName ?? "");
+  if (team && team === q) return 0;
+  if (team.startsWith(q)) return 1;
+  if (team.includes(q)) return 2;
+  const others = [c.title, c.creditLine, ...c.members, ...c.schools].filter(Boolean).map((s) => fold(s));
+  if (others.some((s) => s.startsWith(q) || s.split(" ").some((w) => w.startsWith(q)))) return 3;
+  if (others.some((s) => s.includes(q))) return 4;
+  const words = [team, ...others].join(" ").split(/[^a-z0-9]+/).filter(Boolean);
+  const tokens = q.split(/[^a-z0-9]+/).filter(Boolean);
+  if (tokens.length && tokens.every((t) => words.some((w) => wordHit(t, w)))) return 5;
+  return null;
 }

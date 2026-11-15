@@ -57,7 +57,7 @@ export default function ResultsPage() {
         <div>
           <h1 className="display-scene">Results</h1>
           <p className="mt-3 max-w-[40rem] font-body text-[15px] text-foreground/75">
-            Every entry, ranked by its judging pair's average total. Each entry needs {data?.marksNeeded ?? 2} marks; the{" "}
+            Every entry, ranked by its judging pair's average total. An entry gets a rank once both of its pair's {data?.marksNeeded ?? 2} marks are in; the{" "}
             <Link to="/judge/top" className="p-link focus-ember">
               Top 5
             </Link>{" "}
@@ -109,26 +109,35 @@ export default function ResultsPage() {
             <tbody>
               {data.rows.map((r, i) => (
                 <Fragment key={r.id}>
-                  <tr>
+                  {!r.complete && (i === 0 || data.rows[i - 1].complete) && (
+                    <tr>
+                      <th scope="rowgroup" colSpan={data.criteria.length + 5} className="!pt-6 text-left font-body text-[13px] font-medium text-concrete">
+                        Still being judged: no rank until both of the pair's marks are in. Averages here are partial.
+                      </th>
+                    </tr>
+                  )}
+                  <tr className={r.complete ? "" : "opacity-80"}>
                     <td className="num text-concrete">
-                      {r.rank ?? ""}
+                      {r.rank ?? <span aria-label="Not ranked yet">—</span>}
                       {r.tied ? "=" : ""}
                     </td>
                     <td>
-                      {r.teamName && <div className="text-[13px] text-ember">{r.teamName}</div>}
                       <Link to={`/judge/entry/${r.id}`} className="font-medium text-foreground hover:text-ember focus-ember">
-                        {r.title}
+                        {r.teamName || r.title}
                       </Link>
+                      {r.teamName && <div className="text-[13px] text-foreground/75">{r.title}</div>}
                       <div className="mt-0.5 text-[13px] text-concrete">
                         {r.members.map((m) => m.name).join(", ")}
                         {r.late && <span className="p-tag p-tag--bad ml-2">Late</span>}
                         {r.openReviews > 0 && <span className="p-tag p-tag--ember ml-2">Needs review</span>}
                         {r.award && <span className="p-tag p-tag--solid ml-2">{r.award}</span>}
+                        {!r.complete && <span className="p-tag p-tag--bad ml-2">Not finished</span>}
                       </div>
                     </td>
                     <td className="num text-foreground">
                       {f1(r.average)}
                       <span className="text-concrete">/{data.maxTotal}</span>
+                      {!r.complete && r.average !== null && <span className="block text-[11px] text-concrete">partial</span>}
                     </td>
                     {data.criteria.map((c) => (
                       <td key={c.id} className="num text-foreground/80">
@@ -143,7 +152,7 @@ export default function ResultsPage() {
                         type="button"
                         className="btn-ghost p-btn p-btn-sm border-transparent"
                         aria-expanded={open === r.id}
-                        aria-label={`Marks and notes for ${r.title}`}
+                        aria-label={`Marks and notes for ${r.teamName || r.title}`}
                         onClick={() => setOpen(open === r.id ? null : r.id)}
                       >
                         <ChevronDown size={15} strokeWidth={1.5} className={open === r.id ? "rotate-180" : ""} />

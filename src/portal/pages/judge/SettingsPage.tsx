@@ -1,10 +1,10 @@
 // Organizers: the day's switches. The entry code (to put on the slide after
 // the theme reveal), the deadline (move or extend it), and a close switch.
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ApiError, api, when } from "../../api";
 import { JudgeShell, useMe } from "./context";
 import { RevealInput, SpecSection } from "./specSettings";
-import RoomsSection, { type RoomsSettings } from "./RoomsSection";
+import RoomsSection, { type RoomsSettings, type ScheduleResult } from "./RoomsSection";
 import type { Spec } from "../../shared/checks";
 
 interface Settings {
@@ -47,6 +47,17 @@ export default function SettingsPage() {
   const [error, setError] = useState("");
   const [saved, setSaved] = useState("");
   const [busy, setBusy] = useState(false);
+  // Typed here but not saved yet: another section's Save must not wipe these.
+  const edited = useRef({ deadline: false, judges: false });
+
+  // Keep the same object for parts that didn't change, so a section's unsaved
+  // edits survive another section's Save (sections reset only when their own data changes).
+  const keep = (next: Settings) =>
+    setS((prev) => {
+      if (!prev) return next;
+      const same = <T,>(a: T, b: T) => (JSON.stringify(a) === JSON.stringify(b) ? a : b);
+      return { ...next, spec: same(prev.spec, next.spec), rooms: same(prev.rooms, next.rooms), judges: same(prev.judges, next.judges) };
+    });
 
   useEffect(() => {
     api<Settings>("/judge/settings")
@@ -58,18 +69,26 @@ export default function SettingsPage() {
       .catch((e: ApiError) => (e.status === 401 ? signOut() : setError(e.message)));
   }, [signOut]);
 
-  async function put(body: Record<string, unknown>, msg: string) {
+  async function put(body: Record<string, unknown>, msg: string): Promise<boolean> {
     setBusy(true);
     setError("");
     setSaved("");
     try {
       const r = await api<Settings>("/judge/settings", { method: "PUT", body });
-      setS(r);
-      setDeadline(toLocalInput(r.deadline));
-      setJudges(r.judges.join(NL));
+      keep(r);
+      if ("deadlineOverride" in body || !edited.current.deadline) {
+        setDeadline(toLocalInput(r.deadline));
+        edited.current.deadline = false;
+      }
+      if ("judges" in body || !edited.current.judges) {
+        setJudges(r.judges.join(NL));
+        edited.current.judges = false;
+      }
       setSaved(msg);
+      return true;
     } catch (e) {
       setError((e as Error).message);
+      return false;
     } finally {
       setBusy(false);
     }
@@ -81,16 +100,20 @@ export default function SettingsPage() {
     return () => window.clearTimeout(t);
   }, [saved]);
 
-  async function schedule(action: "make" | "clear") {
+  /** Make or clear the schedule. Clearing once judges have saved marks needs `force` (the server answers 409 needsForce first). */
+  async function schedule(action: "make" | "clear", force = false): Promise<ScheduleResult> {
     setBusy(true);
     setError("");
     setSaved("");
     try {
-      const r = await api<Settings>("/judge/schedule", { body: { action } });
-      setS(r);
+      const r = await api<Settings>("/judge/schedule", { body: force ? { action, force: true } : { action } });
+      keep(r);
       setSaved(action === "make" ? `Schedule ready: ${r.scheduled} ${r.scheduled === 1 ? "entry" : "entries"}.` : "Schedule cleared.");
+      return { ok: true };
     } catch (e) {
+      if (e instanceof ApiError && e.status === 409 && e.body?.needsForce) return { ok: false, needsForce: true, message: e.message };
       setError((e as Error).message);
+      return { ok: false };
     } finally {
       setBusy(false);
     }
@@ -162,7 +185,15 @@ export default function SettingsPage() {
               <div className="mt-5 flex flex-wrap items-end gap-3">
                 <label className="block">
                   <span className="p-label">Deadline</span>
-                  <input type="datetime-local" className="p-input mt-2 w-auto" value={deadline} onChange={(e) => setDeadline(e.target.value)} />
+                  <input
+                    type="datetime-local"
+                    className="p-input mt-2 w-auto"
+                    value={deadline}
+                    onChange={(e) => {
+                      edited.current.deadline = true;
+                      setDeadline(e.target.value);
+                    }}
+                  />
                 </label>
                 <button
                   type="button"
@@ -222,7 +253,13 @@ export default function SettingsPage() {
               </a>
             </section>
 
-            <SpecSection settings={s} busy={busy} onSave={put} />
+            <SpecSection
+              settings={s}
+              busy={busy}
+              onSave={async (body, msg) => {
+                await put(body, msg);
+              }}
+            />
 
             <section className="border-t border-bone/10 py-7">
               <h2 className="p-block-title">Theme reveal</h2>
@@ -242,7 +279,10 @@ export default function SettingsPage() {
                 className="p-textarea mt-4 max-w-[26rem]"
                 rows={6}
                 value={judges}
-                onChange={(e) => setJudges(e.target.value)}
+                onChange={(e) => {
+                  edited.current.judges = true;
+                  setJudges(e.target.value);
+                }}
                 aria-label="Judges, one per line"
               />
               <div className="mt-3">

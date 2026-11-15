@@ -4,9 +4,9 @@
 // Everything else (files, measurements, originality checks, organizer
 // switches) is folded away below. /judge/practice shows a made-up entry with
 // the same screen, so anyone can try marking before the day.
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, ArrowRight, ChevronDown, Download, ExternalLink } from "lucide-react";
+import { ArrowDown, ArrowLeft, ArrowRight, ChevronDown, Download, ExternalLink } from "lucide-react";
 import { ApiError, api, clock } from "../../api";
 import { formatBytes, isViewable, type ViewableExt } from "../../shared/formats";
 import { AWARDS, CRITERIA, MARK_MAX, MARKS_NEEDED, MAX_TOTAL, levelOf, totalOf, type Criterion } from "../../shared/judging";
@@ -32,6 +32,31 @@ interface EntryResponse {
   marksCount?: boolean;
 }
 
+// The signed-in judge's room (from the dashboard's answer), kept for a few
+// minutes so moving between entries doesn't ask again.
+let roomCache: { at: number; who: string; room: string | null } | null = null;
+function useMyRoom(skip: boolean, who: string): string | null {
+  const [room, setRoom] = useState<string | null>(roomCache?.who === who ? roomCache.room : null);
+  useEffect(() => {
+    if (skip) return;
+    if (roomCache && roomCache.who === who && Date.now() - roomCache.at < 3 * 60_000) {
+      setRoom(roomCache.room);
+      return;
+    }
+    let alive = true;
+    api<{ myRoom?: string | null }>("/judge/entries")
+      .then((d) => {
+        roomCache = { at: Date.now(), who, room: d.myRoom ?? null };
+        if (alive) setRoom(roomCache.room);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [skip, who]);
+  return room;
+}
+
 export default function JudgeEntryPage({ practice = false }: { practice?: boolean }) {
   const params = useParams();
   const id = practice ? PRACTICE_ID : (params.id ?? "");
@@ -42,6 +67,7 @@ export default function JudgeEntryPage({ practice = false }: { practice?: boolea
   // Measured live from the actual file in this browser (not what the team's browser reported).
   const [liveMeasure, setLiveMeasure] = useState<Measure | null>(null);
   const [shown, setShown] = useState(0);
+  const myRoom = useMyRoom(practice, me.name);
 
   useEffect(() => {
     setData(null);
@@ -103,6 +129,23 @@ export default function JudgeEntryPage({ practice = false }: { practice?: boolea
       )}
 
       {error && <p className="p-notice p-notice--bad mt-6 font-body">{error}</p>}
+
+      {e && myRoom && e.slot && e.slot.room !== myRoom && (
+        <p className="p-notice p-notice--bad mt-3 font-body text-[15px]" role="note">
+          <span className="font-semibold text-bone">Not your room.</span> This team is judged in <span className="p-mono">{e.slot.room}</span> by{" "}
+          {e.pairNames?.length ? e.pairNames.join(" and ") : "that room's judging pair"}. Your marks won't count toward its result. Your room is <span className="p-mono">{myRoom}</span>.
+        </p>
+      )}
+
+      {e && (
+        <button
+          type="button"
+          className="btn-ghost p-btn p-btn-sm mt-3 lg:hidden"
+          onClick={() => document.getElementById("marks")?.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" })}
+        >
+          <ArrowDown size={15} strokeWidth={1.5} /> Jump to marks
+        </button>
+      )}
 
       <div className="mt-4 grid gap-8 lg:grid-cols-[minmax(0,1fr)_28rem] xl:grid-cols-[minmax(0,1fr)_32rem]">
         {/* What the team shows. */}
@@ -167,11 +210,11 @@ export default function JudgeEntryPage({ practice = false }: { practice?: boolea
               {e.award && <span className="p-tag p-tag--solid">{e.award}</span>}
               {e.status !== "submitted" && <span className="p-tag">Draft</span>}
             </div>
-            <h1 className="mt-3 font-body text-[clamp(1.75rem,1.3rem+1.4vw,2.5rem)] font-semibold leading-[1.06] tracking-[-0.025em] text-bone">{e.title}</h1>
-            <p className="mt-2 font-body text-[15px] text-foreground/80">
-              {e.members.map((m) => m.name).join(", ")}
-              {e.teamName ? <span className="text-concrete"> · {e.teamName}</span> : null}
-            </p>
+            <h1 className="mt-3 break-words font-body text-[clamp(1.75rem,1.3rem+1.4vw,2.5rem)] font-semibold leading-[1.06] tracking-[-0.025em] text-bone">
+              {e.teamName || e.title}
+            </h1>
+            {e.teamName && <p className="mt-1.5 break-words font-body text-[18px] leading-snug text-foreground/85">{e.title}</p>}
+            <p className="mt-2 font-body text-[15px] text-foreground/80">{e.members.map((m) => m.name).join(", ")}</p>
             <p className="font-body text-[13px] text-concrete">
               {[...new Set(e.members.map((m) => m.school))].join(", ")} · grade {[...new Set(e.members.map((m) => m.grade))].join(", ")}
             </p>
@@ -273,6 +316,8 @@ function ScoreForm({
   practice: boolean;
 }) {
   const navigate = useNavigate();
+  const { me } = useMe();
+  const leaving = useRef(false);
   const [unsaved] = useState(() => (practice ? null : readUnsaved(entryId)));
   const [marks, setMarks] = useState<Record<string, number>>(unsaved?.marks ?? initial?.marks ?? {});
   const [notes, setNotes] = useState(unsaved?.notes ?? initial?.notes ?? "");
@@ -280,6 +325,8 @@ function ScoreForm({
   const [dirty, setDirty] = useState(!!unsaved);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  // Why the last save failed, when the judge has something to do about it.
+  const [failure, setFailure] = useState<"" | "signedOut" | "removed">("");
   const total = useMemo(() => totalOf(marks), [marks]);
   const done = CRITERIA.filter((c) => typeof marks[c.id] === "number").length;
   const sum = CRITERIA.reduce((n, c) => n + (typeof marks[c.id] === "number" ? marks[c.id] : 0), 0);
@@ -291,7 +338,9 @@ function ScoreForm({
   // Unsaved marks: warn before leaving the tab.
   useEffect(() => {
     if (!dirty || practice) return;
-    const warn = (e: BeforeUnloadEvent) => e.preventDefault();
+    const warn = (e: BeforeUnloadEvent) => {
+      if (!leaving.current) e.preventDefault();
+    };
     window.addEventListener("beforeunload", warn);
     return () => window.removeEventListener("beforeunload", warn);
   }, [dirty, practice]);
@@ -305,6 +354,7 @@ function ScoreForm({
     }
     setBusy(true);
     setError("");
+    setFailure("");
     try {
       const r = await api<{ score: Score }>(`/judge/entries/${entryId}/score`, { method: "PUT", body: { marks, notes } });
       setSavedAt(r.score.updatedAt);
@@ -312,11 +362,27 @@ function ScoreForm({
       writeUnsaved(entryId, null);
       if (goNext && next) navigate(`/judge/entry/${next}`);
     } catch (e) {
-      setError((e as Error).message);
+      const status = e instanceof ApiError ? e.status : 0;
+      if (status === 401) {
+        setFailure("signedOut");
+        setError("You've been signed out, so these marks weren't saved. They're kept on this device: sign in again and they'll be here.");
+      } else if (status === 404) {
+        setFailure("removed");
+        setDirty(false);
+        writeUnsaved(entryId, null);
+        setError("Organizers removed this team. Your marks weren't needed.");
+      } else setError((e as Error).message);
     } finally {
       setBusy(false);
     }
   }
+
+  // Reload this entry's page: the sign-in screen shows first, then the entry with the kept marks.
+  const signInAgain = () => {
+    writeUnsaved(entryId, { marks, notes });
+    leaving.current = true;
+    window.location.assign(`${window.location.pathname}?as=${encodeURIComponent(me.name)}`);
+  };
 
   const setMark = (id: string, v: number) => {
     setMarks((m) => ({ ...m, [id]: v }));
@@ -340,7 +406,7 @@ function ScoreForm({
   const goesNext = !!next;
 
   return (
-    <section aria-labelledby="marks-h" className="mt-8 border-t border-bone/10 pt-6">
+    <section id="marks" aria-labelledby="marks-h" className="mt-8 scroll-mt-20 border-t border-bone/10 pt-6">
       <h2 id="marks-h" className="font-body text-lg font-semibold tracking-[-0.01em] text-bone">
         Your marks
       </h2>
@@ -387,7 +453,21 @@ function ScoreForm({
 
       {/* Stays at the bottom of the screen while the rubric is in view, so saving is always one tap away. */}
       <div className="j-savebar">
-        {error && <p className="p-notice p-notice--bad mb-3 font-body text-sm">{error}</p>}
+        {error && (
+          <div className="p-notice p-notice--bad mb-3 font-body text-sm" role="alert">
+            <p>{error}</p>
+            {failure === "signedOut" && (
+              <button type="button" className="btn-portal p-btn p-btn-sm mt-2.5" onClick={signInAgain}>
+                Sign in again
+              </button>
+            )}
+            {failure === "removed" && (
+              <Link to="/judge" className="p-link focus-ember mt-2 inline-block">
+                Back to entries
+              </Link>
+            )}
+          </div>
+        )}
         <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
           <div className="flex items-baseline gap-1">
             <span className="font-display text-[2rem] leading-none text-bone">{sum}</span>

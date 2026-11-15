@@ -427,6 +427,8 @@ export interface JudgeEntry extends EntryInput {
   /** What the server found when it opened the video link without signing in. */
   videoCheck: VideoCheck | null;
   slot: Slot | null;
+  /** The judging pair seated in this entry's room (display names). */
+  pairNames?: string[];
 }
 
 /** A dashboard card. */
