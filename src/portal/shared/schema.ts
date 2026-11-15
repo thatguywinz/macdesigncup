@@ -322,6 +322,12 @@ export interface EntryRecord extends EntryInput {
   award: string;
   /** An organizer reopened editing after the deadline. */
   unlocked: boolean;
+  /**
+   * When the team last pressed Submit while submissions were open. Pressing it
+   * before 1:30 counts as on time: uploads already under way may finish and
+   * the entry submits within FINISH_MINUTES (routes.ts), no edits.
+   */
+  submitPressedAt?: string | null;
   /** What the viewer measured when the team saved (judges' viewers re-measure live). */
   measure?: Measure | null;
   /** Organizers' decisions on originality checks: check id -> review. */

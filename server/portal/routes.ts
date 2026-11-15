@@ -93,6 +93,20 @@ async function windowOf(ctx: PortalContext): Promise<Window> {
 }
 
 /** May the team still change this entry? */
+/**
+ * Submit pressed before the deadline counts as on time (team-side test,
+ * 2026-11-15: a 121 MB model pressed at 1:29:52 finished uploading after
+ * 1:30 and the entry stayed an unjudged draft). Its uploads may finish, and
+ * it may submit, for this long after the deadline; nothing else changes.
+ */
+const FINISH_MINUTES = 10;
+
+/** A draft whose Submit was pressed in time, still finishing its uploads. */
+function finishing(w: Window, e: EntryRecord): boolean {
+  if (e.status !== "draft" || !e.submitPressedAt || w.settings.closed) return false;
+  return Date.parse(e.submitPressedAt) < w.deadline && w.now < w.deadline + FINISH_MINUTES * 60_000;
+}
+
 function canChange(w: Window, e: EntryRecord): boolean {
   if (e.unlocked) return true;
   if (w.open) return true;
@@ -181,7 +195,7 @@ async function ownView(ctx: PortalContext, w: Window, e: EntryRecord): Promise<O
     submittedAt,
     late,
     files: await Promise.all(e.files.map((f) => fileView(ctx, f))),
-    locked: !canChange(w, e),
+    locked: !canChange(w, e) && !finishing(w, e),
     unlocked: e.unlocked,
     notices,
     videoCheck: e.videoCheck ?? null,
@@ -260,7 +274,7 @@ function editKeyOf(req: Req): string {
 
 async function loadOwned(ctx: PortalContext, req: Req, id: string): Promise<EntryRecord> {
   const doc = await ctx.db.read("entries", { fresh: true });
-  const e = doc.entries[id];
+  const e = ownEntry(doc.entries, id);
   const key = editKeyOf(req);
   // Same answer for "no such entry" and "wrong key": ids are not confirmable by guessing keys.
   if (!e || !key || !safeEqual(sha256(key), e.editKeyHash)) fail(404, "Entry not found, or this edit link is wrong.");
@@ -499,7 +513,7 @@ on("GET", "/submissions", async (ctx, _req, res) => {
 
 on("GET", "/entry/:id", async (ctx, req, res, { id }) => {
   const doc = await ctx.db.read("entries");
-  const e = doc.entries[id];
+  const e = ownEntry(doc.entries, id);
   // A judge may preview a share page before it is public.
   const judge = readSession(ctx.cfg, req);
   const visible = e && e.status === "submitted" && ((e.shareable && !e.hidden) || judge);
@@ -520,11 +534,18 @@ const awardRank = (a: string) => {
   return a && i > 0 ? i : 99;
 };
 
+/** An entry by id, never an inherited property ("constructor", "toString"). */
+function ownEntry(entries: Record<string, EntryRecord>, id: string): EntryRecord | undefined {
+  return Object.hasOwn(entries, id) ? entries[id] : undefined;
+}
+
 // ── Teams ─────────────────────────────────────
 
 on("POST", "/entries", async (ctx, req, res) => {
   const ip = clientIp(req);
-  rateLimit(`create:${ip}`, 150, 10 * 60 * 1000);
+  // The whole venue shares one public IP: ~80 teams creating entries (and the
+  // browser retrying a busy save) must never hit this. It only stops a runaway script.
+  rateLimit(`create:${ip}`, 2000, 10 * 60 * 1000);
   const body = await readJson(req);
   const w = await windowOf(ctx);
   if (w.codeOn) {
@@ -532,7 +553,7 @@ on("POST", "/entries", async (ctx, req, res) => {
     // The right code always works; only wrong ones are counted, so a burst of
     // typos (or a script) from the shared venue IP never locks out real teams.
     if (!code || !safeEqual(code, normalizeCode(ctx.cfg.entryCode))) {
-      rateLimit(`code:${ip}`, 60, 10 * 60 * 1000);
+      rateLimit(`code:${ip}`, 400, 10 * 60 * 1000);
       fail(403, "That entry code isn't right. It's on the screen at the front of the room.", { field: "code" });
     }
   } else if (w.notYet) {
@@ -567,6 +588,7 @@ on("POST", "/entries", async (ctx, req, res) => {
       gallery: false,
       award: "",
       unlocked: false,
+      submitPressedAt: body.draft === true || !w.open ? null : now,
       measure,
       reviews: {},
       videoCheck,
@@ -597,6 +619,7 @@ on("PUT", "/entries/:id", async (ctx, req, res, { id }) => {
     const e = ownedIn(doc.entries, id, req);
     if (!canChange(w, e)) fail(409, "Submissions are closed. This entry can't be changed now.");
     Object.assign(e, value, { updatedAt: iso(w.now) });
+    if (body.draft !== true && w.open) e.submitPressedAt = iso(w.now);
     if (measure !== undefined) e.measure = measure;
     if (!value.videoLink) e.videoCheck = null;
     else if (videoCheck) e.videoCheck = videoCheck;
@@ -623,7 +646,7 @@ on("POST", "/entries/:id/files", async (ctx, req, res, { id }) => {
   let stale: string[] = [];
   await ctx.db.mutate("entries", (doc) => {
     const e = ownedIn(doc.entries, id, req);
-    if (!canChange(w, e)) fail(409, "Submissions are closed.");
+    if (!canChange(w, e) && !finishing(w, e)) fail(409, "Submissions are closed.");
     stale = prunePending(e, w.now);
     // Single-file slots replace on completion; multi-file slots have a cap.
     if (rule.maxCount > 1) {
@@ -634,7 +657,13 @@ on("POST", "/entries/:id/files", async (ctx, req, res, { id }) => {
     // The free Blob store is small: refuse an upload that would overfill it,
     // and point video uploads at a link instead.
     const used = Object.values(doc.entries).reduce(
-      (sum, x) => sum + x.files.reduce((a, f) => a + f.size, 0) + Object.values(x.pending).reduce((a, f) => a + f.size, 0),
+      // An upload that never finished stops holding space once its ticket is stale.
+      (sum, x) =>
+        sum +
+        x.files.reduce((a, f) => a + f.size, 0) +
+        Object.values(x.pending)
+          .filter((f) => w.now - Date.parse(f.signedAt) <= PENDING_MAX_AGE)
+          .reduce((a, f) => a + f.size, 0),
       0,
     );
     // One team can't take the whole store: files they'd replace don't count.
@@ -675,7 +704,7 @@ on("POST", "/entries/:id/files/:fileId/complete", async (ctx, req, res, { id, fi
   const reject = async (msg: string) => {
     await storage.delete([pending.path]).catch(() => {});
     await ctx.db.mutate("entries", (doc) => {
-      delete doc.entries[id]?.pending[fileId];
+      delete ownEntry(doc.entries, id)?.pending[fileId];
     });
     fail(422, `${pending.name}: ${msg}.`);
   };
@@ -698,15 +727,21 @@ on("POST", "/entries/:id/files/:fileId/complete", async (ctx, req, res, { id, fi
 
   const w = await windowOf(ctx);
   const removed: string[] = [];
+  let tooBig = false;
   const e = await ctx.db.mutate("entries", (doc) => {
     removed.length = 0;
+    tooBig = false;
     const e = ownedIn(doc.entries, id, req);
     const p = e.pending[fileId];
     if (!p) fail(404, "That upload has expired. Pick the file again.");
     // An upload signed in time may land a little after the deadline (grace).
     const signedInTime = Date.parse(p.signedAt) < w.deadline || e.unlocked;
-    if (!canChange(w, e) && !(signedInTime && w.now < w.deadline + GRACE_SECONDS * 1000)) fail(409, "Submissions are closed.");
+    if (!canChange(w, e) && !finishing(w, e) && !(signedInTime && w.now < w.deadline + GRACE_SECONDS * 1000)) fail(409, "Submissions are closed.");
     delete e.pending[fileId];
+    // The size the browser declared when signing isn't trusted: check the real one.
+    const keep = e.files.filter((f) => rule.maxCount > 1 || f.slot !== p.slot).reduce((a, f) => a + f.size, 0);
+    if (keep + info.size > ENTRY_MAX_BYTES) tooBig = true;
+    if (tooBig) return e;
     if (rule.maxCount === 1) {
       for (const old of e.files.filter((f) => f.slot === p.slot)) removed.push(old.path);
       e.files = e.files.filter((f) => f.slot !== p.slot);
@@ -718,6 +753,10 @@ on("POST", "/entries/:id/files/:fileId/complete", async (ctx, req, res, { id, fi
     return e;
   });
   lap("mutate");
+  if (tooBig) {
+    await storage.delete([pending.path]).catch(() => {});
+    fail(413, `Your entry's files can add up to ${Math.round(ENTRY_MAX_BYTES / 1024 / 1024)} MB. Make this file smaller, or remove the project file or video and use a link.`, { field: pending.slot });
+  }
   if (removed.length) await storage.delete(removed).catch(() => {});
   const view = await ownView(ctx, w, e);
   lap("ownView");
@@ -730,7 +769,7 @@ on("DELETE", "/entries/:id/files/:fileId", async (ctx, req, res, { id, fileId })
   let path = "";
   const e = await ctx.db.mutate("entries", (doc) => {
     const e = ownedIn(doc.entries, id, req);
-    if (!canChange(w, e)) fail(409, "Submissions are closed.");
+    if (!canChange(w, e) && !finishing(w, e)) fail(409, "Submissions are closed.");
     const f = e.files.find((x) => x.id === fileId);
     if (!f) fail(404, "No such file.");
     if (e.status === "submitted" && !hasVisual({ ...e, files: e.files.filter((x) => x.id !== fileId) })) fail(409, VISUAL_NEEDED);
@@ -754,14 +793,15 @@ on("POST", "/entries/:id/submit", async (ctx, req, res, { id }) => {
   const e = await ctx.db.mutate("entries", (doc) => {
     const e = ownedIn(doc.entries, id, req);
     if (recheck && e.videoLink === before.videoLink) e.videoCheck = recheck;
-    if (!canChange(w, e)) fail(409, "Submissions are closed.");
+    const inTime = finishing(w, e);
+    if (!canChange(w, e) && !inTime) fail(409, "Submissions are closed.");
     const parsed = parseEntry(e);
     if (!parsed.ok) fail(422, "Some fields need another look.", { errors: parsed.errors });
     if (!hasVisual(e)) fail(422, VISUAL_NEEDED, { field: "visuals" });
     if (e.status !== "submitted") {
       e.status = "submitted";
       e.submittedAt = iso(w.now);
-      e.late = w.now >= w.deadline && !e.unlocked;
+      e.late = w.now >= w.deadline && !e.unlocked && !inTime;
     }
     e.updatedAt = iso(w.now);
     return e;
@@ -838,7 +878,7 @@ on("POST", "/judge/login", async (ctx, req, res) => {
   if (!role) {
     // The right passcode always works; wrong ones are limited per IP and name.
     rateLimit(`login:${ip}:${judgeKey(name)}`, 10, 5 * 60 * 1000);
-    rateLimit(`login:${ip}`, 60, 5 * 60 * 1000);
+    rateLimit(`login:${ip}`, 300, 5 * 60 * 1000);
     fail(401, "That passcode isn't right.", { field: "passcode" });
   }
   const { cookie, session } = makeSessionCookie(ctx.cfg, role, name);
@@ -911,7 +951,7 @@ on("GET", "/judge/entries", async (ctx, req, res) => {
 on("GET", "/judge/entries/:id", async (ctx, req, res, { id }) => {
   const s = requireJudge(ctx.cfg, req);
   const doc = await ctx.db.read("entries");
-  const e = doc.entries[id];
+  const e = ownEntry(doc.entries, id);
   if (!e || (e.status !== "submitted" && s.role !== "admin")) fail(404, "No such entry.");
   const order = Object.values(doc.entries)
     .filter((x) => x.status === "submitted")
@@ -936,7 +976,7 @@ on("PUT", "/judge/entries/:id/score", async (ctx, req, res, { id }) => {
   const s = requireJudge(ctx.cfg, req);
   const body = await readJson(req);
   const doc = await ctx.db.read("entries");
-  if (doc.entries[id]?.status !== "submitted") fail(404, "No such entry.");
+  if (ownEntry(doc.entries, id)?.status !== "submitted") fail(404, "No such entry.");
   const score: Score = {
     marks: cleanMarks(body.marks),
     notes: String(body.notes ?? "").slice(0, 2000),
@@ -1003,14 +1043,16 @@ async function results(ctx: PortalContext) {
   const rows = Object.values(doc.entries)
     .filter((e) => e.status === "submitted")
     .map((e) => {
-      // The pair's marks make the result. If only someone outside the pair marked
-      // it (a stand-in), those still give it a score, but it isn't done.
+      // Only the entry's own pair's marks make its result (an outsider's mark
+      // once put an entry at #1 of Top 5 on its own). A judge filling in for
+      // a missing pair member: organizers seat them in that room in Settings.
+      // Entries without a slot (or a room with no pair) take everyone's marks.
       const pair = pairKeys(settings, e.id);
       const all = counted
         .map(([key, j]) => ({ key, score: j.scores[e.id] }))
         .filter((x) => totalOf(x.score?.marks) !== null);
       const pairMarked = pair ? all.filter((x) => pair.has(x.key)) : all;
-      const marked = pairMarked.length ? pairMarked : all;
+      const marked = pairMarked;
       const totals = marked.map((x) => totalOf(x.score.marks) as number);
       const average = totals.length ? totals.reduce((a, b) => a + b, 0) / totals.length : null;
       const perCriterion: Record<string, number | null> = {};
@@ -1039,15 +1081,25 @@ async function results(ctx: PortalContext) {
         openReviews: openReviews(checksFor(e, Object.values(doc.entries), settings)),
       };
     })
-    .sort((a, b) => (b.average ?? -1) - (a.average ?? -1) || String(a.submittedAt).localeCompare(String(b.submittedAt)));
-  // Rank: equal averages share a place (a tie for organizers to break).
-  const ranked = rows.map((r, i) => ({
-    ...r,
-    rank: r.average === null ? null : rows.findIndex((x) => x.average === r.average) + 1,
-    tied: r.average !== null && rows.filter((x) => x.average === r.average).length > 1,
-    complete: r.judgeCount >= MARKS_NEEDED,
-    index: i,
-  }));
+    .sort(
+      (a, b) =>
+        Number(b.judgeCount >= MARKS_NEEDED) - Number(a.judgeCount >= MARKS_NEEDED) ||
+        (b.average ?? -1) - (a.average ?? -1) ||
+        String(a.submittedAt).localeCompare(String(b.submittedAt)),
+    );
+  // Rank: only finished entries (both pair marks) get a place, so one early
+  // mark can't jump the table. Equal averages share a place (a tie to break).
+  const finished = rows.filter((r) => r.judgeCount >= MARKS_NEEDED && r.average !== null);
+  const ranked = rows.map((r, i) => {
+    const complete = r.judgeCount >= MARKS_NEEDED;
+    return {
+      ...r,
+      rank: complete && r.average !== null ? finished.findIndex((x) => x.average === r.average) + 1 : null,
+      tied: complete && r.average !== null && finished.filter((x) => x.average === r.average).length > 1,
+      complete,
+      index: i,
+    };
+  });
   // For the live board: every judge on the list (marked anything yet or not),
   // how many entries each has marked and when they last saved.
   const sheetFor = new Map(counted);
@@ -1129,7 +1181,7 @@ on("PUT", "/judge/final/:id", async (ctx, req, res, { id }) => {
   requireAdmin(ctx.cfg, req);
   const body = await readJson(req);
   const doc = await ctx.db.read("entries");
-  if (doc.entries[id]?.status !== "submitted") fail(404, "No such entry.");
+  if (ownEntry(doc.entries, id)?.status !== "submitted") fail(404, "No such entry.");
   const why = String(body.why ?? "").slice(0, 2000);
   await ctx.db.mutate("settings", (st) => {
     st.finalNotes ??= {};
@@ -1182,7 +1234,7 @@ on("PATCH", "/judge/entries/:id", async (ctx, req, res, { id }) => {
   const s = requireAdmin(ctx.cfg, req);
   const body = await readJson(req);
   await ctx.db.mutate("entries", (doc) => {
-    const e = doc.entries[id];
+    const e = ownEntry(doc.entries, id);
     if (!e) fail(404, "No such entry.");
     if (typeof body.hidden === "boolean") e.hidden = body.hidden;
     if (typeof body.gallery === "boolean") e.gallery = body.gallery;
@@ -1190,18 +1242,22 @@ on("PATCH", "/judge/entries/:id", async (ctx, req, res, { id }) => {
     if (typeof body.award === "string") {
       if (!(AWARDS as readonly string[]).includes(body.award)) fail(422, "Unknown award.");
       e.award = body.award;
+      // One entry per place: giving "1st place" here takes it from anyone else.
+      if (/^\d(st|nd|rd) place$/.test(body.award)) {
+        for (const other of Object.values(doc.entries)) if (other.id !== id && other.award === body.award) other.award = "";
+      }
     }
     if (typeof body.late === "boolean") e.late = body.late;
   });
   const doc = await ctx.db.read("entries", { fresh: true });
-  sendJson(res, 200, { entry: await judgeView(ctx, doc.entries[id], s) });
+  sendJson(res, 200, { entry: await judgeView(ctx, ownEntry(doc.entries, id)!, s) });
 });
 
 on("DELETE", "/judge/entries/:id", async (ctx, req, res, { id }) => {
   requireAdmin(ctx.cfg, req);
   let paths: string[] = [];
   await ctx.db.mutate("entries", (doc) => {
-    const e = doc.entries[id];
+    const e = ownEntry(doc.entries, id);
     if (!e) fail(404, "No such entry.");
     paths = [...e.files.map((f) => f.path), ...Object.values(e.pending).map((p) => p.path)];
     delete doc.entries[id];
@@ -1327,9 +1383,13 @@ function cleanRooms(raw: Record<string, unknown>, cur: RoomsSetup): RoomsSetup {
 on("POST", "/judge/schedule", async (ctx, req, res) => {
   requireAdmin(ctx.cfg, req);
   const body = await readJson(req);
-  const doc = await ctx.db.read("entries", { fresh: true });
+  const [doc, scoresNow] = await Promise.all([ctx.db.read("entries", { fresh: true }), ctx.db.read("scores", { fresh: true })]);
   await ctx.db.mutate("settings", (st) => {
     if (body.action === "clear") {
+      // Clearing after marks were saved moves teams to other rooms and makes
+      // the first pair's marks stop counting: only with an explicit confirm.
+      const marked = Object.values(scoresNow.judges).some((j) => Object.entries(j.scores).some(([eid, x]) => totalOf(x.marks) !== null && Object.hasOwn(st.schedule ?? {}, eid)));
+      if (marked && body.force !== true) fail(409, "Judges have already saved marks. Clearing moves teams to other rooms and their first marks stop counting.", { needsForce: true });
       delete st.schedule;
       delete st.autoScheduledAt;
       // Cleared after the deadline: on purpose, so don't remake it by itself.
@@ -1385,7 +1445,7 @@ on("PUT", "/judge/entries/:id/checks/:checkId", async (ctx, req, res, { id, chec
     else e.reviews[checkId] = { status, by: s.name, at: new Date().toISOString(), note: String(body.note ?? "").slice(0, 500) };
   });
   const doc = await ctx.db.read("entries", { fresh: true });
-  sendJson(res, 200, { entry: await judgeView(ctx, doc.entries[id], s) });
+  sendJson(res, 200, { entry: await judgeView(ctx, ownEntry(doc.entries, id)!, s) });
 });
 
 // ── Dispatch ──────────────────────────────────

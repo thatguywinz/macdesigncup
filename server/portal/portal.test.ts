@@ -279,7 +279,9 @@ describe("teams", () => {
   });
 
   it("closes at 1:30 PM sharp: no late submissions, even for drafts already started", async () => {
-    const { id, key } = await create();
+    // A draft saved with "Save draft" (Submit never pressed).
+    const made = await call("/entries", { body: { code: "MDC-DEMO", entry: entry(), draft: true } });
+    const { id, editKey: key } = made.json as { id: string; editKey: string };
     await upload(id, key, "model", "a.stl", tinyStl());
     clock = Date.parse("2026-11-16T13:29:00-05:00");
     expect((await call("/status")).json.open).toBe(true);
@@ -288,6 +290,41 @@ describe("teams", () => {
     expect((await call("/entries", { body: { code: "MDC-DEMO", entry: entry() } })).status).toBe(409);
     expect((await call(`/entries/${id}/submit`, { body: {}, key })).status).toBe(409);
     expect((await call(`/entries/${id}`, { method: "PUT", body: { entry: entry({ title: "Changed" }) }, key })).status).toBe(409);
+  });
+
+  it("Submit pressed before 1:30 counts: uploads under way finish and the entry submits, on time", async () => {
+    clock = Date.parse("2026-11-16T13:29:50-05:00");
+    const { id, key } = await create(); // details saved by pressing Submit
+    const s = await call(`/entries/${id}/files`, { body: { slot: "model", name: "big.stl", size: tinyStl().length }, key });
+    expect(s.status).toBe(200);
+    // The (big) upload lands after the deadline.
+    clock = Date.parse("2026-11-16T13:33:00-05:00");
+    const put = await fetch(new URL(s.json.ticket.url, base), { method: "PUT", body: tinyStl(), headers: { "X-Portal": "1" } });
+    expect(put.status).toBe(200);
+    expect((await call(`/entries/${id}/files/${s.json.fileId}/complete`, { body: {}, key })).status).toBe(200);
+    // No editing the details in that window.
+    expect((await call(`/entries/${id}`, { method: "PUT", body: { entry: entry({ title: "Sneaky" }) }, key })).status).toBe(409);
+    const sub = await call(`/entries/${id}/submit`, { body: {}, key });
+    expect(sub.status).toBe(200);
+    expect(sub.json.entry.status).toBe("submitted");
+    expect(sub.json.entry.late).toBe(false);
+    // Ten minutes after the deadline the window is over.
+    clock = Date.parse("2026-11-16T13:29:00-05:00");
+    const b = await create({ title: "Too slow" });
+    clock = Date.parse("2026-11-16T13:41:00-05:00");
+    expect((await call(`/entries/${b.id}/submit`, { body: {}, key: b.key })).status).toBe(409);
+  });
+
+  it("doesn't let declared upload sizes cheat the entry's 300 MB limit", async () => {
+    const { id, key } = await create();
+    const s = await call(`/entries/${id}/files`, { body: { slot: "model", name: "m.stl", size: 10 }, key });
+    expect(s.status).toBe(200);
+    // Pretend the entry already holds almost 300 MB of other files.
+    await ctx.db.mutate("entries", (d) => {
+      d.entries[id].files.push({ id: "x1", slot: "source", name: "s.zip", ext: "zip", size: 300 * 1024 * 1024 - 10, path: "p/x", uploadedAt: "" } as never);
+    });
+    await fetch(new URL(s.json.ticket.url, base), { method: "PUT", body: tinyStl(), headers: { "X-Portal": "1" } });
+    expect((await call(`/entries/${id}/files/${s.json.fileId}/complete`, { body: {}, key })).status).toBe(413);
   });
 
   it("locks a submitted entry at the deadline (no grace for edits)", async () => {
@@ -320,7 +357,7 @@ describe("request guards", () => {
 
   it("rate-limits entry-code guessing", async () => {
     let last = 0;
-    for (let i = 0; i < 62; i++) last = (await call("/entries", { body: { code: `guess${i}`, entry: entry() } })).status;
+    for (let i = 0; i < 402; i++) last = (await call("/entries", { body: { code: `guess${i}`, entry: entry() } })).status;
     expect(last).toBe(429);
   });
 
@@ -444,7 +481,7 @@ describe("concurrency", () => {
 
 describe("security review fixes", () => {
   it("lets the right entry code through even after a flood of wrong ones", async () => {
-    for (let i = 0; i < 62; i++) await call("/entries", { body: { code: `typo${i}`, entry: entry() } });
+    for (let i = 0; i < 402; i++) await call("/entries", { body: { code: `typo${i}`, entry: entry() } });
     expect((await call("/entries", { body: { code: "wrong", entry: entry() } })).status).toBe(429);
     expect((await call("/entries", { body: { code: "MDC-DEMO", entry: entry() } })).status).toBe(201);
   });
@@ -570,7 +607,7 @@ describe("day-of switches", () => {
 describe("judging schedule", () => {
   it("spreads entries over the rooms, keeps given slots, and sends each judge through their room in order", async () => {
     const admin = await login("admin-demo", "Organizer");
-    await call("/judge/schedule", { body: { action: "clear" }, cookie: admin.cookie });
+    await call("/judge/schedule", { body: { action: "clear", force: true }, cookie: admin.cookie });
     await call("/judge/settings", {
       method: "PUT",
       body: { judges: ["Room Judge"], rooms: { names: ["R1", "R2"], start: "2026-11-16T14:10:00-05:00", slotMinutes: 5, judgeRooms: { "Room Judge": "R2" } } },
@@ -616,7 +653,7 @@ describe("judging schedule", () => {
     await call(`/judge/entries/${id}`, { method: "DELETE", cookie: admin.cookie });
     expect((await call("/judge/settings", { cookie: admin.cookie })).json.scheduled).toBe(before2 - 1);
 
-    await call("/judge/schedule", { body: { action: "clear" }, cookie: admin.cookie });
+    await call("/judge/schedule", { body: { action: "clear", force: true }, cookie: admin.cookie });
     await call("/judge/settings", { method: "PUT", body: { judges: [], rooms: { names: ["WFL632", "WFL634", "WFL637"], judgeRooms: {} } }, cookie: admin.cookie });
   });
 });
@@ -647,7 +684,7 @@ describe("day of (organizers, 2026-11-14)", () => {
     await call(`/entries/${late.id}/submit`, { body: {}, key: late.key });
     expect((await call(`/entries/${late.id}`, { key: late.key })).json.entry.slot?.room).toBeTruthy();
     // Cleared on purpose after the deadline: it stays cleared.
-    await call("/judge/schedule", { body: { action: "clear" }, cookie: admin.cookie });
+    await call("/judge/schedule", { body: { action: "clear", force: true }, cookie: admin.cookie });
     expect((await call("/judge/settings", { cookie: admin.cookie })).json.scheduled).toBe(0);
   });
 
@@ -657,7 +694,7 @@ describe("day of (organizers, 2026-11-14)", () => {
       st.scheduleOff = true;
     });
     await call("/judge/schedule", { body: { action: "make" }, cookie: admin.cookie });
-    await call("/judge/schedule", { body: { action: "clear" }, cookie: admin.cookie });
+    await call("/judge/schedule", { body: { action: "clear", force: true }, cookie: admin.cookie });
     expect((await call("/judge/settings", { cookie: admin.cookie })).json.autoScheduledAt).toBeNull();
     const { id, key } = await create({ title: "Gone Later" });
     await call(`/entries/${id}/submit`, { body: {}, key });
@@ -723,7 +760,7 @@ describe("pairs (review fixes)", () => {
   const marks = (n: number) => ({ marks: { originality: n, technical: n, theme: n, communication: n } });
   it("only the entry's own pair finishes it; a hidden entry still gets a slot", async () => {
     const admin = await login("admin-demo", "Organizer");
-    await call("/judge/schedule", { body: { action: "clear" }, cookie: admin.cookie });
+    await call("/judge/schedule", { body: { action: "clear", force: true }, cookie: admin.cookie });
     await call("/judge/settings", {
       method: "PUT",
       body: { judges: ["Pa One", "Pa Two", "Pb One"], rooms: { names: ["RA", "RB"], start: "2026-11-16T14:00:00-05:00", slotMinutes: 3, judgeRooms: { "Pa One": "RA", "Pa Two": "RA", "Pb One": "RB" } } },
@@ -741,7 +778,7 @@ describe("pairs (review fixes)", () => {
     expect(st.schedule?.[h.id]).toBeTruthy();
     // Put team A in RA for the test.
     await ctx.db.mutate("settings", (x) => {
-      x.schedule![a.id] = { room: "RA", at: "2026-11-16T19:00:00.000Z" };
+      x.schedule![a.id] = { room: "RA", at: "2026-11-16T18:57:00.000Z" }; // first in RA (the test clock gives every entry the same submit time)
     });
     const pa1 = await login("judge-demo", "Pa One");
     const pa2 = await login("judge-demo", "Pa Two");
@@ -758,7 +795,39 @@ describe("pairs (review fixes)", () => {
     const row = (await call("/judge/results", { cookie: admin.cookie })).json.rows.find((r: { id: string }) => r.id === a.id);
     expect(row.average).toBe(70); // the pair's marks only
     expect(row.complete).toBe(true);
-    await call("/judge/schedule", { body: { action: "clear" }, cookie: admin.cookie });
+    // An outsider-only mark never ranks an entry (it once topped Top 5 alone).
+    const lone = await create({ title: "Lone Mark" });
+    await call(`/entries/${lone.id}/submit`, { body: {}, key: lone.key });
+    await ctx.db.mutate("settings", (x) => {
+      x.schedule![lone.id] = { room: "RA", at: "2026-11-16T19:03:00.000Z" };
+    });
+    await call(`/judge/entries/${lone.id}/score`, { method: "PUT", body: marks(25), cookie: pb1.cookie });
+    const res2 = (await call("/judge/results", { cookie: admin.cookie })).json;
+    const loneRow = res2.rows.find((r: { id: string }) => r.id === lone.id);
+    expect(loneRow.rank).toBeNull();
+    expect(loneRow.average).toBeNull();
+    expect(res2.rows[0].id).toBe(a.id);
+    // Clearing the schedule once marks exist needs an explicit confirm.
+    const blocked = await call("/judge/schedule", { body: { action: "clear" }, cookie: admin.cookie });
+    expect(blocked.status).toBe(409);
+    expect(blocked.json.needsForce).toBe(true);
+    expect((await ctx.db.read("settings", { fresh: true })).schedule?.[a.id]).toBeTruthy();
+    // One entry per place.
+    await call(`/judge/entries/${a.id}`, { method: "PATCH", body: { award: "1st place" }, cookie: admin.cookie });
+    await call(`/judge/entries/${lone.id}`, { method: "PATCH", body: { award: "1st place" }, cookie: admin.cookie });
+    const docNow = await ctx.db.read("entries", { fresh: true });
+    expect(docNow.entries[a.id].award).toBe("");
+    expect(docNow.entries[lone.id].award).toBe("1st place");
+    // Inherited property names are not entries.
+    expect((await call("/judge/entries/constructor", { method: "PATCH", body: { hidden: true }, cookie: admin.cookie })).status).toBe(404);
+    expect((await call("/judge/entries/toString", { method: "DELETE", cookie: admin.cookie })).status).toBe(404);
+    await call("/judge/schedule", { body: { action: "clear", force: true }, cookie: admin.cookie });
     await call("/judge/settings", { method: "PUT", body: { judges: [], rooms: { names: ["WFL632", "WFL634", "WFL637"], judgeRooms: {} } }, cookie: admin.cookie });
+  });
+});
+
+describe("shared venue IP", () => {
+  it("never locks real teams out: 150 entries from one IP all go through", async () => {
+    for (let i = 0; i < 150; i++) expect((await call("/entries", { body: { code: "MDC-DEMO", entry: entry(), draft: true } })).status).toBe(201);
   });
 });
