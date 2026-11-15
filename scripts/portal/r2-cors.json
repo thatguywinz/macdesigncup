@@ -1,0 +1,9 @@
+[
+  {
+    "AllowedOrigins": ["https://www.macdesigncup.ca", "https://macdesigncup.ca"],
+    "AllowedMethods": ["GET", "PUT", "HEAD"],
+    "AllowedHeaders": ["content-type", "if-none-match", "range"],
+    "ExposeHeaders": ["ETag", "Content-Length", "Content-Range"],
+    "MaxAgeSeconds": 3600
+  }
+]

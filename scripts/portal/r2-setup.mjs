@@ -1,21 +1,32 @@
-// Sets up and checks the Cloudflare R2 bucket the portal stores into.
+// Checks the Cloudflare R2 bucket the portal stores into.
 //
-//   R2_ACCOUNT_ID=… R2_ACCESS_KEY_ID=… R2_SECRET_ACCESS_KEY=… R2_BUCKET=… node scripts/portal/r2-setup.mjs
+//   node scripts/portal/r2-setup.mjs        (reads .env.r2 in the repo root)
 //
 // 1. CORS: lets the site's pages PUT uploads and GET files straight from the
-//    bucket (presigned URLs only; the bucket stays private).
+//    bucket (presigned URLs only; the bucket stays private). An "Object Read &
+//    Write" token can't change bucket settings, so the policy is pasted once in
+//    the dashboard (scripts/portal/r2-cors.json); this checks it took.
 // 2. Checks, against the real bucket: conditional writes (If-None-Match /
 //    If-Match, which the portal's compare-and-swap relies on), a presigned
 //    PUT and GET from the site's origin (CORS), range reads and deletes.
 // Everything it writes is under r2-check/ and deleted at the end.
+import fs from "node:fs";
 import { AwsClient } from "aws4fetch";
+
+// Values from .env.r2 (environment variables win).
+if (fs.existsSync(".env.r2")) {
+  for (const line of fs.readFileSync(".env.r2", "utf8").split(String.fromCharCode(10))) {
+    const m = /^\s*([A-Z0-9_]+)\s*=\s*(.*?)\s*$/.exec(line);
+    if (m && m[2] && !process.env[m[1]]) process.env[m[1]] = m[2];
+  }
+}
 
 const { R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET } = process.env;
 if (!R2_ACCOUNT_ID || !R2_ACCESS_KEY_ID || !R2_SECRET_ACCESS_KEY || !R2_BUCKET) {
-  console.error("Set R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY and R2_BUCKET.");
+  console.error("Fill in R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY and R2_BUCKET in .env.r2.");
   process.exit(1);
 }
-const ORIGINS = (process.env.R2_ORIGINS ?? "https://www.macdesigncup.ca,https://macdesigncup.ca,http://localhost:8080").split(",");
+const ORIGINS = (process.env.R2_ORIGINS ?? "https://www.macdesigncup.ca,https://macdesigncup.ca").split(",");
 const aws = new AwsClient({ accessKeyId: R2_ACCESS_KEY_ID, secretAccessKey: R2_SECRET_ACCESS_KEY, service: "s3", region: "auto" });
 const base = `https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com/${R2_BUCKET}`;
 let ok = true;
@@ -43,7 +54,8 @@ ${ORIGINS.map((o) => `    <AllowedOrigin>${o}</AllowedOrigin>`).join("\n")}
 </CORSConfiguration>`;
 const md5 = (await import("node:crypto")).createHash("md5").update(cors).digest("base64");
 const corsRes = await aws.fetch(`${base}?cors`, { method: "PUT", headers: { "content-type": "application/xml", "content-md5": md5 }, body: cors });
-check("bucket CORS set", corsRes.ok, `${corsRes.status} ${corsRes.ok ? "" : (await corsRes.text()).slice(0, 200)}`);
+if (corsRes.ok) console.log("PASS  bucket CORS set from this script");
+else console.log(`INFO  this key can't change bucket settings (${corsRes.status}); using the CORS policy pasted in the dashboard`);
 
 // 2. Conditional writes
 const k = `r2-check/doc-${Date.now()}.json`;
