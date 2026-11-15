@@ -148,7 +148,8 @@ export default function TopPage() {
           d
             ? {
                 ...d,
-                rows: d.rows.map((r) => (r.id === id ? { ...r, award } : r)),
+                // The server gives each place to one entry: taking "1st place" here takes it from anyone else.
+                rows: d.rows.map((r) => (r.id === id ? { ...r, award } : PLACES.includes(award) && r.award === award ? { ...r, award: "" } : r)),
               }
             : d,
         ),
@@ -157,7 +158,8 @@ export default function TopPage() {
 
   const ranked = data?.rows.filter((r) => r.rank !== null) ?? [];
   const top = ranked.filter((r) => (r.rank ?? 99) <= (data?.topCount ?? 5));
-  const incomplete = data?.rows.filter((r) => !r.complete).length ?? 0;
+  const waiting = data?.rows.filter((r) => !r.complete) ?? [];
+  const incomplete = waiting.length;
   const total = data?.rows.length ?? 0;
   const tieAtTop = top.some((r) => r.tied && (r.rank ?? 99) <= 3);
 
@@ -237,7 +239,7 @@ export default function TopPage() {
           className={`p-notice mt-6 font-body text-sm ${incomplete ? "" : "p-notice--calm"}`}
         >
           {incomplete
-            ? `Not final yet: ${incomplete} of ${total} ${total === 1 ? "entry needs" : "entries need"} ${data.marksNeeded} marks. The order can still change.`
+            ? `Not final yet: ${incomplete} of ${total} ${total === 1 ? "entry is" : "entries are"} still waiting for ${data.marksNeeded === 2 ? "both" : "all"} of their pair's marks. Only finished entries are ranked, so the order can still change.`
             : `Every entry has its ${data.marksNeeded} marks. This order is final unless a mark changes.`}
           {tieAtTop &&
             " There's a tie in the top 3: Ms. Neag breaks it. Set the places below."}
@@ -249,10 +251,14 @@ export default function TopPage() {
           {error ? "" : "Loading…"}
         </p>
       ) : top.length === 0 ? (
-        <p className="mt-12 max-w-[34rem] font-body text-foreground/75">
-          No marked entries yet. The ranking fills in as judging pairs save
-          their marks.
-        </p>
+        <div className="mt-12 max-w-[36rem] font-body">
+          <p className="text-[17px] font-semibold text-bone">No entry is finished yet.</p>
+          <p className="mt-2 text-foreground/75">
+            {total === 0
+              ? "No entries have been submitted yet."
+              : `An entry is ranked once both judges in its room have saved their marks. ${incomplete} of ${total} ${total === 1 ? "entry is" : "entries are"} still being judged; watch them on Live.`}
+          </p>
+        </div>
       ) : (
         <ol className="mt-8 flex flex-col gap-4">
           {top.map((r) => {
@@ -275,12 +281,12 @@ export default function TopPage() {
                       />
                     )}
                     <div className="min-w-0 flex-1">
-                      <p className="font-body text-[13px] text-ember">
+                      <h2 className="font-body normal-case text-[22px] font-semibold leading-snug tracking-[-0.01em] text-bone">
                         {teamOf(r)}
-                      </p>
-                      <h2 className="font-body normal-case text-[20px] font-semibold leading-snug tracking-[-0.01em] text-bone">
-                        {r.title}
                       </h2>
+                      <p className="font-body text-[15px] text-foreground/85">
+                        {r.title}
+                      </p>
                       <p className="mt-0.5 font-body text-sm text-foreground/75">
                         {r.members.map((m) => m.name).join(", ")} ·{" "}
                         {[...new Set(r.members.map((m) => m.school))].join(
@@ -423,6 +429,32 @@ export default function TopPage() {
             );
           })}
         </ol>
+      )}
+
+      {data && incomplete > 0 && (
+        <details className="mt-8 max-w-[46rem] border-t border-bone/10 pt-5 font-body print:hidden">
+          <summary className="cursor-pointer text-[15px] text-foreground/85 hover:text-foreground">
+            Still being judged, not ranked ({incomplete})
+          </summary>
+          <ul className="mt-3 flex flex-col divide-y divide-bone/[0.07]">
+            {waiting.map((r) => (
+              <li key={r.id} className="flex flex-wrap items-baseline gap-x-3 gap-y-1 py-2 text-sm">
+                <Link to={`/judge/entry/${r.id}`} className="focus-ember min-w-0 flex-1 truncate text-foreground hover:text-ember">
+                  {teamOf(r)}
+                  <span className="ml-2 text-concrete">{r.title}</span>
+                </Link>
+                {r.slot && (
+                  <span className="p-mono text-[11px] text-concrete">
+                    {r.slot.room} · {clock(r.slot.at)}
+                  </span>
+                )}
+                <span className="p-tag p-tag--bad">
+                  {r.judgeCount} of {data.marksNeeded} marks
+                </span>
+              </li>
+            ))}
+          </ul>
+        </details>
       )}
 
       {data && ranked.length > top.length && (

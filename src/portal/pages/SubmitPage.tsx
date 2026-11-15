@@ -144,6 +144,8 @@ export default function SubmitPage() {
   const [done, setDone] = useState(false);
   const [draftSaved, setDraftSaved] = useState("");
   const [measure, setMeasure] = useState<Measure | null>(null);
+  /** The preview couldn't open the chosen model (damaged or renamed file). */
+  const [modelOpenError, setModelOpenError] = useState<string | null>(null);
   const [videoMode, setVideoMode] = useState<"link" | "upload">(initial?.videoMode === "upload" ? "upload" : "link");
   const [restored, setRestored] = useState(!!initial);
   // An existing entry opens on the review, where everything is at a glance.
@@ -283,7 +285,10 @@ export default function SubmitPage() {
   // Locked by the server, or the clock passed the deadline while this page was open
   // (no late submissions: only an entry organizers reopened stays editable).
   const pastDeadline = deadline !== null && now >= deadline;
-  const locked = (saved?.locked ?? false) || (pastDeadline && !(saved?.unlocked ?? false));
+  // Submit pressed in time and still finishing (an upload failed or the page
+  // reloaded after the deadline): it may retry its uploads and submit.
+  const finishingNow = !!saved?.finishingUntil && saved.status === "draft" && now < Date.parse(saved.finishingUntil);
+  const locked = !finishingNow && ((saved?.locked ?? false) || (pastDeadline && !(saved?.unlocked ?? false)));
   const submitted = saved?.status === "submitted";
 
   const hasVideoNow = videoMode === "link" ? !!parseVideoLink(form.videoLink) : files.video.length > 0;
@@ -342,9 +347,22 @@ export default function SubmitPage() {
    * Moves to a step. Back is always open, and an existing entry can jump
    * anywhere; a new entry goes forward only past steps that are complete.
    */
-  function goTo(target: Step) {
+  async function goTo(target: Step) {
     if (target === step) return;
     setFormError("");
+    // Leaving step 1 of a new entry: check the entry code now, not at the end.
+    if (!isEdit && step === 0 && target > 0 && codeRequired && code.trim()) {
+      try {
+        await api("/entries/check-code", { body: { code } });
+      } catch (e) {
+        if (e instanceof ApiError && e.status === 403) {
+          setErrors((x) => ({ ...x, code: e.message }));
+          revealError();
+          return;
+        }
+        // Offline or busy: carry on; the code is checked again on submit.
+      }
+    }
     if (!isEdit && target > step) {
       for (let s = 0 as Step; s < target; s = (s + 1) as Step) {
         const errs = neededIn(s);
@@ -382,7 +400,7 @@ export default function SubmitPage() {
   function onSubmit(ev: FormEvent) {
     ev.preventDefault();
     // Enter (or the main button) on steps 1 and 2 of a new entry means Next.
-    if (step < LAST && !submitted) goTo((step + 1) as Step);
+    if (step < LAST && !submitted) void goTo((step + 1) as Step);
     else void save("submit");
   }
 
@@ -400,6 +418,8 @@ export default function SubmitPage() {
     const errs: FieldErrors = "errors" in parsed ? { ...parsed.errors } : {};
     if (!isEdit && codeRequired && !code.trim()) errs.code = CODE_NEEDED;
     if (!hasVisual && !draft) errs.visuals = VISUAL_NEEDED;
+    // A model the preview can't open would reach judges as an empty box.
+    if (!draft && modelOpenError && files.model.some((x) => x.kind === "new")) errs.model = modelOpenError;
     if (Object.keys(errs).length || !("value" in parsed)) {
       setFormError("Some fields need another look.");
       showErrors(errs);
@@ -427,6 +447,8 @@ export default function SubmitPage() {
         // From here on the page is the entry's edit link: a retry resumes, never duplicates.
         navigate(`/submit/edit/${id}#k=${key}`, { replace: true });
         setSaved(created.entry);
+      } else if (finishingNow) {
+        // Past the deadline, finishing an on-time Submit: details can't change, so go straight to the files.
       } else {
         const res = await api<{ entry: OwnEntry }>(`/entries/${id}`, { method: "PUT", body: { entry: parsed.value, draft, measure }, editKey: key });
         setSaved(res.entry);
@@ -442,9 +464,10 @@ export default function SubmitPage() {
       }
       setRemoved([]);
 
-      // 3. New files, model first.
+      // 3. New files, small ones first: pictures land in seconds, so a team
+      // pressing Submit at the last minute already has something judges can see.
       const queue: [keyof Files, Extract<Item, { kind: "new" }>][] = [];
-      for (const slot of ["video", "model", "progress", "image", "source"] as const) {
+      for (const slot of ["image", "progress", "model", "video", "source"] as const) {
         if (slot === "video" && videoMode !== "upload") continue;
         for (const item of files[slot]) if (item.kind === "new") queue.push([slot, item]);
       }
@@ -575,12 +598,13 @@ export default function SubmitPage() {
     );
   }
 
-  if (!isEdit && closedForNew && status) {
+  // A Submit pressed in time keeps its page until it finishes (it may still be uploading).
+  if (!isEdit && closedForNew && status && !busy) {
     return (
       <Shell section="Submit your design">
         <div className="max-w-[40rem] py-20">
           <h1 className="display-scene">Submissions are closed</h1>
-          <p className="mt-4 font-body text-lg text-foreground/75">They closed at {clock(status.deadline)}. If you've already submitted, open your edit link to see your entry.</p>
+          <p className="mt-4 font-body text-lg text-foreground/75">They closed at {clock(status.deadline)}. If you've already submitted, open your edit link to see your entry. If you were in the middle of submitting, find an organizer now.</p>
           <SavedList />
         </div>
       </Shell>
@@ -604,6 +628,7 @@ export default function SubmitPage() {
       upAxis={form.upAxis}
       onUpAxisChange={(a) => set("upAxis", a)}
       onMeasure={setMeasure}
+      onLoadError={setModelOpenError}
       units={form.units}
       spec={status?.spec ?? null}
       captureRef={captureRef}
@@ -651,7 +676,20 @@ export default function SubmitPage() {
             </p>
           )}
           {!isEdit && step === 0 && <SavedList />}
-          {locked && <p className="p-notice mt-5 font-body">Submissions are closed, so this entry can't be changed. Judges can see it as it is.</p>}
+          {finishingNow && pastDeadline && (
+            <p className="p-notice mt-5 font-body" role="status">
+              You pressed Submit before the deadline, so you can still finish: press Submit entry again to upload your files, before{" "}
+              {clock(saved?.finishingUntil)}. Your details can't change now.
+            </p>
+          )}
+          {locked &&
+            (saved?.status === "draft" ? (
+              <p className="p-notice mt-5 font-body" role="alert">
+                Submissions closed before this entry was submitted, so judges won't see it. Find an organizer right away.
+              </p>
+            ) : (
+              <p className="p-notice mt-5 font-body">Submissions are closed, so this entry can't be changed. Judges can see it as it is.</p>
+            ))}
 
           <nav ref={stepsRef} aria-label="Steps" className="mt-8 scroll-mt-36">
             <ol className="p-steps">
@@ -659,7 +697,7 @@ export default function SubmitPage() {
                 const state = s === step ? "current" : stepOk(s) && (isEdit || s < reached) ? "done" : "todo";
                 return (
                   <li key={s} data-state={state}>
-                    <button type="button" className="p-step focus-ember" data-state={state} aria-current={s === step ? "step" : undefined} onClick={() => goTo(s)}>
+                    <button type="button" className="p-step focus-ember" data-state={state} aria-current={s === step ? "step" : undefined} onClick={() => void goTo(s)}>
                       <span className="p-step-num" aria-hidden="true">
                         {state === "done" ? <Check size={14} strokeWidth={2.5} /> : s + 1}
                       </span>
@@ -919,7 +957,7 @@ export default function SubmitPage() {
                 {step === LAST && (
                   <>
                     <div className="p-review">
-                      <ReviewGroup title="Team" ok={stepOk(0)} onEdit={() => goTo(0)} locked={locked}>
+                      <ReviewGroup title="Team" ok={stepOk(0)} onEdit={() => void goTo(0)} locked={locked}>
                         <ReviewRow label="Team name">{form.teamName || missing}</ReviewRow>
                         <ReviewRow label={form.members.length > 1 ? "Members" : "Member"}>
                           {form.members.some((m) => m.name)
@@ -938,7 +976,7 @@ export default function SubmitPage() {
                         <ReviewRow label="Email">{form.contactEmail ? <span className="break-all">{form.contactEmail}</span> : missing}</ReviewRow>
                         {!isEdit && codeRequired && <ReviewRow label="Entry code">{code.trim() ? <span className="p-mono uppercase">{code.trim()}</span> : missing}</ReviewRow>}
                       </ReviewGroup>
-                      <ReviewGroup title="Design" ok={stepOk(1)} onEdit={() => goTo(1)} locked={locked}>
+                      <ReviewGroup title="Design" ok={stepOk(1)} onEdit={() => void goTo(1)} locked={locked}>
                         <ReviewRow label="Title">{form.title || missing}</ReviewRow>
                         <ReviewRow label="About">{needed.summary ? missing : <span className="line-clamp-3">{form.summary}</span>}</ReviewRow>
                         <ReviewRow label="Software">
@@ -1086,7 +1124,7 @@ export default function SubmitPage() {
               )}
               <div className="flex items-center gap-2 sm:gap-3">
                 {step > 0 && (
-                  <button type="button" className="btn-ghost p-btn px-3 sm:px-4" onClick={() => goTo((step - 1) as Step)}>
+                  <button type="button" className="btn-ghost p-btn px-3 sm:px-4" onClick={() => void goTo((step - 1) as Step)}>
                     <ArrowLeft size={16} strokeWidth={1.6} aria-hidden="true" /> Back
                   </button>
                 )}
@@ -1100,7 +1138,7 @@ export default function SubmitPage() {
                     </button>
                   )}
                   {submitted && step < LAST && (
-                    <button type="button" className="btn-ghost p-btn px-3 sm:px-4" onClick={() => goTo((step + 1) as Step)}>
+                    <button type="button" className="btn-ghost p-btn px-3 sm:px-4" onClick={() => void goTo((step + 1) as Step)}>
                       Next <ArrowRight size={16} strokeWidth={1.6} aria-hidden="true" />
                     </button>
                   )}
@@ -1265,7 +1303,21 @@ function SavedList() {
   if (!list.length) return null;
   return (
     <div className="mt-6 max-w-[38rem]">
-      <p className="p-hint">Started on this laptop:</p>
+      <p className="p-hint">
+        Started on this laptop:{" "}
+        <button
+          type="button"
+          className="p-link focus-ember ml-1"
+          onClick={() => {
+            for (const s of savedEntries()) forgetEntry(s.id);
+            writeTyped(null);
+            setList([]);
+            window.location.reload();
+          }}
+        >
+          Not your team? Clear this laptop
+        </button>
+      </p>
       <ul className="mt-2 flex flex-col gap-1">
         {list.map((s) => (
           <li key={s.id} className="flex items-center gap-3 font-body text-[15px]">
@@ -1438,7 +1490,10 @@ function Done({
             {entry.late && <span className="p-tag p-tag--bad ml-2">After the deadline</span>}
           </p>
           <h1 className="display-scene mt-3">{entry.title}</h1>
-          <p className="mt-4 max-w-[36rem] font-body text-lg leading-relaxed text-foreground/75">
+          <p className="mt-4 max-w-[36rem] font-body text-lg leading-relaxed text-foreground">
+            You're done. You can close this page.
+          </p>
+          <p className="mt-2 max-w-[36rem] font-body text-[15px] leading-relaxed text-foreground/75">
             The judges have it. Keep both links: the first shows your design to anyone, the second lets your team edit until submissions close.
           </p>
           {entry.slot && <SlotNotice slot={entry.slot} />}
@@ -1462,6 +1517,21 @@ function Done({
               Keep editing
             </button>
           </div>
+          <p className="mt-6 max-w-[36rem] font-body text-sm text-concrete">
+            On a shared or school laptop?{" "}
+            <button
+              type="button"
+              className="p-link focus-ember"
+              onClick={() => {
+                forgetEntry(entry.id);
+                writeTyped(null);
+                window.location.assign("/submit");
+              }}
+            >
+              Remove this entry from this laptop
+            </button>{" "}
+            so the next team starts fresh. Copy your edit link first: it's the only way back in.
+          </p>
         </div>
         <div className="flex flex-col gap-4">
           {entry.files.find((f) => f.slot === "image") && (

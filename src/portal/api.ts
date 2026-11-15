@@ -15,7 +15,28 @@ export class ApiError extends Error {
 
 const BASE = "/api/portal";
 
-export async function api<T>(path: string, init: { method?: string; body?: unknown; editKey?: string; signal?: AbortSignal; keepalive?: boolean } = {}): Promise<T> {
+type ApiInit = { method?: string; body?: unknown; editKey?: string; signal?: AbortSignal; keepalive?: boolean };
+
+/**
+ * Calls the portal API. When the server answers "busy" (503 with `busy`:
+ * lots of teams saving at the same moment, nothing was written), it waits a
+ * few seconds and tries again by itself, so a team at the deadline rush never
+ * has to.
+ */
+export async function api<T>(path: string, init: ApiInit = {}): Promise<T> {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await apiOnce<T>(path, init);
+    } catch (e) {
+      const busy = e instanceof ApiError && e.status === 503 && e.body.busy === true;
+      if (!busy || attempt >= 4 || init.keepalive || init.signal?.aborted) throw e;
+      const wait = (Number(e.body.retryAfter) || 3) * 1000 * (0.6 + Math.random() * 0.8);
+      await new Promise((r) => setTimeout(r, wait));
+    }
+  }
+}
+
+async function apiOnce<T>(path: string, init: ApiInit): Promise<T> {
   const headers: Record<string, string> = { Accept: "application/json" };
   const method = init.method ?? (init.body === undefined ? "GET" : "POST");
   if (method !== "GET") headers["X-Portal"] = "1";

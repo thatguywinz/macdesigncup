@@ -37,6 +37,8 @@ interface ModelViewerProps {
   label: string;
   /** What to show before any model is chosen. */
   empty?: ReactNode;
+  /** Told when the model can't be opened (a message for the team), or null once it opens. */
+  onLoadError?: (message: string | null) => void;
 }
 
 /** 1, 2, 5, 10, 20, 50 ... the grid step closest to `x`. */
@@ -262,6 +264,7 @@ export default function ModelViewer({
   upAxis,
   onUpAxisChange,
   onMeasure,
+  onLoadError,
   units = "mm",
   spec = null,
   captureRef,
@@ -304,7 +307,8 @@ export default function ModelViewer({
     })().catch((e: unknown) => {
       if (cancelled || (e as Error)?.name === "AbortError") return;
       console.error("[viewer]", e);
-      setError((e as Error)?.message && !/^\w+Error$/.test((e as Error).message) ? (e as Error).message : "This file couldn't be opened.");
+      // Parser messages ("Invalid typed array length: 34299105840") mean nothing to a team.
+      setError("We couldn't open this model. It may be damaged or not really a 3D file. Export it again as STL or GLB and pick it again.");
       setStatus("error");
     });
     return () => {
@@ -349,6 +353,11 @@ export default function ModelViewer({
   useEffect(() => {
     onMeasure?.(measure);
   }, [measure, onMeasure]);
+
+  useEffect(() => {
+    if (status === "error") onLoadError?.(error);
+    else if (status === "ready") onLoadError?.(null);
+  }, [status, error, onLoadError]);
 
   // Wireframe toggle.
   useEffect(() => {

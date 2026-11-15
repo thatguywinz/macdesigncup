@@ -6,7 +6,7 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { handlePortal } from "../server/portal/handler.js";
 
-export const config = { maxDuration: 30 };
+export const config = { maxDuration: 60 };
 
 export default async function handler(req: IncomingMessage, res: ServerResponse) {
   await handlePortal(req, res);

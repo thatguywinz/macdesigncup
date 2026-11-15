@@ -39,6 +39,9 @@ function putWithProgress(url: string, body: Blob, contentType: string, onProgres
   });
 }
 
+/** No progress for this long: the connection dropped (a stalled upload otherwise spins forever). */
+const STALL_MS = 120_000;
+
 export async function uploadFile(o: UploadOptions): Promise<OwnEntry> {
   const signed = await api<{ fileId: string; contentType: string; ticket: Ticket }>(`/entries/${o.entryId}/files`, {
     body: { slot: o.slot, name: o.name, size: o.file.size },
@@ -46,21 +49,45 @@ export async function uploadFile(o: UploadOptions): Promise<OwnEntry> {
     signal: o.signal,
   });
   const { ticket } = signed;
-  if (ticket.mode === "local") {
-    await putWithProgress(ticket.url, o.file, signed.contentType, o.onProgress, o.signal);
-  } else {
-    // The SDK knows Blob's upload protocol (headers, retries, multipart for big files).
-    const { uploadPresigned } = await import("@vercel/blob/client");
-    await uploadPresigned(ticket.pathname, o.file, {
-      access: "private",
-      handleUploadUrl: ticket.handleUploadUrl,
-      clientPayload: ticket.clientPayload,
-      contentType: signed.contentType,
-      multipart: o.file.size > 20 * 1024 * 1024,
-      headers: { "X-Portal": "1" },
-      abortSignal: o.signal,
-      onUploadProgress: ({ percentage }) => o.onProgress?.(percentage / 100),
-    });
+  // A watchdog: every progress event pushes it back; silence aborts the upload.
+  const ctrl = new AbortController();
+  o.signal?.addEventListener("abort", () => ctrl.abort(), { once: true });
+  let stalled = false;
+  let timer = 0;
+  const kick = () => {
+    window.clearTimeout(timer);
+    timer = window.setTimeout(() => {
+      stalled = true;
+      ctrl.abort();
+    }, STALL_MS);
+  };
+  const progress = (p: number) => {
+    kick();
+    o.onProgress?.(p);
+  };
+  kick();
+  try {
+    if (ticket.mode === "local") {
+      await putWithProgress(ticket.url, o.file, signed.contentType, progress, ctrl.signal);
+    } else {
+      // The SDK knows Blob's upload protocol (headers, retries, multipart for big files).
+      const { uploadPresigned } = await import("@vercel/blob/client");
+      await uploadPresigned(ticket.pathname, o.file, {
+        access: "private",
+        handleUploadUrl: ticket.handleUploadUrl,
+        clientPayload: ticket.clientPayload,
+        contentType: signed.contentType,
+        multipart: o.file.size > 20 * 1024 * 1024,
+        headers: { "X-Portal": "1" },
+        abortSignal: ctrl.signal,
+        onUploadProgress: ({ percentage }) => progress(percentage / 100),
+      });
+    }
+  } catch (e) {
+    if (stalled) throw new Error("The upload stopped: the connection dropped. Check the Wi-Fi and press Submit again. Files that finished are kept.");
+    throw e;
+  } finally {
+    window.clearTimeout(timer);
   }
   o.onProgress?.(1);
   const done = await api<{ entry: OwnEntry }>(`/entries/${o.entryId}/files/${signed.fileId}/complete`, {

@@ -190,7 +190,7 @@ export function parseEntry(raw: unknown, opts: { draft?: boolean } = {}): Parsed
   if (members.length === 0) need("members", "Add at least one team member.");
 
   const contactEmail = str(r.contactEmail, LIMITS.email).toLowerCase();
-  if (contactEmail ? !EMAIL.test(contactEmail) : !draft) errors.contactEmail = "An email we can reach your team at.";
+  if (contactEmail ? !EMAIL.test(contactEmail) : !draft) errors.contactEmail = contactEmail ? "That email doesn't look complete (like name@school.ca)." : "An email we can reach your team at.";
   tooLong("contactEmail", contactEmail, LIMITS.email, "The email");
 
   const software = Array.isArray(r.software)
@@ -201,7 +201,7 @@ export function parseEntry(raw: unknown, opts: { draft?: boolean } = {}): Parsed
   if (software.includes("Other") && !softwareOther) need("softwareOther", "Which other software?");
 
   const summary = str(r.summary, LIMITS.summary);
-  if (wordCount(summary) < 5) need("summary", "A sentence or two: what you made and how it fits the theme.");
+  if (wordCount(summary) < 5) need("summary", `A sentence or two: what you made and how it fits the theme (at least 5 words; ${wordCount(summary)} so far).`);
   tooLong("summary", summary, LIMITS.summary, "This");
   tooManyWords("summary", summary);
 
@@ -322,6 +322,12 @@ export interface EntryRecord extends EntryInput {
   award: string;
   /** An organizer reopened editing after the deadline. */
   unlocked: boolean;
+  /**
+   * When the team last pressed Submit while submissions were open. Pressing it
+   * before 1:30 counts as on time: uploads already under way may finish and
+   * the entry submits within FINISH_MINUTES (routes.ts), no edits.
+   */
+  submitPressedAt?: string | null;
   /** What the viewer measured when the team saved (judges' viewers re-measure live). */
   measure?: Measure | null;
   /** Organizers' decisions on originality checks: check id -> review. */
@@ -378,6 +384,11 @@ export interface OwnEntry extends EntryInput {
   locked: boolean;
   /** Organizers reopened this entry: it can still change after the deadline. */
   unlocked: boolean;
+  /**
+   * Submit was pressed before the deadline and the entry is still finishing:
+   * until this time it may retry uploads and submit (no detail changes).
+   */
+  finishingUntil?: string | null;
   /** Neutral notes from the originality checks the team can answer in filesNote. */
   notices: string[];
   /** Whether the video link opened without signing in, last time we checked. */
@@ -421,6 +432,8 @@ export interface JudgeEntry extends EntryInput {
   /** What the server found when it opened the video link without signing in. */
   videoCheck: VideoCheck | null;
   slot: Slot | null;
+  /** The judging pair seated in this entry's room (display names). */
+  pairNames?: string[];
 }
 
 /** A dashboard card. */

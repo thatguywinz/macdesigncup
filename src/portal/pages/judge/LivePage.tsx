@@ -13,12 +13,15 @@ import { JudgeShell, useMe } from "./context";
 interface Row {
   id: string;
   title: string;
+  teamName: string;
   creditLine: string;
   late: boolean;
   award: string;
   average: number | null;
   byJudge: Record<string, number | null>;
   judgeCount: number;
+  complete: boolean;
+  rank: number | null;
   openReviews: number;
   submittedAt: string | null;
   slot: { room: string; at: string } | null;
@@ -31,6 +34,7 @@ interface Live {
   rooms: string[];
   unlisted: { key: string; name: string; marked: number }[];
   drafts: number;
+  marksNeeded: number;
 }
 
 /** "just now", "4 min ago", "1 h 5 min ago". */
@@ -108,13 +112,22 @@ export default function LivePage() {
     () => [...(data?.rows ?? [])].sort((a, b) => a.judgeCount - b.judgeCount || String(a.submittedAt).localeCompare(String(b.submittedAt))),
     [data],
   );
-  const top = useMemo(() => (data?.rows ?? []).filter((r) => r.average !== null).slice(0, 5), [data]);
+  // Only finished entries (both of their pair's marks) have a rank.
+  const top = useMemo(() => (data?.rows ?? []).filter((r) => r.rank !== null).slice(0, 5), [data]);
+  const needed = data?.marksNeeded ?? 2;
 
   const judges = data?.activity ?? [];
   const entries = data?.rows.length ?? 0;
   const marksIn = judges.reduce((n, j) => n + j.marked, 0);
   const unseen = data?.rows.filter((r) => r.judgeCount === 0).length ?? 0;
-  const fullyCovered = data?.rows.filter((r) => judges.length > 0 && r.judgeCount >= Math.min(2, judges.length)).length ?? 0;
+  const finished = data?.rows.filter((r) => r.complete).length ?? 0;
+  // Each judge's progress is against their own room's teams (all entries for a judge without a room).
+  const progress = (j: { key: string; marked: number; room: string | null }) => {
+    if (!j.room || !data) return { done: j.marked, of: entries };
+    const mineRows = data.rows.filter((r) => r.slot?.room === j.room);
+    if (!mineRows.length) return { done: j.marked, of: entries };
+    return { done: mineRows.filter((r) => r.byJudge[j.key] !== undefined && r.byJudge[j.key] !== null).length, of: mineRows.length };
+  };
 
   return (
     <JudgeShell section="Live">
@@ -122,7 +135,7 @@ export default function LivePage() {
         <div>
           <h1 className="display-scene">Judging, live</h1>
           <p className="mt-3 max-w-[42rem] font-body text-[15px] text-foreground/75">
-            Who has marked what. Send free judges to the entries at the top of the list: they have the fewest marks.
+            Who has marked what. Each room's pair marks its own teams; if a pair is short, seat a stand-in in that room in Settings.
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -148,7 +161,7 @@ export default function LivePage() {
               [
                 ["Submitted", String(entries), data.drafts ? `${data.drafts} still drafting` : "none drafting"],
                 ["Not judged yet", String(unseen), unseen ? "need a first look" : "every entry has a mark"],
-                ["Judged twice or more", `${fullyCovered}/${entries}`, judges.length < 2 ? "needs 2+ judges" : "two opinions each"],
+                ["Done", `${finished}/${entries}`, `both of the pair's ${needed} marks in`],
                 ["Marks in", String(marksIn), `from ${judges.filter((j) => j.marked).length} of ${judges.length} judges`],
               ] as const
             ).map(([label, value, sub], i) => (
@@ -160,7 +173,7 @@ export default function LivePage() {
             ))}
           </dl>
 
-          {data.rows.some((r) => r.slot) && <Schedule rows={data.rows} rooms={data.rooms} />}
+          {data.rows.some((r) => r.slot) && <Schedule rows={data.rows} rooms={data.rooms} needed={needed} />}
 
           <div className="mt-10 grid gap-10 xl:grid-cols-[minmax(0,1fr)_22rem]">
             <section aria-labelledby="cov-h" className="min-w-0">
@@ -199,9 +212,9 @@ export default function LivePage() {
                         <tr key={r.id} data-unseen={r.judgeCount === 0 || undefined}>
                           <td>
                             <Link to={`/judge/entry/${r.id}`} className="focus-ember font-medium text-foreground hover:text-ember">
-                              {r.title}
+                              {r.teamName || r.title}
                             </Link>
-                            <span className="ml-2 text-[13px] text-concrete">{r.creditLine}</span>
+                            {r.teamName && <span className="ml-2 text-[13px] text-foreground/70">{r.title}</span>}
                             {r.slot && (
                               <span className="p-mono ml-2 text-[11px] text-concrete">
                                 {r.slot.room} {clock(r.slot.at)}
@@ -221,7 +234,9 @@ export default function LivePage() {
                               </td>
                             );
                           })}
-                          <td className={`num ${r.judgeCount === 0 ? "text-ember" : "text-foreground/85"}`}>{r.judgeCount}</td>
+                          <td className={`num ${r.judgeCount === 0 ? "text-ember" : r.complete ? "text-[#9fd59a]" : "text-foreground/85"}`}>
+                            {r.complete ? "✓" : `${r.judgeCount}/${needed}`}
+                          </td>
                           {!hideScores && <td className="num text-foreground">{r.average === null ? "—" : r.average.toFixed(1)}</td>}
                         </tr>
                       ))}
@@ -239,6 +254,7 @@ export default function LivePage() {
                 <ul className="mt-4 flex flex-col gap-4">
                   {judges.map((j) => {
                     const idle = j.lastAt ? now - Date.parse(j.lastAt) > 20 * 60 * 1000 : false;
+                    const p = progress(j);
                     return (
                       <li key={j.key}>
                         <div className="flex items-baseline justify-between gap-3 font-body text-[15px]">
@@ -246,12 +262,12 @@ export default function LivePage() {
                             {j.name}
                             {j.room && <span className="p-mono ml-2 text-[11px] text-concrete">{j.room}</span>}
                           </span>
-                          <span className="p-mono shrink-0 text-[12px] text-foreground/80">
-                            {j.marked}/{entries}
+                          <span className="p-mono shrink-0 text-[12px] text-foreground/80" title={j.room ? `Marked ${p.done} of ${p.of} teams in ${j.room}` : undefined}>
+                            {p.done}/{p.of}
                           </span>
                         </div>
                         <div className="mt-1.5 h-[3px] w-full bg-bone/10" aria-hidden="true">
-                          <div className="h-full bg-ember transition-[width] duration-500" style={{ width: entries ? `${(j.marked / entries) * 100}%` : 0 }} />
+                          <div className="h-full bg-ember transition-[width] duration-500" style={{ width: p.of ? `${Math.min(100, (p.done / p.of) * 100)}%` : 0 }} />
                         </div>
                         <p className={`mt-1 font-body text-[12px] ${idle ? "text-ember" : "text-concrete"}`}>
                           {j.lastAt ? `Last mark ${ago(j.lastAt, now)}` : "No marks yet"}
@@ -271,25 +287,24 @@ export default function LivePage() {
                     Top five so far
                   </h2>
                   {top.length === 0 ? (
-                    <p className="mt-4 font-body text-sm text-concrete">Nothing marked yet.</p>
+                    <p className="mt-4 font-body text-sm text-concrete">No entry is finished yet. An entry joins once both of its pair's marks are in.</p>
                   ) : (
                     <ol className="mt-4 flex flex-col gap-3">
                       {top.map((r, i) => (
                         <li key={r.id} className="flex items-baseline gap-3 font-body">
-                          <span className="p-mono w-5 shrink-0 text-concrete">{i + 1}</span>
+                          <span className="p-mono w-5 shrink-0 text-concrete">{r.rank ?? i + 1}</span>
                           <Link to={`/judge/entry/${r.id}`} className="focus-ember min-w-0 flex-1 truncate text-[15px] text-foreground hover:text-ember">
-                            {r.title}
+                            {r.teamName || r.title}
                           </Link>
                           <span className="p-mono shrink-0 text-sm text-foreground">
                             {r.average!.toFixed(1)}
                             <span className="text-concrete">/{data.maxTotal}</span>
                           </span>
-                          <span className="p-mono shrink-0 text-[11px] text-concrete">×{r.judgeCount}</span>
                         </li>
                       ))}
                     </ol>
                   )}
-                  <p className="p-hint mt-3">An average from one judge can swing; check the count beside it. Full table on Results.</p>
+                  <p className="p-hint mt-3">Only finished entries are ranked: {finished} of {entries} so far. Full table on Results.</p>
                 </section>
               )}
             </div>
@@ -300,8 +315,8 @@ export default function LivePage() {
   );
 }
 
-/** The judging schedule, one column per room, for the screen or to read out. Nothing private: title and credit only. */
-function Schedule({ rows, rooms }: { rows: Row[]; rooms: string[] }) {
+/** The judging schedule, one column per room, for the screen or to read out. Nothing private: team name and title only. */
+function Schedule({ rows, rooms, needed }: { rows: Row[]; rooms: string[]; needed: number }) {
   return (
     <section aria-labelledby="sched-h" className="mt-10">
       <h2 id="sched-h" className="p-block-title">
@@ -317,9 +332,21 @@ function Schedule({ rows, rooms }: { rows: Row[]; rooms: string[] }) {
                 {list.map((r) => (
                   <li key={r.id} className="flex items-baseline gap-3 border-b border-bone/[0.07] py-1.5 font-body text-sm">
                     <span className="p-mono w-16 shrink-0 text-concrete">{clock(r.slot!.at)}</span>
-                    <span className="min-w-0 flex-1 truncate text-foreground">{r.title}</span>
-                    <span className="shrink-0 text-[12px] text-concrete">{r.creditLine}</span>
-                    {r.judgeCount > 0 && <span className="shrink-0 text-[11px] text-[#9fd59a]">✓</span>}
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-foreground">{r.teamName || r.title}</span>
+                      {r.teamName && <span className="block truncate text-[12px] text-concrete">{r.title}</span>}
+                    </span>
+                    {r.complete ? (
+                      <span className="shrink-0 text-[12px] text-[#9fd59a]" aria-label="Done: both marks in">
+                        ✓
+                      </span>
+                    ) : (
+                      r.judgeCount > 0 && (
+                        <span className="p-mono shrink-0 text-[11px] text-concrete" aria-label={`${r.judgeCount} of ${needed} marks`}>
+                          {r.judgeCount}/{needed}
+                        </span>
+                      )
+                    )}
                   </li>
                 ))}
                 {list.length === 0 && <li className="py-1.5 font-body text-sm text-concrete">Nobody yet.</li>}
