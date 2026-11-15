@@ -1,0 +1,255 @@
+/* ─────────────────────────────────────────────
+   Judge screens. Calm by default: one header line, the team's work on the
+   left, four compact rubric blocks on the right, and the rest folded away.
+   Uses portal.css's tokens and components (p-tag, p-btn, j-mark, j-pip).
+   This file loads after Tailwind's utilities, so its classes are kept off
+   elements that also carry a conflicting utility.
+───────────────────────────────────────────── */
+
+/* ── Entry page: header ─────────────────────── */
+.jd-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.35rem;
+  padding: 0.75rem 0 0.75rem;
+}
+.jd-nav { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; }
+.jd-navlink {
+  display: inline-flex; align-items: center; gap: 0.35rem;
+  min-height: 2.25rem;
+  font: 400 0.875rem/1 "Archivo Variable", system-ui, sans-serif;
+  color: hsl(var(--concrete));
+  transition: color 0.15s;
+}
+.jd-navlink:hover { color: hsl(var(--foreground)); }
+.jd-team {
+  font: 600 clamp(1.5rem, 1.2rem + 1vw, 2rem)/1.1 "Archivo Variable", system-ui, sans-serif;
+  letter-spacing: -0.025em;
+  color: hsl(var(--bone));
+  overflow-wrap: anywhere;
+}
+.jd-sub {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem 0.9rem;
+  margin-top: 0.3rem;
+  font: 400 0.9375rem/1.3 "Archivo Variable", system-ui, sans-serif;
+}
+@media (min-width: 1024px) {
+  .jd-head { grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: 2rem; }
+  .jd-nav { order: 2; gap: 1.25rem; }
+}
+
+/* ── Entry page: two columns ───────────────── */
+.jd-grid { display: grid; gap: 1.25rem; margin-top: 0.5rem; }
+@media (min-width: 1024px) {
+  .jd-grid { grid-template-columns: minmax(0, 1fr) 34rem; gap: 1.5rem; align-items: start; }
+  .jd-media-col { position: sticky; top: 4.75rem; }
+}
+@media (min-width: 1280px) {
+  .jd-grid { grid-template-columns: minmax(0, 1fr) 40rem; }
+}
+.jd-media-col { min-width: 0; }
+
+/* Tabs over the media panel: picture / model / video / team details. */
+.jd-tabs {
+  display: flex; gap: 2px;
+  overflow-x: auto; scrollbar-width: none;
+  border-bottom: 1px solid hsl(var(--bone) / 0.1);
+}
+.jd-tabs::-webkit-scrollbar { display: none; }
+.jd-tab {
+  position: relative; flex: none;
+  display: inline-flex; align-items: center; gap: 0.4rem;
+  min-height: 2.5rem; padding: 0 0.85rem;
+  font: 500 0.875rem/1 "Archivo Variable", system-ui, sans-serif;
+  color: hsl(var(--concrete));
+  transition: color 0.15s;
+}
+.jd-tab:hover { color: hsl(var(--foreground)); }
+.jd-tab[aria-selected="true"] { color: hsl(var(--foreground)); }
+.jd-tab[aria-selected="true"]::after {
+  content: ""; position: absolute; left: 0.6rem; right: 0.6rem; bottom: -1px; height: 2px; background: hsl(var(--ember));
+}
+.jd-dot { width: 0.45rem; height: 0.45rem; border-radius: 999px; background: hsl(var(--ember)); }
+
+.jd-panel {
+  position: relative;
+  margin-top: 0.5rem;
+  aspect-ratio: 4 / 3;
+  border: 1px solid hsl(var(--bone) / 0.1);
+  border-radius: 2px;
+  background: #0d0e10;
+  overflow: hidden;
+}
+.jd-panel--text { aspect-ratio: auto; background: hsl(220 7% 5.5%); overflow: visible; }
+@media (min-width: 1024px) {
+  .jd-panel { aspect-ratio: auto; height: calc(100dvh - 13.25rem); min-height: 22rem; }
+  .jd-panel--text { overflow-y: auto; overscroll-behavior: contain; }
+}
+.jd-viewer { position: absolute; inset: 0; border: 0; }
+.jd-pic { position: absolute; inset: 0; display: flex; flex-direction: column; }
+.jd-pic-main { flex: 1; min-height: 0; display: block; }
+.jd-pic-main img { width: 100%; height: 100%; object-fit: contain; }
+.jd-thumbs { display: flex; gap: 4px; padding: 6px; overflow-x: auto; background: hsl(220 8% 4% / 0.9); border-top: 1px solid hsl(var(--bone) / 0.08); }
+.jd-thumbs button { flex: none; overflow: hidden; border: 1px solid hsl(var(--bone) / 0.12); border-radius: 2px; }
+.jd-thumbs button[data-on="true"] { border-color: hsl(var(--ember)); }
+.jd-thumbs img { display: block; width: 4.5rem; height: 2.75rem; object-fit: cover; }
+.jd-video { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; padding: 0.75rem; }
+
+/* Team details: the write-up and evidence. */
+.jd-details { padding: 1rem 1.1rem 1.5rem; }
+.jd-facts { display: grid; gap: 0.75rem; grid-template-columns: minmax(0, 1fr); font: 400 0.875rem/1.4 "Archivo Variable", system-ui, sans-serif; }
+@media (min-width: 640px) { .jd-facts { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr); } }
+.jd-facts dt { font: 400 0.6875rem/1.3 "Space Mono", ui-monospace, monospace; text-transform: uppercase; letter-spacing: 0.06em; color: hsl(var(--concrete)); }
+.jd-facts dd { margin-top: 0.2rem; color: hsl(var(--foreground) / 0.9); overflow-wrap: anywhere; }
+.jd-h { margin: 1.5rem 0 0.4rem; font: 600 0.9375rem/1.3 "Archivo Variable", system-ui, sans-serif; color: hsl(var(--bone)); }
+
+/* ── Entry page: marking ───────────────────── */
+.jd-score { min-width: 0; scroll-margin-top: 5rem; }
+.jd-score-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.25rem 1rem; min-height: 2.5rem; }
+.jd-hint { font: 400 0.875rem/1.35 "Archivo Variable", system-ui, sans-serif; color: hsl(var(--foreground) / 0.8); }
+.jd-toggle {
+  font: 400 0.8125rem/1 "Archivo Variable", system-ui, sans-serif;
+  color: hsl(var(--concrete));
+  text-decoration: underline; text-underline-offset: 3px; text-decoration-color: hsl(var(--bone) / 0.3);
+  min-height: 2rem;
+}
+.jd-toggle:hover, .jd-toggle[aria-pressed="true"] { color: hsl(var(--foreground)); }
+.jd-score > .jd-hint { margin-bottom: 0.4rem; }
+
+.jd-crits { display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.15rem; }
+.jd-crit {
+  padding: 0.6rem 0.75rem 0.7rem;
+  border: 1px solid hsl(var(--bone) / 0.1);
+  border-radius: 2px;
+  background: hsl(220 7% 5.5%);
+  transition: border-color 0.15s;
+}
+.jd-crit[data-done="true"] { border-color: hsl(var(--ember) / 0.35); }
+.jd-crit-head { display: flex; align-items: baseline; justify-content: space-between; gap: 0.75rem; }
+.jd-crit-name { min-width: 0; font: 600 0.9375rem/1.3 "Archivo Variable", system-ui, sans-serif; color: hsl(var(--foreground)); }
+.jd-crit-q { display: block; margin-top: 0.1rem; font: 400 0.8125rem/1.3 "Archivo Variable", system-ui, sans-serif; color: hsl(var(--concrete)); }
+@media (min-width: 1280px) {
+  .jd-crit-q { display: inline; margin: 0 0 0 0.6rem; }
+}
+
+.jd-levels { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; margin-top: 0.45rem; }
+.jd-level {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 0.15rem;
+  min-height: 2.75rem; padding: 0.35rem 0.5rem;
+  text-align: left;
+  border: 1px solid hsl(var(--bone) / 0.14); border-radius: 2px;
+  color: hsl(var(--foreground) / 0.78);
+  transition: border-color 0.12s, background-color 0.12s, color 0.12s;
+}
+.jd-level:hover { border-color: hsl(var(--bone) / 0.4); color: hsl(var(--foreground)); }
+.jd-level[data-has="true"] { border-color: hsl(var(--ember) / 0.6); }
+.jd-level[aria-pressed="true"] { border-color: hsl(var(--ember)); background: hsl(var(--ember) / 0.12); color: hsl(var(--foreground)); }
+.jd-range { font: 400 0.6875rem/1.1 "Space Mono", ui-monospace, monospace; color: hsl(var(--concrete)); }
+.jd-level[aria-pressed="true"] .jd-range { color: hsl(var(--ember)); }
+.jd-short { font: 500 0.8125rem/1.2 "Archivo Variable", system-ui, sans-serif; }
+.jd-long { margin-top: 0.2rem; font: 400 0.75rem/1.35 "Archivo Variable", system-ui, sans-serif; color: hsl(var(--foreground) / 0.72); }
+@media (max-width: 420px) {
+  .jd-level { padding: 0.35rem 0.4rem; }
+  .jd-short { font-size: 0.75rem; }
+}
+
+/* The chosen level: its description, then its points in one row. */
+.jd-picked { display: grid; gap: 0.4rem; margin-top: 0.45rem; }
+@media (min-width: 1280px) {
+  .jd-picked { grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 0.75rem; }
+}
+.jd-desc { font: 400 0.8125rem/1.35 "Archivo Variable", system-ui, sans-serif; color: hsl(var(--foreground) / 0.75); }
+.jd-points { display: flex; gap: 3px; }
+.jd-points .j-mark { flex: 1 1 0; min-width: 0; min-height: 2.5rem; }
+@media (min-width: 1280px) {
+  .jd-points .j-mark { flex: none; width: 2.15rem; min-height: 2.15rem; }
+  .jd-picked > .jd-points:only-child { grid-column: 1 / -1; }
+}
+.jd-points[data-wait="true"] .j-mark { border-color: hsl(var(--ember) / 0.45); }
+
+/* Note, behind a disclosure. */
+.jd-note { margin-top: 0.5rem; }
+.jd-note > summary, .jd-org > summary {
+  display: flex; align-items: center; gap: 0.5rem;
+  min-height: 2.25rem;
+  cursor: pointer; list-style: none;
+  font: 500 0.875rem/1.2 "Archivo Variable", system-ui, sans-serif;
+  color: hsl(var(--foreground) / 0.85);
+}
+.jd-note > summary::-webkit-details-marker, .jd-org > summary::-webkit-details-marker { display: none; }
+.jd-note > summary .text-concrete { font-weight: 400; font-size: 0.8125rem; }
+.jd-chev { color: hsl(var(--concrete)); transition: transform 0.15s; }
+details[open] > summary .jd-chev { transform: rotate(180deg); }
+.jd-org { margin-top: 1.5rem; border-top: 1px solid hsl(var(--bone) / 0.1); padding-top: 0.75rem; }
+.jd-org > summary { font-size: 0.9375rem; color: hsl(var(--bone)); }
+.jd-org > summary > span { font-size: 0.8125rem; }
+
+/* Save bar: stays at the bottom of the screen while the rubric is in view. */
+.jd-savebar {
+  position: sticky; bottom: 0; z-index: 5;
+  margin-top: 0.5rem; padding: 0.6rem 0 calc(0.6rem + env(safe-area-inset-bottom));
+  border-top: 1px solid hsl(var(--bone) / 0.12);
+  background: hsl(var(--background) / 0.96);
+  backdrop-filter: blur(8px);
+}
+.jd-savebar-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 1rem; }
+.jd-status { flex: 1 1 7rem; min-width: 0; font: 400 0.875rem/1.3 "Archivo Variable", system-ui, sans-serif; color: hsl(var(--concrete)); }
+.jd-actions { display: flex; gap: 0.5rem; }
+@media (max-width: 520px) {
+  .jd-actions { flex: 1 1 100%; }
+  .jd-actions > :last-child { flex: 1; }
+}
+
+/* ── Entries list ──────────────────────────── */
+.jl-top { display: grid; gap: 0.75rem; margin-top: 1.25rem; }
+@media (min-width: 900px) { .jl-top { grid-template-columns: minmax(0, 1fr) 22rem; align-items: stretch; } }
+.jl-next {
+  display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid hsl(var(--ember) / 0.35);
+  border-radius: 2px;
+  background: hsl(220 7% 5.5%);
+}
+.jl-search { display: flex; flex-direction: column; justify-content: center; gap: 0.35rem; }
+.jl-chips { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+.jl-chips .p-chip { min-height: 2rem; padding: 0 0.7rem; font-size: 0.8125rem; }
+
+.jl-rows { display: flex; flex-direction: column; margin-top: 0.75rem; border-top: 1px solid hsl(var(--bone) / 0.08); }
+.jl-row {
+  display: grid;
+  grid-template-columns: 4.5rem minmax(0, 1fr) auto;
+  align-items: center; gap: 0.9rem;
+  padding: 0.55rem 0.5rem;
+  border-bottom: 1px solid hsl(var(--bone) / 0.08);
+  transition: background-color 0.12s;
+}
+.jl-row:hover { background: hsl(var(--bone) / 0.03); }
+.jl-row:focus-visible { outline: 2px solid hsl(var(--ember)); outline-offset: -2px; }
+.jl-thumb { width: 4.5rem; height: 3rem; overflow: hidden; border-radius: 2px; background: #0d0e10; display: grid; place-items: center; }
+.jl-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.jl-name { font: 600 0.9375rem/1.25 "Archivo Variable", system-ui, sans-serif; color: hsl(var(--bone)); overflow-wrap: anywhere; }
+.jl-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 0.2rem 0.75rem; margin-top: 0.15rem; font: 400 0.8125rem/1.3 "Archivo Variable", system-ui, sans-serif; color: hsl(var(--concrete)); }
+.jl-meta .jl-title { color: hsl(var(--foreground) / 0.8); }
+.jl-status { display: flex; flex-direction: column; align-items: flex-end; gap: 0.25rem; }
+@media (max-width: 520px) {
+  .jl-row { grid-template-columns: 3.5rem minmax(0, 1fr); gap: 0.7rem; padding: 0.6rem 0.25rem; }
+  .jl-thumb { width: 3.5rem; height: 2.6rem; grid-row: span 2; }
+  .jl-status { grid-column: 2; flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: flex-start; }
+}
+.jl-chip-done { color: hsl(var(--foreground) / 0.65); }
+
+/* Collapsible explanations on the organizer pages. */
+.j-more { margin-top: 0.5rem; }
+.j-more > summary {
+  display: inline-flex; align-items: center; gap: 0.35rem;
+  cursor: pointer; list-style: none; min-height: 2rem;
+  font: 400 0.875rem/1.2 "Archivo Variable", system-ui, sans-serif;
+  color: hsl(var(--concrete));
+}
+.j-more > summary::-webkit-details-marker { display: none; }
+.j-more > summary:hover { color: hsl(var(--foreground)); }
+.j-more[open] > summary { color: hsl(var(--foreground) / 0.85); }
+
+@media (prefers-reduced-motion: reduce) {
+  .jd-chev, .jd-level, .jd-crit, .jl-row { transition: none; }
+}

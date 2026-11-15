@@ -6,6 +6,7 @@ import { JudgeShell, useMe } from "./context";
 import { RevealInput, SpecSection } from "./specSettings";
 import RoomsSection, { type RoomsSettings, type ScheduleResult } from "./RoomsSection";
 import type { Spec } from "../../shared/checks";
+import "../../judge.css";
 
 interface Settings {
   entryCode: string;
@@ -306,7 +307,7 @@ export default function SettingsPage() {
             <section className="border-t border-bone/10 py-7">
               <h2 className="p-block-title">Storage</h2>
               <p className="mt-2 font-body text-[15px] text-foreground/85">
-                {s.storage === "blob" ? "Vercel Blob (private store)" : "This computer (.data/portal). Local preview only."}
+                {s.storage === "r2" ? "Cloudflare R2 (private bucket)" : s.storage === "blob" ? "Vercel Blob (private store)" : "This computer (.data/portal). Local preview only."}
               </p>
               {s.devDefaults && <p className="p-notice mt-4 font-body text-sm">Running with the local preview passcodes. The deployed site refuses to start without real ones.</p>}
             </section>
@@ -334,10 +335,15 @@ function SheetSection({ path }: { path: string }) {
     <section className="border-t border-bone/10 py-7">
       <h2 className="p-block-title">Google Sheet</h2>
       <p className="p-hint mt-1 max-w-[38rem]">
-        A live sheet of every submission: time, room, judging pair, team, members, marks in, pair average and rank. Make a new Google Sheet, paste this
-        into cell A1, and it fills itself (Google refreshes it about every hour; reopen the sheet to refresh sooner). No contact emails. Keep the link
-        private: anyone with it can see team names.
+        A live sheet of every submission. Make a new Google Sheet and paste this into cell A1. Keep the link private: anyone with it can see team names.
       </p>
+      <details className="j-more">
+        <summary className="focus-ember">More details</summary>
+        <p className="p-hint mt-1 max-w-[38rem]">
+          It lists time, room, judging pair, team, members, marks in, pair average and rank, and fills itself (Google refreshes it about every hour;
+          reopen the sheet to refresh sooner). No contact emails.
+        </p>
+      </details>
       <div className="mt-4 flex flex-col gap-2 sm:flex-row">
         <input className="p-input p-mono min-w-0 flex-1 text-[13px]" readOnly value={formula} onFocus={(e) => e.currentTarget.select()} aria-label="Formula for cell A1" />
         <button type="button" className="btn-ghost p-btn shrink-0" onClick={copy}>

@@ -48,11 +48,14 @@ export function SpecSection({ settings, busy, onSave }: { settings: { spec: Spec
   return (
     <section className="border-t border-bone/10 py-7">
       <h2 className="p-block-title">Size spec</h2>
-      <p className="p-hint mt-1 max-w-[38rem]">
-        Optional, if the theme comes with a size limit. Teams see a live pass or fail in their preview, judges see it on every entry and the
-        viewer draws the limit as a box. Leave everything blank for no spec. A target volume works like a CAD speed-modelling check: the model's
-        measured volume against a target, within a tolerance.
-      </p>
+      <p className="p-hint mt-1 max-w-[38rem]">Optional, if the theme comes with a size limit. Leave everything blank for no spec.</p>
+      <details className="j-more">
+        <summary className="focus-ember">More details</summary>
+        <p className="p-hint mt-1 max-w-[38rem]">
+          Teams see a live pass or fail in their preview, judges see it on every entry and the viewer draws the limit as a box. A target volume works
+          like a CAD speed-modelling check: the model's measured volume against a target, within a tolerance.
+        </p>
+      </details>
       <div className="mt-5 flex flex-wrap gap-5">
         {field("maxW", "Max width", "mm")}
         {field("maxD", "Max depth", "mm")}

@@ -1,15 +1,17 @@
-// The judges' dashboard: every submitted entry as a card, newest first,
-// with what this judge has marked. Refreshes every 20 seconds while the tab
-// is visible, so entries appear as teams submit.
+// The judges' dashboard: Up next and a team search at the top, then every
+// submitted entry as a compact row (newest first) with what this judge has
+// marked. Refreshes every 20 seconds while the tab is visible, so entries
+// appear as teams submit.
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowRight, Search } from "lucide-react";
 import { ApiError, api, clock, closesLabel } from "../../api";
 import { countdown, useNow } from "../../hooks";
-import { MARKS_NEEDED, MAX_TOTAL } from "../../shared/judging";
+import { MARKS_NEEDED } from "../../shared/judging";
 import type { JudgeCard } from "../../shared/schema";
 import { JudgeShell, useMe } from "./context";
 import { JudgeTip, OrganizerGuide } from "./Guide";
+import "../../judge.css";
 
 interface ListResponse {
   cards: JudgeCard[];
@@ -103,115 +105,109 @@ export default function JudgeList() {
   const deadline = data ? Date.parse(data.deadline) : 0;
   const left = deadline ? countdown(deadline, now) : "";
 
+  const filters: [Filter, string][] = [
+    ...(roomCount ? ([["room", `My room · ${myRoom}`]] as [Filter, string][]) : []),
+    ["all", "All"],
+    ["todo", "To mark"],
+    ["done", "Done"],
+    ["review", "Needs review"],
+  ];
+
   return (
     <JudgeShell>
-      <div className="flex flex-col gap-6 pt-10 md:flex-row md:items-end md:justify-between md:pt-12">
+      <div className="flex flex-col gap-2 pt-6 md:flex-row md:items-end md:justify-between md:pt-8">
         <div>
-          <h1 className="display-scene">Entries</h1>
-          <p className="mt-3 font-body text-[15px] text-foreground/75">
+          <h1 className="font-body text-[clamp(1.75rem,1.4rem+1.2vw,2.5rem)] font-semibold leading-none tracking-[-0.03em] text-bone">Entries</h1>
+          <p className="mt-2 font-body text-[14px] text-foreground/75">
             {total} teams submitted · {done} fully judged ({MARKS_NEEDED} marks each) · you've marked {marked}
             {me.role === "admin" && data?.drafts ? ` · ${data.drafts} still drafting` : ""}
           </p>
         </div>
         {data && (
-          <p className={`p-mono ${left && deadline - now < 30 * 60 * 1000 ? "text-ember" : "text-concrete"}`}>
+          <p className={`p-mono text-[12px] ${left && deadline - now < 30 * 60 * 1000 ? "text-ember" : "text-concrete"}`}>
             Submissions {closesLabel(data.deadline, now, left).replace(/^Closes/, "close").replace(/^Closed/, "closed")}
           </p>
         )}
       </div>
 
-      {data && (me.role === "admin" ? <OrganizerGuide marksCount={data.marksCount} deadline={data.deadline} /> : marked === 0 && <JudgeTip />)}
-
       {total > 0 && (
-        <div className="mt-6 h-[3px] w-full bg-bone/10" role="progressbar" aria-label="Entries done" aria-valuemin={0} aria-valuemax={total} aria-valuenow={done}>
+        <div className="mt-4 h-[3px] w-full bg-bone/10" role="progressbar" aria-label="Entries done" aria-valuemin={0} aria-valuemax={total} aria-valuenow={done}>
           <div className="h-full bg-ember transition-[width] duration-500" style={{ width: `${(done / total) * 100}%` }} />
         </div>
       )}
 
-      {upNext ? (
-        <div className="mt-6 flex flex-col gap-4 border border-bone/10 bg-[hsl(220_7%_5.5%)] p-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex min-w-0 items-center gap-4">
-            {upNext.thumb && <img src={upNext.thumb} alt="" className="hidden h-14 w-24 shrink-0 rounded-[2px] object-cover sm:block" />}
-            <div className="min-w-0">
-              <p className="font-body text-[13px] text-ember">Up next for you</p>
-              <p className="truncate font-body text-[17px] font-semibold text-bone">{upNext.teamName || upNext.title}</p>
-              {upNext.teamName && <p className="truncate font-body text-sm text-foreground/75">{upNext.title}</p>}
-              <p className="font-body text-[13px] text-concrete">
-                {upNext.creditLine} ·{" "}
-                {upNext.slot
-                  ? `presents in ${upNext.slot.room} at ${clock(upNext.slot.at)}`
-                  : upNext.scoreCount === 0
-                    ? "nobody has marked it yet"
-                    : `${upNext.scoreCount} of ${MARKS_NEEDED} marks so far`}
-              </p>
-            </div>
-          </div>
-          <Link to={`/judge/entry/${upNext.id}`} className="btn-portal p-btn focus-ember shrink-0 self-start sm:self-auto">
-            Judge it <ArrowRight size={16} strokeWidth={1.8} />
-          </Link>
-        </div>
-      ) : (
-        total > 0 &&
-        !data?.cards.some((c) => c.myTotal === null && c.scoreCount < MARKS_NEEDED && mine(c)) && (
-          <p className="p-notice p-notice--calm mt-6 font-body text-[15px]">Nothing left for you to mark. New ones show up here as teams submit.</p>
-        )
-      )}
+      {data && (me.role === "admin" ? <OrganizerGuide marksCount={data.marksCount} deadline={data.deadline} /> : marked === 0 && <JudgeTip />)}
 
-      <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-wrap gap-2" role="group" aria-label="Show">
-          {(
-            [
-              ...(roomCount ? ([["room", `My room · ${myRoom}`]] as [Filter, string][]) : []),
-              ["all", "All"],
-              ["todo", "To mark"],
-              ["done", "Done"],
-              ["review", "Needs review"],
-            ] as [Filter, string][]
-          ).map(([f, label]) => (
-            <button
-              key={f}
-              type="button"
-              className="p-chip"
-              aria-pressed={!q && active === f}
-              onClick={() => {
-                setFilter(f);
-                setQuery("");
-              }}
-            >
-              {label}
-            </button>
-          ))}
+      <div className="jl-top">
+        {upNext ? (
+          <div className="jl-next">
+            <div className="flex min-w-0 items-center gap-3">
+              {upNext.thumb && <img src={upNext.thumb} alt="" className="hidden h-12 w-[4.5rem] shrink-0 rounded-[2px] object-cover sm:block" />}
+              <div className="min-w-0">
+                <p className="font-body text-[12px] font-medium uppercase tracking-[0.06em] text-ember">Up next for you</p>
+                <p className="truncate font-body text-[17px] font-semibold leading-tight text-bone">{upNext.teamName || upNext.title}</p>
+                <p className="truncate font-body text-[13px] text-concrete">
+                  {upNext.teamName && <span className="text-foreground/80">{upNext.title} · </span>}
+                  {upNext.slot
+                    ? `${upNext.slot.room} · ${clock(upNext.slot.at)}`
+                    : upNext.scoreCount === 0
+                      ? "nobody has marked it yet"
+                      : `${upNext.scoreCount} of ${MARKS_NEEDED} marks so far`}
+                </p>
+              </div>
+            </div>
+            <Link to={`/judge/entry/${upNext.id}`} className="btn-portal p-btn focus-ember shrink-0">
+              Judge it <ArrowRight size={16} strokeWidth={1.8} />
+            </Link>
+          </div>
+        ) : total > 0 && !data?.cards.some((c) => c.myTotal === null && c.scoreCount < MARKS_NEEDED && mine(c)) ? (
+          <p className="p-notice p-notice--calm self-center font-body text-[15px]">Nothing left for you to mark. New ones show up here as teams submit.</p>
+        ) : (
+          <span className="hidden md:block" />
+        )}
+        {/* On a phone the search sits right under Up next: judges find teams by name. */}
+        <div className="jl-search">
+          <label className="relative block">
+            <span className="sr-only">Find a team by name (also searches titles, students and schools)</span>
+            <Search size={15} strokeWidth={1.5} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-concrete" aria-hidden="true" />
+            <input className="p-input pl-9" type="search" placeholder="Find a team by name" value={query} onChange={(e) => setQuery(e.target.value)} />
+          </label>
+          {q && data && (
+            <p className="font-body text-[13px] text-concrete" role="status">
+              {cards.length ? `${cards.length} ${cards.length === 1 ? "match" : "matches"} from all rooms, closest first.` : ""}{" "}
+              <button type="button" className="p-link focus-ember" onClick={() => setQuery("")}>
+                Clear search
+              </button>
+            </p>
+          )}
         </div>
-        {/* On a phone the search comes first: judges find teams by name. */}
-        <label className="relative order-first block sm:order-none sm:w-72">
-          <span className="sr-only">Search by team name, title, student or school</span>
-          <Search size={15} strokeWidth={1.5} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-concrete" aria-hidden="true" />
-          <input
-            className="p-input pl-9"
-            type="search"
-            placeholder="Find a team by name"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-          />
-        </label>
       </div>
-      {q && data && (
-        <p className="mt-3 font-body text-[13px] text-concrete" role="status">
-          {cards.length ? `${cards.length} ${cards.length === 1 ? "match" : "matches"} from all rooms, closest first.` : ""}{" "}
-          <button type="button" className="p-link focus-ember" onClick={() => setQuery("")}>
-            Clear search
+
+      <div className="jl-chips mt-5" role="group" aria-label="Show">
+        {filters.map(([f, label]) => (
+          <button
+            key={f}
+            type="button"
+            className="p-chip"
+            aria-pressed={!q && active === f}
+            onClick={() => {
+              setFilter(f);
+              setQuery("");
+            }}
+          >
+            {label}
           </button>
-        </p>
-      )}
+        ))}
+      </div>
 
       {error && <p className="p-notice p-notice--bad mt-6 font-body text-sm">{error}</p>}
 
       {!data ? (
-        <p className="mt-12 font-body text-concrete" role="status">
+        <p className="mt-10 font-body text-concrete" role="status">
           Loading entries…
         </p>
       ) : cards.length === 0 ? (
-        <p className="mt-12 max-w-[34rem] font-body text-foreground/75">
+        <p className="mt-10 max-w-[34rem] font-body text-foreground/75">
           {total === 0 ? (
             <>
               No entries yet. They show up here the moment a team submits (submissions close at {data ? clock(data.deadline) : "2:00 PM"}).{" "}
@@ -220,44 +216,26 @@ export default function JudgeList() {
               </Link>{" "}
               to see how marking works.
             </>
+          ) : q ? (
+            `No team, title, student or school matches "${query.trim()}". Check the spelling, or try part of the team name.`
           ) : (
-            q ? `No team, title, student or school matches "${query.trim()}". Check the spelling, or try part of the team name.` : "No entries here."
+            "No entries here."
           )}
         </p>
       ) : (
-        <ul className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
+        <ul className="jl-rows">
           {cards.map((c) => (
             <li key={c.id}>
-              <Link to={`/judge/entry/${c.id}`} className="j-card focus-ember h-full">
-                <div className="j-thumb relative">
-                  {c.thumb ? (
-                    <img src={c.thumb} alt="" loading="lazy" />
-                  ) : (
-                    <div className="grid h-full place-items-center p-mono text-[11px] uppercase text-concrete">{c.modelExt ?? "video"}</div>
-                  )}
-                  <span className="absolute right-2 top-2">
-                    {c.myTotal !== null ? (
-                      <span className="p-tag border-transparent bg-background/80 p-mono">
-                        You: {c.myTotal}/{MAX_TOTAL}
-                      </span>
-                    ) : c.scoreCount >= MARKS_NEEDED ? (
-                      <span className="p-tag border-transparent bg-background/80">Done</span>
-                    ) : mine(c) ? (
-                      <span className="p-tag p-tag--ember bg-background/80">To mark</span>
-                    ) : null}
-                  </span>
-                </div>
-                <div className="flex flex-1 flex-col gap-1.5 p-4">
-                  <span className="font-body text-[17px] font-semibold leading-snug tracking-[-0.01em] text-bone">{c.teamName || c.title}</span>
-                  {c.teamName && <span className="font-body text-[15px] leading-snug text-foreground/85">{c.title}</span>}
-                  <span className="font-body text-sm text-foreground/75">
-                    {c.members.join(", ") || c.creditLine}
-                    {c.memberCount > 1 ? ` · team of ${c.memberCount}` : ""}
-                  </span>
-                  <span className="truncate font-body text-[13px] text-concrete">{c.schools.join(", ")}</span>
-                  <span className="mt-auto flex flex-wrap items-center gap-1.5 pt-2">
+              <Link to={`/judge/entry/${c.id}`} className="jl-row">
+                <span className="jl-thumb">
+                  {c.thumb ? <img src={c.thumb} alt="" loading="lazy" /> : <span className="p-mono text-[10px] uppercase text-concrete">{c.modelExt ?? "video"}</span>}
+                </span>
+                <span className="min-w-0">
+                  <span className="jl-name block">{c.teamName || c.title}</span>
+                  <span className="jl-meta">
+                    {c.teamName && <span className="jl-title">{c.title}</span>}
                     {c.slot && (
-                      <span className="p-tag p-mono">
+                      <span className="p-mono text-[12px]">
                         {c.slot.room} · {clock(c.slot.at)}
                       </span>
                     )}
@@ -266,11 +244,20 @@ export default function JudgeList() {
                     {!!c.specFails && <span className="p-tag p-tag--bad">Outside spec</span>}
                     {c.award && <span className="p-tag p-tag--solid">{c.award}</span>}
                     {c.hidden && <span className="p-tag">Hidden</span>}
-                    <span className="p-mono ml-auto text-[11px] text-concrete">
-                      {clock(c.submittedAt)} · {Math.min(c.scoreCount, 99)}/{MARKS_NEEDED} marks
-                    </span>
                   </span>
-                </div>
+                </span>
+                <span className="jl-status">
+                  {c.myTotal !== null ? (
+                    <span className="p-tag p-mono">You: {c.myTotal}</span>
+                  ) : c.scoreCount >= MARKS_NEEDED ? (
+                    <span className="p-tag jl-chip-done">Done</span>
+                  ) : mine(c) ? (
+                    <span className="p-tag p-tag--ember">To mark</span>
+                  ) : null}
+                  <span className="p-mono text-[11px] text-concrete">
+                    {Math.min(c.scoreCount, 99)} of {MARKS_NEEDED} marks
+                  </span>
+                </span>
               </Link>
             </li>
           ))}

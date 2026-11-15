@@ -1,9 +1,11 @@
-// One entry, for judging at the table. Kept simple: the team's pictures,
-// video or model on the left (what they show while they present), and on the
-// right what they wrote and the rubric, with a save bar that stays in reach.
-// Everything else (files, measurements, originality checks, organizer
-// switches) is folded away below. /judge/practice shows a made-up entry with
-// the same screen, so anyone can try marking before the day.
+// One entry, for judging at the table. Built to be calm in a 3-minute slot:
+// a one-line header (team, design, room and time, marks in), the team's
+// picture / model / video on the left, and the four rubric categories on the
+// right with a save bar that stays in reach. At 1440x900 the whole marking
+// area fits without scrolling. Everything else (the team's write-up, files,
+// measurements, originality checks, organizer switches) is in the left
+// panel's "Team details" tab. /judge/practice shows a made-up entry with the
+// same screen, so anyone can try marking before the day.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { ArrowDown, ArrowLeft, ArrowRight, ChevronDown, Download, ExternalLink } from "lucide-react";
@@ -18,6 +20,7 @@ import VideoPlayer from "../../components/VideoPlayer";
 import { parseVideoLink } from "../../shared/video";
 import { JudgeShell, useMe } from "./context";
 import { PRACTICE_ID, practiceEntry } from "./practice";
+import "../../judge.css";
 
 interface EntryResponse {
   entry: JudgeEntry;
@@ -31,6 +34,36 @@ interface EntryResponse {
   /** Whether this person's marks go into Results. */
   marksCount?: boolean;
 }
+
+/**
+ * Two-to-four-word names for each rubric level, so the level buttons read at a
+ * glance. Each follows its level's wording in shared/judging.ts; the full
+ * description shows under the buttons once a level is chosen.
+ */
+const SHORT: Record<string, [string, string, string, string]> = {
+  originality: ["Copy / derivative", "Familiar", "Fresh take", "Original"],
+  technical: ["Major errors", "Basic", "Clean", "Exceptional"],
+  theme: ["Not reflected", "Surface-level", "Central focus", "Seamless fit"],
+  communication: ["Missing / messy", "Short / disorganized", "Clear / organized", "Compelling"],
+};
+const shortLabel = (c: Criterion, i: number) => SHORT[c.id]?.[i] ?? c.levels[i].text.split(/[.,:]/)[0].split(" ").slice(0, 3).join(" ");
+
+// The one-line hint over the rubric shows until this device has saved a mark.
+const HINT_KEY = "mdc-judge-saved-once";
+const readSavedOnce = () => {
+  try {
+    return localStorage.getItem(HINT_KEY) === "1";
+  } catch {
+    return false;
+  }
+};
+const noteSavedOnce = () => {
+  try {
+    localStorage.setItem(HINT_KEY, "1");
+  } catch {
+    /* fine */
+  }
+};
 
 // The signed-in judge's room (from the dashboard's answer), kept for a few
 // minutes so moving between entries doesn't ask again.
@@ -57,6 +90,10 @@ function useMyRoom(skip: boolean, who: string): string | null {
   return room;
 }
 
+type Tab = "pictures" | "model" | "video" | "details";
+
+const smooth = () => (window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth");
+
 export default function JudgeEntryPage({ practice = false }: { practice?: boolean }) {
   const params = useParams();
   const id = practice ? PRACTICE_ID : (params.id ?? "");
@@ -67,12 +104,15 @@ export default function JudgeEntryPage({ practice = false }: { practice?: boolea
   // Measured live from the actual file in this browser (not what the team's browser reported).
   const [liveMeasure, setLiveMeasure] = useState<Measure | null>(null);
   const [shown, setShown] = useState(0);
+  const [tab, setTab] = useState<Tab | null>(null);
   const myRoom = useMyRoom(practice, me.name);
 
   useEffect(() => {
     setData(null);
     setError("");
     setShown(0);
+    setTab(null);
+    setLiveMeasure(null);
     let alive = true;
     if (practice) {
       setData({ entry: practiceEntry(), prev: null, next: null, nextToMark: null, toMark: 1, total: 1, spec: null, marksCount: false });
@@ -98,187 +138,284 @@ export default function JudgeEntryPage({ practice = false }: { practice?: boolea
   })();
   const pic = images[Math.min(shown, Math.max(0, images.length - 1))];
   const reviews = e?.checks.filter((c) => c.level === "review" && !c.review).length ?? 0;
+  const admin = me.role === "admin";
+
+  const tabs: [Tab, string][] = e
+    ? [
+        ...(images.length ? ([["pictures", images.length > 1 ? `Pictures (${images.length})` : "Picture"]] as [Tab, string][]) : []),
+        ...(model ? ([["model", "3D model"]] as [Tab, string][]) : []),
+        ...(videoFile || videoLink ? ([["video", "Video"]] as [Tab, string][]) : []),
+        ["details", "Team details"],
+      ]
+    : [];
+  const active: Tab = tab ?? tabs[0]?.[0] ?? "details";
+  const nextTeam = data?.nextToMark && data.nextToMark !== id ? data.nextToMark : null;
+
+  const marksIn = e ? Math.min(e.scoreCount, MARKS_NEEDED) : 0;
+  const pairStatus = !e
+    ? ""
+    : e.scoreCount >= MARKS_NEEDED && !e.myScore
+      ? `Done: has its ${MARKS_NEEDED} marks`
+      : `${marksIn} of ${MARKS_NEEDED} marks`;
 
   return (
     <JudgeShell section="Judging">
-      <div className="flex items-center justify-between gap-3 pt-4">
-        <Link to="/judge" className="focus-ember inline-flex min-h-10 items-center gap-1.5 font-body text-sm text-concrete hover:text-foreground">
-          <ArrowLeft size={15} strokeWidth={1.5} /> All entries
-        </Link>
-        {data && !practice && (
-          <span className="p-mono text-[12px] text-concrete">
-            {data.toMark === 0 ? "Nothing left to mark" : `${data.toMark} left to mark`}
-          </span>
-        )}
-      </div>
-
-      {practice ? (
-        <p className="p-notice mt-3 font-body text-[15px]">
-          <span className="font-semibold text-bone">Practice.</span> A made-up entry so you can try marking. Nothing you do here is saved or counted.
-        </p>
-      ) : (
-        data &&
-        me.role === "admin" && (
-          <p className="p-notice p-notice--calm mt-3 font-body text-sm">
-            You're an organizer. This is the judges' screen, plus the Organizer section at the bottom.{" "}
-            {data.marksCount === false
-              ? "Marks you save here don't count: only judges on the judges list count in Results."
-              : "Marks you save here count in Results, as one more judge."}
-          </p>
-        )
-      )}
-
-      {error && <p className="p-notice p-notice--bad mt-6 font-body">{error}</p>}
-
-      {e && myRoom && e.slot && e.slot.room !== myRoom && (
-        <p className="p-notice p-notice--bad mt-3 font-body text-[15px]" role="note">
-          <span className="font-semibold text-bone">Not your room.</span> This team is judged in <span className="p-mono">{e.slot.room}</span> by{" "}
-          {e.pairNames?.length ? e.pairNames.join(" and ") : "that room's judging pair"}. Your marks won't count toward its result. Your room is <span className="p-mono">{myRoom}</span>.
-        </p>
-      )}
-
-      {e && (
-        <button
-          type="button"
-          className="btn-ghost p-btn p-btn-sm mt-3 lg:hidden"
-          onClick={() => document.getElementById("marks")?.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" })}
-        >
-          <ArrowDown size={15} strokeWidth={1.5} /> Jump to marks
-        </button>
-      )}
-
-      <div className="mt-4 grid gap-8 lg:grid-cols-[minmax(0,1fr)_28rem] xl:grid-cols-[minmax(0,1fr)_32rem]">
-        {/* What the team shows. */}
-        <div className="flex min-w-0 flex-col gap-4 lg:sticky lg:top-20 lg:self-start">
-          {pic && (
-            <div>
-              <a href={pic.url} target="_blank" rel="noopener noreferrer" className="focus-ember block overflow-hidden rounded-[2px] border border-bone/10 bg-[#0d0e10]">
-                <img src={pic.url} alt={`${e?.title}, picture ${shown + 1}`} className="max-h-[64vh] w-full object-contain" />
-              </a>
-              {images.length > 1 && (
-                <div className="mt-2 flex gap-2">
-                  {images.map((img, i) => (
-                    <button
-                      key={img.id}
-                      type="button"
-                      className={`focus-ember overflow-hidden rounded-[2px] border ${i === shown ? "border-ember" : "border-bone/10"}`}
-                      onClick={() => setShown(i)}
-                      aria-label={`Picture ${i + 1}`}
-                      aria-pressed={i === shown}
-                    >
-                      <img src={img.url} alt="" className="h-14 w-20 object-cover" />
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-          {e && (videoFile || videoLink) && (
-            <>
-              <VideoPlayer title={e.title} file={videoFile} link={videoLink} poster={e.files.find((f) => f.slot === "thumb")?.url} />
-              {videoLink && e.videoCheck && e.videoCheck.status !== "public" && <p className="p-notice p-notice--calm font-body text-sm">Link check: {e.videoCheck.note}</p>}
-            </>
-          )}
-          {(!e || model) && (
-            <ModelViewer
-              source={model && isViewable(model.ext) ? { kind: "url", url: model.url, ext: model.ext as ViewableExt } : null}
-              upAxis={e?.upAxis ?? "y"}
-              units={e?.units ?? "mm"}
-              spec={data?.spec ?? null}
-              onMeasure={setLiveMeasure}
-              label={e ? `${e.title}, 3D model` : "3D model"}
-              className={pic || videoFile || videoLink ? "aspect-[16/10] w-full" : "h-[56vh] min-h-[320px] w-full lg:h-[calc(100dvh-7.5rem)]"}
-              empty={<span className="font-body text-sm text-concrete">{e ? "This entry has no viewable model." : ""}</span>}
-            />
+      {/* Header: who this is, where and when, how many marks are in, and where to go. */}
+      <div className="jd-head">
+        <div className="jd-nav">
+          <Link to="/judge" className="jd-navlink focus-ember">
+            <ArrowLeft size={15} strokeWidth={1.5} /> All entries
+          </Link>
+          {nextTeam && (
+            <Link to={`/judge/entry/${nextTeam}`} className="jd-navlink focus-ember" title={`${data?.toMark ?? 0} left for you to mark`}>
+              Next team{data && data.toMark > 0 ? ` (${data.toMark} left)` : ""} <ArrowRight size={15} strokeWidth={1.5} />
+            </Link>
           )}
         </div>
-
-        {!e ? (
-          <p className="font-body text-concrete" role="status">
-            {error ? "" : "Loading…"}
-          </p>
-        ) : (
-          <div className="min-w-0 pb-10">
-            <div className="flex flex-wrap items-center gap-1.5">
+        {e ? (
+          <div className="jd-title min-w-0">
+            <h1 className="jd-team">{e.teamName || e.title}</h1>
+            <p className="jd-sub">
+              {e.teamName && <span className="text-foreground/85">{e.title}</span>}
               {e.slot && (
-                <span className="p-tag p-mono">
+                <span className="p-mono text-foreground/80">
                   {e.slot.room} · {clock(e.slot.at)}
+                </span>
+              )}
+              {!practice && <span className={e.scoreCount >= MARKS_NEEDED ? "text-foreground/85" : "text-concrete"}>{pairStatus}</span>}
+              {practice && <span className="p-tag p-tag--ember">Practice · nothing is saved</span>}
+              {!practice && admin && (
+                <span className="p-tag" title="This is the judges' screen. Organizer switches are in Team details.">
+                  Organizer · {data?.marksCount === false ? "your marks don't count" : "your marks count"}
                 </span>
               )}
               {e.late && <span className="p-tag p-tag--bad">Submitted late</span>}
               {reviews > 0 && <span className="p-tag p-tag--ember">Originality check to review</span>}
               {e.award && <span className="p-tag p-tag--solid">{e.award}</span>}
               {e.status !== "submitted" && <span className="p-tag">Draft</span>}
-            </div>
-            <h1 className="mt-3 break-words font-body text-[clamp(1.75rem,1.3rem+1.4vw,2.5rem)] font-semibold leading-[1.06] tracking-[-0.025em] text-bone">
-              {e.teamName || e.title}
-            </h1>
-            {e.teamName && <p className="mt-1.5 break-words font-body text-[18px] leading-snug text-foreground/85">{e.title}</p>}
-            <p className="mt-2 font-body text-[15px] text-foreground/80">{e.members.map((m) => m.name).join(", ")}</p>
-            <p className="font-body text-[13px] text-concrete">
-              {[...new Set(e.members.map((m) => m.school))].join(", ")} · grade {[...new Set(e.members.map((m) => m.grade))].join(", ")}
             </p>
-
-            <p className="mt-5 whitespace-pre-line font-body text-[15px] leading-relaxed text-foreground/90">{e.summary}</p>
-            {e.process && <p className="mt-3 whitespace-pre-line font-body text-[14px] leading-relaxed text-foreground/70">{e.process}</p>}
-            <p className="mt-3 font-body text-[13px] text-concrete">
-              {e.software.map((s) => (s === "Other" && e.softwareOther ? e.softwareOther : s)).join(", ")} · AI: {e.aiUse === "some" ? e.aiNote : "none"}
-            </p>
-
-            <ScoreForm key={e.id} entryId={e.id} initial={e.myScore} scoreCount={e.scoreCount} next={data?.nextToMark ?? null} practice={practice} />
-
-            {!practice && (
-            <>
-            <details className="group mt-10 border-t border-bone/10 pt-5">
-              <summary className="focus-ember flex cursor-pointer list-none items-center justify-between gap-3 font-body text-[15px] font-medium text-foreground marker:hidden">
-                Files, measurements and checks
-                <ChevronDown size={16} strokeWidth={1.5} className="text-concrete transition-transform group-open:rotate-180" aria-hidden="true" />
-              </summary>
-              <ul className="mt-5 flex flex-col gap-1.5">
-                {[model, source].filter(Boolean).map((f) => (
-                  <li key={f!.id}>
-                    <a href={f!.url} download={f!.name} className="focus-ember flex items-center gap-2 font-body text-sm text-foreground/85 hover:text-foreground">
-                      <Download size={15} strokeWidth={1.5} className="text-ember" />
-                      <span className="truncate">{f!.name}</span>
-                      <span className="p-mono text-[11px] text-concrete">{formatBytes(f!.size)}</span>
-                    </a>
-                  </li>
-                ))}
-                {e.cadLink && (
-                  <li>
-                    <a href={e.cadLink} target="_blank" rel="noopener noreferrer" className="focus-ember flex items-center gap-2 font-body text-sm text-foreground/85 hover:text-foreground">
-                      <ExternalLink size={15} strokeWidth={1.5} className="text-ember" /> CAD document
-                    </a>
-                  </li>
-                )}
-                <li>
-                  <a href={`/entry/${e.id}`} target="_blank" rel="noopener" className="focus-ember flex items-center gap-2 font-body text-sm text-foreground/85 hover:text-foreground">
-                    <ExternalLink size={15} strokeWidth={1.5} className="text-ember" /> Public page
-                  </a>
-                </li>
-              </ul>
-              {me.role === "admin" && <p className="p-hint mt-3">Contact: {e.contactEmail}</p>}
-              {model && <MeasurePanel measure={liveMeasure} spec={data?.spec ?? null} reported={e.measure} />}
-              <ProcessPanel entry={e} />
-              <ChecksPanel entry={e} admin={me.role === "admin"} onChange={(entry) => setData((d) => (d ? { ...d, entry } : d))} />
-            </details>
-
-            <div className="mt-8 flex flex-wrap gap-2">
-              <button type="button" className="btn-ghost p-btn p-btn-sm" disabled={!data?.prev} onClick={() => data?.prev && navigate(`/judge/entry/${data.prev}`)}>
-                <ArrowLeft size={15} strokeWidth={1.5} /> Newer entry
-              </button>
-              <button type="button" className="btn-ghost p-btn p-btn-sm" disabled={!data?.next} onClick={() => data?.next && navigate(`/judge/entry/${data.next}`)}>
-                Older entry <ArrowRight size={15} strokeWidth={1.5} />
-              </button>
-            </div>
-
-            {me.role === "admin" && <AdminPanel entry={e} onChange={(entry) => setData((d) => (d ? { ...d, entry } : d))} />}
-            </>
-            )}
           </div>
+        ) : (
+          <p className="font-body text-concrete" role="status">
+            {error ? "" : "Loading…"}
+          </p>
         )}
       </div>
+
+      {error && <p className="p-notice p-notice--bad mt-3 font-body">{error}</p>}
+
+      {e && myRoom && e.slot && e.slot.room !== myRoom && (
+        <p className="p-notice p-notice--bad mt-3 font-body text-sm" role="note">
+          <span className="font-semibold text-bone">Not your room.</span> Judged in <span className="p-mono">{e.slot.room}</span> by{" "}
+          {e.pairNames?.length ? e.pairNames.join(" and ") : "that room's pair"}; your marks won't count. Yours is <span className="p-mono">{myRoom}</span>.
+        </p>
+      )}
+
+      {e && (
+        <div className="jd-grid">
+          {/* What the team shows, switchable; the write-up is the last tab. */}
+          <div className="jd-media-col">
+            <div className="jd-tabs" role="tablist" aria-label="What the team made">
+              {tabs.map(([t, label]) => (
+                <button
+                  key={t}
+                  type="button"
+                  role="tab"
+                  id={`tab-${t}`}
+                  aria-selected={active === t}
+                  aria-controls="jd-panel"
+                  className="jd-tab focus-ember"
+                  onClick={() => setTab(t)}
+                >
+                  {label}
+                  {t === "details" && reviews > 0 && <span className="jd-dot" aria-label="(an originality check to review)" />}
+                </button>
+              ))}
+            </div>
+            <div id="jd-panel" role="tabpanel" aria-labelledby={`tab-${active}`} className={`jd-panel ${active === "details" ? "jd-panel--text" : ""}`}>
+              {active === "pictures" && pic && (
+                <div className="jd-pic">
+                  <a href={pic.url} target="_blank" rel="noopener noreferrer" className="focus-ember jd-pic-main" title="Open full size">
+                    <img src={pic.url} alt={`${e.title}, picture ${shown + 1}`} />
+                  </a>
+                  {images.length > 1 && (
+                    <div className="jd-thumbs">
+                      {images.map((img, i) => (
+                        <button
+                          key={img.id}
+                          type="button"
+                          className="focus-ember"
+                          data-on={i === shown ? "true" : undefined}
+                          onClick={() => setShown(i)}
+                          aria-label={`Picture ${i + 1}`}
+                          aria-pressed={i === shown}
+                        >
+                          <img src={img.url} alt="" />
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+              {active === "model" && (
+                <ModelViewer
+                  source={model && isViewable(model.ext) ? { kind: "url", url: model.url, ext: model.ext as ViewableExt } : null}
+                  upAxis={e.upAxis ?? "y"}
+                  units={e.units ?? "mm"}
+                  spec={data?.spec ?? null}
+                  onMeasure={setLiveMeasure}
+                  label={`${e.title}, 3D model`}
+                  className="jd-viewer"
+                  empty={<span className="font-body text-sm text-concrete">This entry has no viewable model.</span>}
+                />
+              )}
+              {active === "video" && (
+                <div className="jd-video">
+                  <VideoPlayer title={e.title} file={videoFile} link={videoLink} poster={e.files.find((f) => f.slot === "thumb")?.url} />
+                  {videoLink && e.videoCheck && e.videoCheck.status !== "public" && <p className="p-hint mt-2">Link check: {e.videoCheck.note}</p>}
+                </div>
+              )}
+              {active === "details" && (
+                <TeamDetails
+                  entry={e}
+                  practice={practice}
+                  admin={admin}
+                  files={[model, source].filter((f): f is NonNullable<typeof f> => !!f)}
+                  liveMeasure={liveMeasure}
+                  hasModel={!!model}
+                  spec={data?.spec ?? null}
+                  prev={data?.prev ?? null}
+                  next={data?.next ?? null}
+                  onNavigate={(to) => navigate(`/judge/entry/${to}`)}
+                  onChange={(entry) => setData((d) => (d ? { ...d, entry } : d))}
+                />
+              )}
+            </div>
+            {active === "details" && (
+              <button type="button" className="btn-ghost p-btn p-btn-sm mt-3 lg:hidden" onClick={() => document.getElementById("marks")?.scrollIntoView({ behavior: smooth(), block: "start" })}>
+                <ArrowDown size={15} strokeWidth={1.5} /> Jump to marks
+              </button>
+            )}
+          </div>
+
+          <ScoreForm key={e.id} entryId={e.id} initial={e.myScore} scoreCount={e.scoreCount} next={data?.nextToMark ?? null} practice={practice} />
+        </div>
+      )}
     </JudgeShell>
+  );
+}
+
+/** The team's write-up and the evidence: everything a judge may want, none of it in the way of marking. */
+function TeamDetails({
+  entry: e,
+  practice,
+  admin,
+  files,
+  liveMeasure,
+  hasModel,
+  spec,
+  prev,
+  next,
+  onNavigate,
+  onChange,
+}: {
+  entry: JudgeEntry;
+  practice: boolean;
+  admin: boolean;
+  files: JudgeEntry["files"];
+  liveMeasure: Measure | null;
+  hasModel: boolean;
+  spec: Spec | null;
+  prev: string | null;
+  next: string | null;
+  onNavigate: (id: string) => void;
+  onChange: (e: JudgeEntry) => void;
+}) {
+  const schools = [...new Set(e.members.map((m) => m.school))].join(", ");
+  const grades = [...new Set(e.members.map((m) => m.grade))].join(", ");
+  return (
+    <div className="jd-details">
+      <dl className="jd-facts">
+        <div>
+          <dt>Team</dt>
+          <dd>
+            {e.members.map((m) => m.name).join(", ")}
+            <span className="block text-concrete">
+              {schools} · grade {grades}
+            </span>
+          </dd>
+        </div>
+        <div>
+          <dt>Software</dt>
+          <dd>{e.software.map((s) => (s === "Other" && e.softwareOther ? e.softwareOther : s)).join(", ") || "Not given"}</dd>
+        </div>
+        <div>
+          <dt>AI use</dt>
+          <dd>{e.aiUse === "some" ? e.aiNote || "Some" : "None"}</dd>
+        </div>
+      </dl>
+
+      <h2 className="jd-h">What they made</h2>
+      <p className="whitespace-pre-line font-body text-[15px] leading-relaxed text-foreground/90">{e.summary}</p>
+      {e.presentation && (
+        <>
+          <h2 className="jd-h">What they'll present</h2>
+          <p className="whitespace-pre-line font-body text-[14px] leading-relaxed text-foreground/80">{e.presentation}</p>
+        </>
+      )}
+      {e.process && (
+        <>
+          <h2 className="jd-h">Their notes</h2>
+          <p className="whitespace-pre-line font-body text-[14px] leading-relaxed text-foreground/80">{e.process}</p>
+        </>
+      )}
+
+      {!practice && (
+        <>
+          <h2 className="jd-h">Files and links</h2>
+          <ul className="flex flex-col gap-1.5">
+            {files.map((f) => (
+              <li key={f.id}>
+                <a href={f.url} download={f.name} className="focus-ember flex items-center gap-2 font-body text-sm text-foreground/85 hover:text-foreground">
+                  <Download size={15} strokeWidth={1.5} className="shrink-0 text-ember" />
+                  <span className="truncate">{f.name}</span>
+                  <span className="p-mono text-[11px] text-concrete">{formatBytes(f.size)}</span>
+                </a>
+              </li>
+            ))}
+            {e.cadLink && (
+              <li>
+                <a href={e.cadLink} target="_blank" rel="noopener noreferrer" className="focus-ember flex items-center gap-2 font-body text-sm text-foreground/85 hover:text-foreground">
+                  <ExternalLink size={15} strokeWidth={1.5} className="text-ember" /> CAD document
+                </a>
+              </li>
+            )}
+            <li>
+              <a href={`/entry/${e.id}`} target="_blank" rel="noopener" className="focus-ember flex items-center gap-2 font-body text-sm text-foreground/85 hover:text-foreground">
+                <ExternalLink size={15} strokeWidth={1.5} className="text-ember" /> Public page
+              </a>
+            </li>
+          </ul>
+          {admin && <p className="p-hint mt-3">Contact: {e.contactEmail}</p>}
+
+          <ChecksPanel entry={e} admin={admin} onChange={onChange} />
+          {hasModel && <MeasurePanel measure={liveMeasure} spec={spec} reported={e.measure} />}
+          {hasModel && !liveMeasure && <p className="p-hint mt-1">Open the 3D model tab to measure it.</p>}
+          <ProcessPanel entry={e} />
+
+          <div className="mt-8 flex flex-wrap gap-2 border-t border-bone/10 pt-5">
+            <button type="button" className="btn-ghost p-btn p-btn-sm" disabled={!prev} onClick={() => prev && onNavigate(prev)}>
+              <ArrowLeft size={15} strokeWidth={1.5} /> Newer entry
+            </button>
+            <button type="button" className="btn-ghost p-btn p-btn-sm" disabled={!next} onClick={() => next && onNavigate(next)}>
+              Older entry <ArrowRight size={15} strokeWidth={1.5} />
+            </button>
+          </div>
+
+          {admin && <AdminPanel entry={e} onChange={onChange} />}
+        </>
+      )}
+    </div>
   );
 }
 
@@ -325,6 +462,8 @@ function ScoreForm({
   const [dirty, setDirty] = useState(!!unsaved);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [showAll, setShowAll] = useState(false);
+  const [hint] = useState(() => practice || !readSavedOnce());
   // Why the last save failed, when the judge has something to do about it.
   const [failure, setFailure] = useState<"" | "signedOut" | "removed">("");
   const total = useMemo(() => totalOf(marks), [marks]);
@@ -360,6 +499,7 @@ function ScoreForm({
       setSavedAt(r.score.updatedAt);
       setDirty(false);
       writeUnsaved(entryId, null);
+      noteSavedOnce();
       if (goNext && next) navigate(`/judge/entry/${next}`);
     } catch (e) {
       const status = e instanceof ApiError ? e.status : 0;
@@ -393,66 +533,57 @@ function ScoreForm({
   const status = busy
     ? "Saving…"
     : total === null
-      ? `${left} ${left === 1 ? "category" : "categories"} left to mark`
+      ? `${left} ${left === 1 ? "category" : "categories"} left`
       : dirty
         ? unsaved
           ? "Not saved yet (kept from before)"
           : "Not saved yet"
         : savedAt
           ? practice
-            ? "Saved (practice: nothing was sent)"
+            ? "Saved (practice: nothing sent)"
             : `Saved at ${clock(savedAt)}`
-          : "All marked: ready to save";
+          : "Ready to save";
   const goesNext = !!next;
 
   return (
-    <section id="marks" aria-labelledby="marks-h" className="mt-8 scroll-mt-20 border-t border-bone/10 pt-6">
-      <h2 id="marks-h" className="font-body text-lg font-semibold tracking-[-0.01em] text-bone">
-        Your marks
-      </h2>
-      <ol className="mt-3 grid gap-2 font-body text-[14px] leading-snug text-foreground/80 sm:grid-cols-3">
-        {[
-          "Listen to the team's 1-minute pitch.",
-          "In each category, tap the description that fits, then the points.",
-          goesNext ? "Press Save and judge next." : "Press Save marks.",
-        ].map((t, i) => (
-          <li key={i} className="flex gap-2.5 border border-bone/10 bg-[hsl(220_7%_5.5%)] px-3 py-2.5">
-            <span className="p-mono text-ember" aria-hidden="true">
-              {i + 1}
-            </span>
-            <span>{t}</span>
-          </li>
-        ))}
-      </ol>
-      {!practice && (
-        <p className="p-hint mt-3">
-          {scoreCount >= MARKS_NEEDED && !initial
-            ? `Done: this entry already has its ${MARKS_NEEDED} marks, so it doesn't need yours.`
-            : `${Math.min(scoreCount, MARKS_NEEDED)} of ${MARKS_NEEDED} marks in from this team's judging pair.`}{" "}
-          Other judges' marks stay hidden from you.
-        </p>
+    <section id="marks" aria-labelledby="marks-h" className="jd-score">
+      <div className="jd-score-head">
+        <h2 id="marks-h" className="sr-only">
+          Your marks
+        </h2>
+        <p className="jd-hint">{hint ? "Tap a level, then the points, for each category." : "Your marks"}</p>
+        <button type="button" className="jd-toggle focus-ember" aria-pressed={showAll} onClick={() => setShowAll((v) => !v)}>
+          {showAll ? "Hide rubric descriptions" : "Show rubric descriptions"}
+        </button>
+      </div>
+      {!practice && scoreCount >= MARKS_NEEDED && !initial && (
+        <p className="jd-hint">This team already has its {MARKS_NEEDED} marks, so it doesn't need yours.</p>
       )}
 
-      <div className="mt-6 flex flex-col gap-4">
-        {CRITERIA.map((c, i) => (
-          <RubricRow key={c.id} n={i + 1} c={c} value={marks[c.id]} onChange={(v) => setMark(c.id, v)} />
+      <div className="jd-crits">
+        {CRITERIA.map((c) => (
+          <RubricRow key={c.id} c={c} value={marks[c.id]} showAll={showAll} onChange={(v) => setMark(c.id, v)} />
         ))}
-        <label className="mt-2 block">
-          <span className="p-label">Notes</span>
-          <span className="p-hint block">Optional. For you and the organizers; teams never see these.</span>
-          <textarea
-            className="p-textarea mt-2 min-h-[4.5rem]"
-            value={notes}
-            onChange={(e) => {
-              setNotes(e.target.value);
-              setDirty(true);
-            }}
-          />
-        </label>
       </div>
 
+      <details className="jd-note" open={!!notes || undefined}>
+        <summary className="focus-ember">
+          {notes ? "Your note" : "Add a note"} <span className="text-concrete">(optional, teams never see it)</span>
+          <ChevronDown size={14} strokeWidth={1.5} className="jd-chev" aria-hidden="true" />
+        </summary>
+        <textarea
+          className="p-textarea mt-2 min-h-[4rem]"
+          aria-label="Note for you and the organizers"
+          value={notes}
+          onChange={(e) => {
+            setNotes(e.target.value);
+            setDirty(true);
+          }}
+        />
+      </details>
+
       {/* Stays at the bottom of the screen while the rubric is in view, so saving is always one tap away. */}
-      <div className="j-savebar">
+      <div className="jd-savebar">
         {error && (
           <div className="p-notice p-notice--bad mb-3 font-body text-sm" role="alert">
             <p>{error}</p>
@@ -468,20 +599,20 @@ function ScoreForm({
             )}
           </div>
         )}
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
+        <div className="jd-savebar-row">
           <div className="flex items-baseline gap-1">
-            <span className="font-display text-[2rem] leading-none text-bone">{sum}</span>
-            <span className="font-body text-base text-concrete">/{MAX_TOTAL}</span>
+            <span className="font-display text-[1.75rem] leading-none text-bone">{sum}</span>
+            <span className="font-body text-sm text-concrete">/{MAX_TOTAL}</span>
           </div>
           <div className="flex gap-1" aria-hidden="true">
             {CRITERIA.map((c) => (
               <span key={c.id} className="j-pip" data-on={typeof marks[c.id] === "number" ? "true" : undefined} title={c.label} />
             ))}
           </div>
-          <span className="min-w-[9rem] flex-1 font-body text-sm text-concrete" role="status">
+          <span className="jd-status" role="status">
             {status}
           </span>
-          <div className="flex flex-wrap gap-2">
+          <div className="jd-actions">
             {goesNext && (
               <button type="button" className="btn-ghost p-btn" disabled={busy || total === null} onClick={() => save(false)}>
                 Save
@@ -493,8 +624,8 @@ function ScoreForm({
           </div>
         </div>
         {practice && savedAt && !dirty && (
-          <p className="mt-3 font-body text-sm text-foreground/85">
-            That's all there is to it. On the day, "Save and judge next" takes you straight to the next team in your room.{" "}
+          <p className="mt-2 font-body text-sm text-foreground/85">
+            That's it. On the day, "Save and judge next" opens the next team in your room.{" "}
             <Link to="/judge" className="p-link focus-ember">
               Back to entries
             </Link>
@@ -505,51 +636,46 @@ function ScoreForm({
   );
 }
 
-/** One rubric category: four levels with their description, then the points within the chosen level. */
-function RubricRow({ n, c, value, onChange }: { n: number; c: Criterion; value: number | undefined; onChange: (v: number) => void }) {
+/** One rubric category: four short levels, then (once one is chosen) its description and points. */
+function RubricRow({ c, value, showAll, onChange }: { c: Criterion; value: number | undefined; showAll: boolean; onChange: (v: number) => void }) {
   const marked = typeof value === "number";
   const [level, setLevel] = useState<number | null>(marked ? levelOf(value) : null);
   const lv = level !== null ? c.levels[level] : null;
   const pickedHere = marked && level !== null && levelOf(value) === level;
   return (
-    <div role="group" aria-labelledby={`c-${c.id}`} className="j-crit" data-done={marked ? "true" : undefined}>
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p id={`c-${c.id}`} className="font-body text-[16px] font-semibold text-foreground">
-            <span className="p-mono mr-2 text-[12px] text-concrete" aria-hidden="true">
-              {n}/{CRITERIA.length}
-            </span>
-            {c.label}
-          </p>
-          <p className="mt-0.5 font-body text-[13px] text-concrete">{c.hint}</p>
-        </div>
-        <span className={`p-mono shrink-0 text-base ${marked ? "text-ember" : "text-concrete"}`}>
+    <div role="group" aria-labelledby={`c-${c.id}`} className="jd-crit" data-done={marked ? "true" : undefined}>
+      <div className="jd-crit-head">
+        <p id={`c-${c.id}`} className="jd-crit-name">
+          {c.label}
+          <span className="jd-crit-q">{c.hint}</span>
+        </p>
+        <span className={`p-mono shrink-0 text-[14px] ${marked ? "text-ember" : "text-concrete"}`} aria-label={marked ? `${value} out of ${MARK_MAX}` : "Not marked"}>
           {marked ? value : "–"}/{MARK_MAX}
         </span>
       </div>
-      <div className="j-levels mt-3">
+      <div className="jd-levels" data-all={showAll ? "true" : undefined}>
         {c.levels.map((l, i) => (
           <button
             key={i}
             type="button"
-            className="j-level focus-ember"
+            className="jd-level focus-ember"
             aria-pressed={level === i}
+            aria-label={`${l.min} to ${l.max} points: ${shortLabel(c, i)}. ${l.text}`}
             data-has={marked && levelOf(value) === i ? "true" : undefined}
             onClick={() => setLevel(i)}
           >
-            <span className="p-mono text-[11px]">
-              {l.min}–{l.max} pts
+            <span className="jd-range">
+              {l.min}–{l.max}
             </span>
-            <span className="j-level-text">{l.text}</span>
+            <span className="jd-short">{shortLabel(c, i)}</span>
+            {showAll && <span className="jd-long">{l.text}</span>}
           </button>
         ))}
       </div>
       {lv && (
-        <div className="mt-3">
-          <p className={`font-body text-[13px] ${pickedHere ? "text-concrete" : "text-ember"}`}>
-            {pickedHere ? "Points (tap another to change)" : `Now tap the points, ${lv.min} to ${lv.max}`}
-          </p>
-          <div className="j-points mt-1.5" role="radiogroup" aria-label={`${c.label}: points from ${lv.min} to ${lv.max}`}>
+        <div className="jd-picked">
+          {!showAll && <p className="jd-desc">{lv.text}</p>}
+          <div className="jd-points" role="radiogroup" aria-label={`${c.label}: points from ${lv.min} to ${lv.max}`} data-wait={pickedHere ? undefined : "true"}>
             {Array.from({ length: lv.max - lv.min + 1 }, (_, i) => lv.min + i).map((v) => (
               <button
                 key={v}
@@ -611,10 +737,12 @@ function AdminPanel({ entry, onChange }: { entry: JudgeEntry; onChange: (e: Judg
   );
 
   return (
-    <section aria-labelledby="admin-h" className="mt-10 border-t border-bone/10 pt-6">
-      <h2 id="admin-h" className="font-body text-lg font-semibold tracking-[-0.01em] text-bone">
+    <details className="jd-org group">
+      <summary className="focus-ember">
         Organizer
-      </h2>
+        <span className="font-normal text-concrete">award, public page, edit, late, delete</span>
+        <ChevronDown size={16} strokeWidth={1.5} className="jd-chev" aria-hidden="true" />
+      </summary>
       <div className="mt-4 flex flex-col gap-5">
         <label className="block max-w-[18rem]">
           <span className="p-label">Award</span>
@@ -642,6 +770,6 @@ function AdminPanel({ entry, onChange }: { entry: JudgeEntry; onChange: (e: Judg
           </button>
         </div>
       </div>
-    </section>
+    </details>
   );
 }

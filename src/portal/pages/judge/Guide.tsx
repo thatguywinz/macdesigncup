@@ -6,11 +6,12 @@ import { Link } from "react-router-dom";
 import { ArrowRight, ChevronDown } from "lucide-react";
 import { clock } from "../../api";
 
-const SEEN = "mdc-guide-closed";
+// Closed by default (one line); remembered open once an organizer opens it.
+const OPEN = "mdc-guide-open";
 
-function readClosed() {
+function readOpen() {
   try {
-    return localStorage.getItem(SEEN) === "1";
+    return localStorage.getItem(OPEN) === "1";
   } catch {
     return false;
   }
@@ -25,23 +26,21 @@ function PracticeLink({ children = "Try the judge screen" }: { children?: string
 }
 
 export function OrganizerGuide({ marksCount, deadline }: { marksCount: boolean | undefined; deadline: string }) {
-  const [open, setOpen] = useState(() => !readClosed());
+  const [open, setOpen] = useState(readOpen);
   const toggle = (e: React.SyntheticEvent<HTMLDetailsElement>) => {
     const isOpen = e.currentTarget.open;
     setOpen(isOpen);
     try {
-      localStorage.setItem(SEEN, isOpen ? "0" : "1");
+      localStorage.setItem(OPEN, isOpen ? "1" : "0");
     } catch {
       /* fine */
     }
   };
   return (
-    <details className="group mt-6 border border-bone/10 bg-[hsl(220_7%_5.5%)]" open={open} onToggle={toggle}>
-      <summary className="focus-ember flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 font-body text-[15px] font-medium text-foreground marker:hidden">
-        <span>
-          <span className="text-ember">Organizer guide:</span> how judging works
-        </span>
-        <ChevronDown size={16} strokeWidth={1.5} className="text-concrete transition-transform group-open:rotate-180" aria-hidden="true" />
+    <details className="group mt-4 border border-bone/10 bg-[hsl(220_7%_5.5%)]" open={open} onToggle={toggle}>
+      <summary className="focus-ember flex cursor-pointer list-none items-center gap-2 px-4 py-2 font-body text-[14px] font-medium text-foreground/85 marker:hidden">
+        How judging works
+        <ChevronDown size={15} strokeWidth={1.5} className="-rotate-90 text-concrete transition-transform group-open:rotate-0" aria-hidden="true" />
       </summary>
       <div className="grid gap-6 border-t border-bone/10 px-4 py-5 md:grid-cols-2">
         <div>
@@ -100,10 +99,9 @@ export function OrganizerGuide({ marksCount, deadline }: { marksCount: boolean |
 /** For judges who haven't marked anything yet. */
 export function JudgeTip() {
   return (
-    <div className="mt-6 flex flex-col gap-3 border border-bone/10 bg-[hsl(220_7%_5.5%)] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-      <p className="font-body text-[14px] leading-relaxed text-foreground/80">
-        <span className="text-foreground">How it works:</span> open a team, listen to their 1-minute pitch, tap a description and points for each of the 4
-        categories, then save. First time? Try the practice entry.
+    <div className="mt-4 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border border-bone/10 bg-[hsl(220_7%_5.5%)] px-4 py-2">
+      <p className="font-body text-[14px] text-foreground/80">
+        <span className="text-foreground">First time?</span> Open a team, listen to the pitch, mark the 4 categories, save.
       </p>
       <PracticeLink>Practice entry</PracticeLink>
     </div>
