@@ -831,3 +831,12 @@ describe("shared venue IP", () => {
     for (let i = 0; i < 150; i++) expect((await call("/entries", { body: { code: "MDC-DEMO", entry: entry(), draft: true } })).status).toBe(201);
   });
 });
+
+describe("entry code on step 1", () => {
+  it("checks the code before the team fills in everything", async () => {
+    expect((await call("/entries/check-code", { body: { code: " mdc demo " } })).status).toBe(200);
+    const bad = await call("/entries/check-code", { body: { code: "WRONG-1" } });
+    expect(bad.status).toBe(403);
+    expect(bad.json.field).toBe("code");
+  });
+});

@@ -190,7 +190,7 @@ export function parseEntry(raw: unknown, opts: { draft?: boolean } = {}): Parsed
   if (members.length === 0) need("members", "Add at least one team member.");
 
   const contactEmail = str(r.contactEmail, LIMITS.email).toLowerCase();
-  if (contactEmail ? !EMAIL.test(contactEmail) : !draft) errors.contactEmail = "An email we can reach your team at.";
+  if (contactEmail ? !EMAIL.test(contactEmail) : !draft) errors.contactEmail = contactEmail ? "That email doesn't look complete (like name@school.ca)." : "An email we can reach your team at.";
   tooLong("contactEmail", contactEmail, LIMITS.email, "The email");
 
   const software = Array.isArray(r.software)
@@ -201,7 +201,7 @@ export function parseEntry(raw: unknown, opts: { draft?: boolean } = {}): Parsed
   if (software.includes("Other") && !softwareOther) need("softwareOther", "Which other software?");
 
   const summary = str(r.summary, LIMITS.summary);
-  if (wordCount(summary) < 5) need("summary", "A sentence or two: what you made and how it fits the theme.");
+  if (wordCount(summary) < 5) need("summary", `A sentence or two: what you made and how it fits the theme (at least 5 words; ${wordCount(summary)} so far).`);
   tooLong("summary", summary, LIMITS.summary, "This");
   tooManyWords("summary", summary);
 

@@ -541,6 +541,21 @@ function ownEntry(entries: Record<string, EntryRecord>, id: string): EntryRecord
 
 // ── Teams ─────────────────────────────────────
 
+// Step 1's Next checks the entry code, so a typo shows up there, not after
+// filling in all three steps. Wrong codes count toward the same limit as on create.
+on("POST", "/entries/check-code", async (ctx, req, res) => {
+  const ip = clientIp(req);
+  const body = await readJson(req);
+  const w = await windowOf(ctx);
+  if (!w.codeOn) return sendJson(res, 200, { ok: true });
+  const code = normalizeCode(String(body.code ?? ""));
+  if (!code || !safeEqual(code, normalizeCode(ctx.cfg.entryCode))) {
+    rateLimit(`code:${ip}`, 400, 10 * 60 * 1000);
+    fail(403, "That entry code isn't right. It's on the screen at the front of the room.", { field: "code" });
+  }
+  sendJson(res, 200, { ok: true });
+});
+
 on("POST", "/entries", async (ctx, req, res) => {
   const ip = clientIp(req);
   // The whole venue shares one public IP: ~80 teams creating entries (and the
