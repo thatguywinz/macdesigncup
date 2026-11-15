@@ -268,11 +268,21 @@ store (never through the function, so the 4.5 MB function limit doesn't
 apply). Models and project files can be up to 250 MB each, and one entry's
 files up to 300 MB together; model files over
 100 MB skip the fingerprint and metadata checks (reading them whole could
-outlast the function's 30 s). On the Hobby plan Blob has monthly limits on storage (1 GB) and
-operations. The portal stops accepting uploads at 900 MB in total
-(`PORTAL_STORAGE_BUDGET_MB`); with files up to 250 MB a handful of very large
-uploads can fill that, so raise it only on a paid plan, and check the Usage
-tab after the event.
+outlast the function's time limit).
+
+Plan limits (checked 2026-11-15): on Vercel's free Hobby plan Blob allows
+2,000 advanced operations (every upload, upload part and document save) and
+10,000 simple operations (reads) a month, shared by every project on the
+account, and going over locks Blob for 30 days. One event day needs more than
+that, so run the event on Pro (or a Pro trial). Storage is billed as a monthly
+average, so a few GB for the event days is cheap; the portal stops accepting
+uploads at 8 GB in total (`PORTAL_STORAGE_BUDGET_MB`). Download what you want
+to keep and delete the files a few days after the event.
+
+Concurrency: entries are split over 8 shard files (`portal/entries/<n>.json`,
+plus the old `portal/entries.json`, still read) so teams saving at the same
+moment rarely collide; each write is compare-and-swap and retries for up to
+20 s, then answers 503 `busy`, which the browser retries by itself.
 
 ## Security, in short
 

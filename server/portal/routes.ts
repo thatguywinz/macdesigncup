@@ -301,8 +301,16 @@ function stopwatch(label: string) {
 
 const SLOT_NAMES: readonly FileSlot[] = ["video", "model", "image", "progress", "source", "thumb"];
 
-/** Bytes the portal may keep in the store (default 900 MB of the free plan's 1 GB). */
-const storageBudget = () => Math.max(50, Number(process.env.PORTAL_STORAGE_BUDGET_MB) || 900) * 1024 * 1024;
+/**
+ * Bytes the portal may keep in the store. Vercel bills Blob storage as a
+ * monthly average (GB-month), so a few GB for the event days costs about the
+ * same as a fraction of a GB all month; the old 900 MB cap would have
+ * refused uploads after a handful of 250 MB models. 8 GB fits ~80 entries at
+ * ~100 MB each. Entries live in shards (db.ts), so two teams in different
+ * shards can pass this check at the same instant: a soft guard that may
+ * overshoot by a file or two, not an exact quota.
+ */
+const storageBudget = () => Math.max(50, Number(process.env.PORTAL_STORAGE_BUDGET_MB) || 8000) * 1024 * 1024;
 
 /** Keys of the organizers' judges list, or null when there is no list. */
 function rosterKeys(settings: SettingsDoc): Set<string> | null {
