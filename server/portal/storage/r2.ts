@@ -147,10 +147,11 @@ export class R2Storage implements Storage {
     );
   }
 
-  private async presign(key: string, method: "GET" | "PUT", ttlSeconds: number): Promise<string> {
+  private async presign(key: string, method: "GET" | "PUT", ttlSeconds: number, headers: Record<string, string> = {}): Promise<string> {
     const url = new URL(this.url(key));
     url.searchParams.set("X-Amz-Expires", String(Math.max(60, Math.min(7 * 24 * 3600, Math.round(ttlSeconds)))));
-    const signed = await this.client.sign(url.toString(), { method, aws: { signQuery: true } });
+    // allHeaders: sign content-length and content-type too (aws4fetch skips them by default).
+    const signed = await this.client.sign(url.toString(), { method, headers, aws: { signQuery: true, allHeaders: true } });
     return signed.url;
   }
 
@@ -158,9 +159,14 @@ export class R2Storage implements Storage {
     return this.presign(path, "GET", ttlSeconds);
   }
 
-  async uploadTicket(path: string, opts: { maxBytes: number; contentType: string; ttlSeconds: number; clientPayload: string }): Promise<UploadTicket> {
-    // The size and type are checked again when the upload completes (the
-    // complete route deletes a file that is too big or the wrong type).
-    return { mode: "s3", url: await this.presign(path, "PUT", opts.ttlSeconds), pathname: path, contentType: opts.contentType };
+  async uploadTicket(path: string, opts: { maxBytes: number; size: number; contentType: string; ttlSeconds: number; clientPayload: string }): Promise<UploadTicket> {
+    // The link is bound to exactly this file: its size (signed Content-Length,
+    // already checked against the slot's limit), its type, and create-only
+    // (If-None-Match: *), so it can't upload something bigger than declared
+    // or replace a file after it was checked. The browser sends these headers
+    // (it sets Content-Length itself from the file).
+    const headers = { "content-type": opts.contentType, "if-none-match": "*" };
+    const url = await this.presign(path, "PUT", opts.ttlSeconds, { ...headers, "content-length": String(opts.size) });
+    return { mode: "s3", url, pathname: path, contentType: opts.contentType, headers };
   }
 }

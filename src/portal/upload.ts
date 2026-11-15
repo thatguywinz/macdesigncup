@@ -12,7 +12,7 @@ import type { OwnEntry } from "./shared/schema";
 type Ticket =
   | { mode: "local"; url: string; pathname: string }
   | { mode: "blob"; pathname: string; handleUploadUrl: string; clientPayload: string }
-  | { mode: "s3"; url: string; pathname: string; contentType: string };
+  | { mode: "s3"; url: string; pathname: string; contentType: string; headers: Record<string, string> };
 
 export interface UploadOptions {
   entryId: string;
@@ -24,13 +24,22 @@ export interface UploadOptions {
   signal?: AbortSignal;
 }
 
-function putWithProgress(url: string, body: Blob, contentType: string, onProgress?: (f: number) => void, signal?: AbortSignal, portalHeader = true): Promise<void> {
+function putWithProgress(
+  url: string,
+  body: Blob,
+  contentType: string,
+  onProgress?: (f: number) => void,
+  signal?: AbortSignal,
+  portalHeader = true,
+  extraHeaders: Record<string, string> = {},
+): Promise<void> {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open("PUT", url);
     xhr.setRequestHeader("Content-Type", contentType);
     // Our own upload route wants the cross-site guard header; R2 must not get it (CORS).
     if (portalHeader) xhr.setRequestHeader("X-Portal", "1");
+    for (const [k, v] of Object.entries(extraHeaders)) if (k.toLowerCase() !== "content-type") xhr.setRequestHeader(k, v);
     xhr.upload.onprogress = (e) => {
       if (e.lengthComputable) onProgress?.(e.loaded / e.total);
     };
@@ -73,7 +82,7 @@ export async function uploadFile(o: UploadOptions): Promise<OwnEntry> {
     if (ticket.mode === "local") {
       await putWithProgress(ticket.url, o.file, signed.contentType, progress, ctrl.signal);
     } else if (ticket.mode === "s3") {
-      await putWithProgress(ticket.url, o.file, ticket.contentType, progress, ctrl.signal, false);
+      await putWithProgress(ticket.url, o.file, ticket.contentType, progress, ctrl.signal, false, ticket.headers);
     } else {
       // The SDK knows Blob's upload protocol (headers, retries, multipart for big files).
       const { uploadPresigned } = await import("@vercel/blob/client");

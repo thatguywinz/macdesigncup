@@ -737,8 +737,8 @@ export default function SubmitPage() {
               )}
               {finishing && (
                 <p className="p-notice sf-alert font-body" role="status">
-                  You pressed Submit before the deadline, so you can still finish: press Submit entry again to upload your files, before {clock(saved?.finishingUntil)}. Your details
-                  can't change now.
+                  Not finished yet. You pressed Submit in time, so your place is kept: pick any missing files again and press Finish submitting before{" "}
+                  {clock(saved?.finishingUntil)}. Your details can't change now.
                 </p>
               )}
               {locked &&
@@ -1196,7 +1196,7 @@ export default function SubmitPage() {
                   {step + 1} of {LAST + 1}
                 </p>
                 <div className="sf-bar-right">
-                  {!submitted && step > 0 && (
+                  {!submitted && step > 0 && !finishingNow && (
                     <button type="button" className="sf-textbtn sf-draft focus-ember" disabled={!!busy || locked} onClick={() => void save("draft")}>
                       Save draft
                     </button>
@@ -1213,7 +1213,7 @@ export default function SubmitPage() {
                     </button>
                   ) : (
                     <button type="submit" className="btn-portal p-btn sf-next sf-submit" disabled={!!busy || locked}>
-                      {busy ? "Working…" : submitted ? "Save changes" : "Submit entry"}
+                      {busy ? "Working…" : submitted ? "Save changes" : finishingNow && pastDeadline ? "Finish submitting" : "Submit entry"}
                     </button>
                   )}
                 </div>
@@ -1639,7 +1639,7 @@ function Done({
             <span className="sf-done-mark" aria-hidden="true">
               <Check size={30} strokeWidth={2.4} />
             </span>
-            <h1 className="sf-title">You're done. You can close this page.</h1>
+            <h1 className="sf-title">You're submitted.</h1>
             <p className="sf-sub">
               <span className="text-foreground">{entry.title}</span> was submitted at {clock(entry.submittedAt)}.
               {entry.late && <span className="p-tag p-tag--bad ml-2">After the deadline</span>}
@@ -1652,8 +1652,9 @@ function Done({
             )}
 
             <div className="sf-done-edit">
+              <p className="sf-sub text-foreground">Copy your edit link, then you can close this page. It shows your judging room and time, and lets your team make changes until submissions close.</p>
               <CopyButton url={edit} label="Copy edit link" className="btn-portal p-btn sf-done-main" />
-              <p className="p-hint">Your private way back in: your team can change the entry until submissions close. Don't share it.</p>
+              <p className="p-hint">Keep it private: anyone with it can change your entry.</p>
               <input readOnly value={edit} className="p-input p-mono sf-done-url" onFocus={(e) => e.currentTarget.select()} aria-label="Edit link" />
             </div>
 

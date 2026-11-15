@@ -82,13 +82,20 @@ describe("R2Storage", () => {
 
   it("hands the browser presigned PUT and GET URLs that work without other credentials", async () => {
     const s = store();
-    const t = await s.uploadTicket("portal/files/y/b.png", { maxBytes: 100, contentType: "image/png", ttlSeconds: 600, clientPayload: "" });
+    const t = await s.uploadTicket("portal/files/y/b.png", { maxBytes: 100, size: 4, contentType: "image/png", ttlSeconds: 600, clientPayload: "" });
     expect(t.mode).toBe("s3");
     if (t.mode !== "s3") return;
     expect(t.url).toMatch(/X-Amz-Signature=/);
     expect(t.url).toMatch(/X-Amz-Expires=600/);
-    const put = await fetch(t.url, { method: "PUT", headers: { "content-type": t.contentType }, body: "png!" });
+    // Bound to this exact file: size, type and create-only are all signed.
+    const signedHeaders = new URL(t.url).searchParams.get("X-Amz-SignedHeaders") ?? "";
+    for (const h of ["content-length", "content-type", "if-none-match", "host"]) expect(signedHeaders.split(";")).toContain(h);
+    expect(t.headers).toEqual({ "content-type": "image/png", "if-none-match": "*" });
+    const put = await fetch(t.url, { method: "PUT", headers: t.headers, body: "png!" });
     expect(put.status).toBe(200);
+    // Replaying the link can't replace the checked file.
+    const again = await fetch(t.url, { method: "PUT", headers: t.headers, body: "evil" });
+    expect(again.status).toBe(412);
     const get = await fetch(await s.signedGetUrl("portal/files/y/b.png", 300));
     expect(await get.text()).toBe("png!");
     expect(unsigned).toBe(0);

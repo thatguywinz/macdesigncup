@@ -642,6 +642,27 @@ function RubricRow({ c, value, showAll, onChange }: { c: Criterion; value: numbe
   const [level, setLevel] = useState<number | null>(marked ? levelOf(value) : null);
   const lv = level !== null ? c.levels[level] : null;
   const pickedHere = marked && level !== null && levelOf(value) === level;
+  // A marked category folds to one line ("Fresh take · 16/25 · Change"), so
+  // the page gets shorter as the judge works, which matters most on a phone.
+  const [editing, setEditing] = useState(false);
+  if (marked && !editing && !showAll) {
+    return (
+      <div role="group" aria-labelledby={`c-${c.id}`} className="jd-crit jd-crit--done" data-done="true">
+        <p id={`c-${c.id}`} className="jd-crit-name min-w-0 truncate">
+          {c.label}
+        </p>
+        <span className="jd-done-val">
+          <span className="text-concrete">{shortLabel(c, levelOf(value))}</span>
+          <span className="p-mono text-ember" aria-label={`${value} out of ${MARK_MAX}`}>
+            {value}/{MARK_MAX}
+          </span>
+          <button type="button" className="jd-toggle focus-ember" onClick={() => setEditing(true)} aria-label={`Change ${c.label}`}>
+            Change
+          </button>
+        </span>
+      </div>
+    );
+  }
   return (
     <div role="group" aria-labelledby={`c-${c.id}`} className="jd-crit" data-done={marked ? "true" : undefined}>
       <div className="jd-crit-head">
@@ -684,7 +705,10 @@ function RubricRow({ c, value, showAll, onChange }: { c: Criterion; value: numbe
                 aria-checked={value === v}
                 aria-label={`${v} out of ${MARK_MAX}`}
                 className="j-mark focus-ember"
-                onClick={() => onChange(v)}
+                onClick={() => {
+                  onChange(v);
+                  setEditing(false);
+                }}
               >
                 {v}
               </button>

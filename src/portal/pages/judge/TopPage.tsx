@@ -196,7 +196,7 @@ export default function TopPage() {
     <JudgeShell section="Top 5">
       <div className="flex flex-col gap-4 pt-10 md:flex-row md:items-end md:justify-between md:pt-12">
         <div>
-          <h1 className="display-scene">Top 5</h1>
+          <h1 className="display-scene">{data && data.rows.some((r) => !r.complete) ? "Top 5 (provisional)" : "Top 5"}</h1>
           <p className="mt-3 max-w-[42rem] font-body text-[15px] text-foreground/75">
             Ranked by each entry's judging-pair average. For the final meeting:
             check the order, pick 1st to 3rd, and write down why each one won.

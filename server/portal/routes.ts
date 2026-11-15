@@ -706,6 +706,7 @@ on("POST", "/entries/:id/files", async (ctx, req, res, { id }) => {
   const grant = { kind: "put" as const, p: path, max: rule.maxBytes, ct: contentType, exp: w.now + UPLOAD_TTL * 1000 };
   const ticket = await ctx.db.storage.uploadTicket(path, {
     maxBytes: rule.maxBytes,
+    size,
     contentType,
     ttlSeconds: UPLOAD_TTL,
     clientPayload: signTicket(ctx.cfg.sessionSecret, grant),

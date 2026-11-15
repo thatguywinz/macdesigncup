@@ -344,7 +344,7 @@
   letter-spacing: 0.08em;
   color: hsl(var(--concrete));
 }
-.sf-sumrow-val { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: hsl(var(--foreground) / 0.92); }
+.sf-sumrow-val { min-width: 0; overflow-wrap: anywhere; color: hsl(var(--foreground) / 0.92); }
 .sf-sumrow-thumb { width: 2.25rem; height: 2.25rem; object-fit: cover; border: 1px solid hsl(var(--bone) / 0.12); border-radius: 2px; }
 .sf-sumrow .sf-textbtn { margin-right: -0.5rem; color: hsl(var(--ember)); text-decoration: underline; text-underline-offset: 4px; }
 .sf-sumrow .sf-textbtn:hover { color: hsl(var(--foreground)); }

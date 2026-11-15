@@ -22,7 +22,7 @@ export type UploadTicket =
   | { mode: "local"; url: string; pathname: string }
   | { mode: "blob"; pathname: string; handleUploadUrl: string; clientPayload: string }
   /** A presigned S3 PUT (Cloudflare R2): the browser PUTs the file to `url` with this Content-Type. */
-  | { mode: "s3"; url: string; pathname: string; contentType: string };
+  | { mode: "s3"; url: string; pathname: string; contentType: string; headers: Record<string, string> };
 
 export class PreconditionFailed extends Error {}
 
@@ -44,5 +44,5 @@ export interface Storage {
   /** A short-lived URL the browser can GET the object from. */
   signedGetUrl(path: string, ttlSeconds: number): Promise<string>;
   /** Permission for the browser to upload exactly one object to `path`. */
-  uploadTicket(path: string, opts: { maxBytes: number; contentType: string; ttlSeconds: number; clientPayload: string }): Promise<UploadTicket>;
+  uploadTicket(path: string, opts: { maxBytes: number; size: number; contentType: string; ttlSeconds: number; clientPayload: string }): Promise<UploadTicket>;
 }

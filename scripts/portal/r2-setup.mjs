@@ -33,6 +33,7 @@ ${ORIGINS.map((o) => `    <AllowedOrigin>${o}</AllowedOrigin>`).join("\n")}
     <AllowedMethod>PUT</AllowedMethod>
     <AllowedMethod>HEAD</AllowedMethod>
     <AllowedHeader>content-type</AllowedHeader>
+    <AllowedHeader>if-none-match</AllowedHeader>
     <AllowedHeader>range</AllowedHeader>
     <ExposeHeader>ETag</ExposeHeader>
     <ExposeHeader>Content-Length</ExposeHeader>
@@ -60,16 +61,22 @@ check("read back the winning write", (await g.text()) === '{"a":1}');
 
 // 3. Presigned PUT/GET from the site's origin (CORS), range read
 const fk = `r2-check/file-${Date.now()}.png`;
-const sign = async (method, key, ttl = 600) => {
+// Signed exactly like the portal's upload links: size, type and create-only.
+const sign = async (method, key, headers = {}, ttl = 600) => {
   const u = new URL(`${base}/${key}`);
   u.searchParams.set("X-Amz-Expires", String(ttl));
-  return (await aws.sign(u.toString(), { method, aws: { signQuery: true } })).url;
+  return (await aws.sign(u.toString(), { method, headers, aws: { signQuery: true, allHeaders: true } })).url;
 };
-const putUrl = await sign("PUT", fk);
-const pre = await fetch(putUrl, { method: "OPTIONS", headers: { Origin: ORIGINS[0], "Access-Control-Request-Method": "PUT", "Access-Control-Request-Headers": "content-type" } });
+const upHeaders = { "content-type": "image/png", "if-none-match": "*" };
+const putUrl = await sign("PUT", fk, { ...upHeaders, "content-length": "300000" });
+const pre = await fetch(putUrl, { method: "OPTIONS", headers: { Origin: ORIGINS[0], "Access-Control-Request-Method": "PUT", "Access-Control-Request-Headers": "content-type,if-none-match" } });
 check("CORS preflight for an upload from the site", pre.ok && (pre.headers.get("access-control-allow-origin") ?? "").length > 0, `${pre.status} allow-origin=${pre.headers.get("access-control-allow-origin")}`);
-const up = await fetch(putUrl, { method: "PUT", headers: { "content-type": "image/png", Origin: ORIGINS[0] }, body: Buffer.alloc(300_000, 7) });
+const bigger = await fetch(putUrl, { method: "PUT", headers: { ...upHeaders, Origin: ORIGINS[0] }, body: Buffer.alloc(400_000, 7) });
+check("a bigger file than the link allows is refused", !bigger.ok, String(bigger.status));
+const up = await fetch(putUrl, { method: "PUT", headers: { ...upHeaders, Origin: ORIGINS[0] }, body: Buffer.alloc(300_000, 7) });
 check("presigned PUT (300 KB)", up.ok, String(up.status));
+const replay = await fetch(putUrl, { method: "PUT", headers: { ...upHeaders, Origin: ORIGINS[0] }, body: Buffer.alloc(300_000, 9) });
+check("reusing the link can't replace the file", replay.status === 412, String(replay.status));
 const getUrl = await sign("GET", fk);
 const down = await fetch(getUrl, { headers: { Origin: ORIGINS[0] } });
 const buf = Buffer.from(await down.arrayBuffer());

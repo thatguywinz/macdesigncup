@@ -107,9 +107,9 @@ export default function JudgeList() {
 
   const filters: [Filter, string][] = [
     ...(roomCount ? ([["room", `My room · ${myRoom}`]] as [Filter, string][]) : []),
-    ["all", "All"],
+    ["all", "All rooms"],
     ["todo", "To mark"],
-    ["done", "Done"],
+    ["done", "Fully judged"],
     ["review", "Needs review"],
   ];
 
