@@ -11,8 +11,12 @@
 //                            32+ random characters
 //   PORTAL_DEADLINE          ISO time submissions close (default: the run
 //                            sheet's 1:30 PM on Nov 16, 2026)
-//   PORTAL_STORAGE           "blob" (Vercel Blob, private store) or "local"
-//                            (files under .data/portal, dev only)
+//   PORTAL_STORAGE           "r2" (Cloudflare R2, private bucket), "blob"
+//                            (Vercel Blob, private store) or "local" (files
+//                            under .data/portal, dev only). Deployed, it
+//                            picks R2 when the R2_* variables are set.
+//   R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET
+//                            the R2 bucket and an API token for it
 //   BLOB_READ_WRITE_TOKEN    set by Vercel when a private Blob store is
 //                            connected to the project
 // ─────────────────────────────────────────────
@@ -36,7 +40,7 @@ const env = (k: string) => {
 /** Running on Vercel at all (preview or production): no dev defaults, ever. */
 export const onVercel = () => !!env("VERCEL");
 
-export type StorageKind = "blob" | "local";
+export type StorageKind = "r2" | "blob" | "local";
 
 export interface PortalConfig {
   entryCode: string;
@@ -63,8 +67,10 @@ const DEV = {
 /** Reads the config. Throws ConfigError when a deployed portal is missing a secret. */
 export function loadConfig(): PortalConfig {
   const deployed = onVercel();
+  const r2Set = !!(env("R2_ACCOUNT_ID") && env("R2_ACCESS_KEY_ID") && env("R2_SECRET_ACCESS_KEY") && env("R2_BUCKET"));
+  const asked = env("PORTAL_STORAGE");
   const storage: StorageKind =
-    env("PORTAL_STORAGE") === "local" ? "local" : env("PORTAL_STORAGE") === "blob" || deployed ? "blob" : "local";
+    asked === "local" ? "local" : asked === "r2" ? "r2" : asked === "blob" ? "blob" : deployed ? (r2Set ? "r2" : "blob") : "local";
 
   if (deployed && storage === "local") throw new ConfigError("Local storage cannot run on Vercel.");
 
@@ -80,6 +86,7 @@ export function loadConfig(): PortalConfig {
   const adminPasscode = pick("PORTAL_ADMIN_PASSCODE", DEV.adminPasscode, 10);
   const sessionSecret = pick("PORTAL_SESSION_SECRET", DEV.sessionSecret, 32);
   if (deployed && storage === "blob" && !env("BLOB_READ_WRITE_TOKEN")) missing.push("BLOB_READ_WRITE_TOKEN");
+  if (storage === "r2" && !r2Set) missing.push("R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET");
   if (missing.length) throw new ConfigError(`Portal is not configured: set ${missing.join(", ")}.`);
   if (deployed && judgePasscode === adminPasscode) throw new ConfigError("Judge and admin passcodes must differ.");
 

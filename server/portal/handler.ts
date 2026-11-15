@@ -8,13 +8,16 @@ import { sendJson, type Req, type Res } from "./http.js";
 import { dispatch, type PortalContext } from "./routes.js";
 import { BlobStorage } from "./storage/blob.js";
 import { LocalStorage } from "./storage/local.js";
+import { R2Storage, r2ConfigFromEnv } from "./storage/r2.js";
 
 let ctx: PortalContext | null = null;
 
 export function createContext(overrides: { localRoot?: string; now?: () => number } = {}): PortalContext {
   const cfg = loadConfig();
   const storage =
-    cfg.storage === "blob"
+    cfg.storage === "r2"
+      ? new R2Storage(r2ConfigFromEnv()!)
+      : cfg.storage === "blob"
       ? new BlobStorage()
       : new LocalStorage(overrides.localRoot ?? process.env.PORTAL_LOCAL_DIR ?? path.resolve(process.cwd(), ".data", "portal"), cfg.sessionSecret);
   return { cfg, db: new Db(storage), now: overrides.now };

@@ -1,7 +1,8 @@
 // One file, browser -> storage, with progress. Three steps:
 //   1. ask the API for a ticket (it checks the slot, size and deadline)
 //   2. send the bytes straight to storage (local: a PUT to this server;
-//      deployed: Vercel Blob's presigned upload, never through our function)
+//      deployed: a presigned PUT to Cloudflare R2, or Vercel Blob's presigned
+//      upload; never through our function)
 //   3. tell the API it arrived; it checks the size and the first bytes and
 //      only then attaches the file to the entry
 import { api } from "./api";
@@ -10,7 +11,8 @@ import type { OwnEntry } from "./shared/schema";
 
 type Ticket =
   | { mode: "local"; url: string; pathname: string }
-  | { mode: "blob"; pathname: string; handleUploadUrl: string; clientPayload: string };
+  | { mode: "blob"; pathname: string; handleUploadUrl: string; clientPayload: string }
+  | { mode: "s3"; url: string; pathname: string; contentType: string };
 
 export interface UploadOptions {
   entryId: string;
@@ -22,12 +24,13 @@ export interface UploadOptions {
   signal?: AbortSignal;
 }
 
-function putWithProgress(url: string, body: Blob, contentType: string, onProgress?: (f: number) => void, signal?: AbortSignal): Promise<void> {
+function putWithProgress(url: string, body: Blob, contentType: string, onProgress?: (f: number) => void, signal?: AbortSignal, portalHeader = true): Promise<void> {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open("PUT", url);
     xhr.setRequestHeader("Content-Type", contentType);
-    xhr.setRequestHeader("X-Portal", "1");
+    // Our own upload route wants the cross-site guard header; R2 must not get it (CORS).
+    if (portalHeader) xhr.setRequestHeader("X-Portal", "1");
     xhr.upload.onprogress = (e) => {
       if (e.lengthComputable) onProgress?.(e.loaded / e.total);
     };
@@ -69,6 +72,8 @@ export async function uploadFile(o: UploadOptions): Promise<OwnEntry> {
   try {
     if (ticket.mode === "local") {
       await putWithProgress(ticket.url, o.file, signed.contentType, progress, ctrl.signal);
+    } else if (ticket.mode === "s3") {
+      await putWithProgress(ticket.url, o.file, ticket.contentType, progress, ctrl.signal, false);
     } else {
       // The SDK knows Blob's upload protocol (headers, retries, multipart for big files).
       const { uploadPresigned } = await import("@vercel/blob/client");

@@ -20,12 +20,14 @@ export interface ObjectInfo {
  */
 export type UploadTicket =
   | { mode: "local"; url: string; pathname: string }
-  | { mode: "blob"; pathname: string; handleUploadUrl: string; clientPayload: string };
+  | { mode: "blob"; pathname: string; handleUploadUrl: string; clientPayload: string }
+  /** A presigned S3 PUT (Cloudflare R2): the browser PUTs the file to `url` with this Content-Type. */
+  | { mode: "s3"; url: string; pathname: string; contentType: string };
 
 export class PreconditionFailed extends Error {}
 
 export interface Storage {
-  readonly kind: "blob" | "local";
+  readonly kind: "blob" | "local" | "r2";
   /** Reads a JSON document, bypassing caches. Null when it does not exist. */
   getDoc<T>(path: string): Promise<StoredDoc<T> | null>;
   /**
