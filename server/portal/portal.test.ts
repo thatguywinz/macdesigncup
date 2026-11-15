@@ -302,6 +302,10 @@ describe("teams", () => {
     const put = await fetch(new URL(s.json.ticket.url, base), { method: "PUT", body: tinyStl(), headers: { "X-Portal": "1" } });
     expect(put.status).toBe(200);
     expect((await call(`/entries/${id}/files/${s.json.fileId}/complete`, { body: {}, key })).status).toBe(200);
+    // Reloaded after the deadline: still finishing, so the page lets it retry.
+    const view = (await call(`/entries/${id}`, { key })).json.entry;
+    expect(view.locked).toBe(false);
+    expect(view.finishingUntil).toBe("2026-11-16T18:40:00.000Z");
     // No editing the details in that window.
     expect((await call(`/entries/${id}`, { method: "PUT", body: { entry: entry({ title: "Sneaky" }) }, key })).status).toBe(409);
     const sub = await call(`/entries/${id}/submit`, { body: {}, key });

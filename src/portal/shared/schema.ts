@@ -384,6 +384,11 @@ export interface OwnEntry extends EntryInput {
   locked: boolean;
   /** Organizers reopened this entry: it can still change after the deadline. */
   unlocked: boolean;
+  /**
+   * Submit was pressed before the deadline and the entry is still finishing:
+   * until this time it may retry uploads and submit (no detail changes).
+   */
+  finishingUntil?: string | null;
   /** Neutral notes from the originality checks the team can answer in filesNote. */
   notices: string[];
   /** Whether the video link opened without signing in, last time we checked. */

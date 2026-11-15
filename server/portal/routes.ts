@@ -197,6 +197,7 @@ async function ownView(ctx: PortalContext, w: Window, e: EntryRecord): Promise<O
     files: await Promise.all(e.files.map((f) => fileView(ctx, f))),
     locked: !canChange(w, e) && !finishing(w, e),
     unlocked: e.unlocked,
+    finishingUntil: !canChange(w, e) && finishing(w, e) ? iso(w.deadline + FINISH_MINUTES * 60_000) : null,
     notices,
     videoCheck: e.videoCheck ?? null,
     slot: slotOf(w.settings, e.id),

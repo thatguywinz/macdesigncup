@@ -285,7 +285,10 @@ export default function SubmitPage() {
   // Locked by the server, or the clock passed the deadline while this page was open
   // (no late submissions: only an entry organizers reopened stays editable).
   const pastDeadline = deadline !== null && now >= deadline;
-  const locked = (saved?.locked ?? false) || (pastDeadline && !(saved?.unlocked ?? false));
+  // Submit pressed in time and still finishing (an upload failed or the page
+  // reloaded after the deadline): it may retry its uploads and submit.
+  const finishingNow = !!saved?.finishingUntil && saved.status === "draft" && now < Date.parse(saved.finishingUntil);
+  const locked = !finishingNow && ((saved?.locked ?? false) || (pastDeadline && !(saved?.unlocked ?? false)));
   const submitted = saved?.status === "submitted";
 
   const hasVideoNow = videoMode === "link" ? !!parseVideoLink(form.videoLink) : files.video.length > 0;
@@ -444,6 +447,8 @@ export default function SubmitPage() {
         // From here on the page is the entry's edit link: a retry resumes, never duplicates.
         navigate(`/submit/edit/${id}#k=${key}`, { replace: true });
         setSaved(created.entry);
+      } else if (finishingNow) {
+        // Past the deadline, finishing an on-time Submit: details can't change, so go straight to the files.
       } else {
         const res = await api<{ entry: OwnEntry }>(`/entries/${id}`, { method: "PUT", body: { entry: parsed.value, draft, measure }, editKey: key });
         setSaved(res.entry);
@@ -671,6 +676,12 @@ export default function SubmitPage() {
             </p>
           )}
           {!isEdit && step === 0 && <SavedList />}
+          {finishingNow && pastDeadline && (
+            <p className="p-notice mt-5 font-body" role="status">
+              You pressed Submit before the deadline, so you can still finish: press Submit entry again to upload your files, before{" "}
+              {clock(saved?.finishingUntil)}. Your details can't change now.
+            </p>
+          )}
           {locked &&
             (saved?.status === "draft" ? (
               <p className="p-notice mt-5 font-body" role="alert">
