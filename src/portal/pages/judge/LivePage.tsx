@@ -46,15 +46,6 @@ function ago(iso: string | null, now: number): string {
   return `${Math.floor(m / 60)} h ${m % 60} min ago`;
 }
 
-const initials = (name: string) =>
-  name
-    .split(/\s+/)
-    .filter(Boolean)
-    .map((p) => p[0])
-    .join("")
-    .slice(0, 3)
-    .toUpperCase();
-
 const SCORES_KEY = "mdc-live-hide-scores";
 
 export default function LivePage() {
@@ -193,7 +184,7 @@ export default function LivePage() {
                         {judges.map((j) => (
                           <th key={j.key} scope="col" className="num" title={j.name}>
                             <abbr title={j.name} className="no-underline">
-                              {initials(j.name)}
+                              {j.name.split(" ")[0]}
                             </abbr>
                           </th>
                         ))}

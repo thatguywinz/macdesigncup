@@ -109,7 +109,7 @@ export default function JudgeList() {
         <div>
           <h1 className="display-scene">Entries</h1>
           <p className="mt-3 font-body text-[15px] text-foreground/75">
-            {total} submitted · {done} done ({MARKS_NEEDED} marks each) · you've marked {marked}
+            {total} teams submitted · {done} fully judged ({MARKS_NEEDED} marks each) · you've marked {marked}
             {me.role === "admin" && data?.drafts ? ` · ${data.drafts} still drafting` : ""}
           </p>
         </div>
@@ -182,13 +182,14 @@ export default function JudgeList() {
             </button>
           ))}
         </div>
-        <label className="relative block sm:w-72">
+        {/* On a phone the search comes first: judges find teams by name. */}
+        <label className="relative order-first block sm:order-none sm:w-72">
           <span className="sr-only">Search by team name, title, student or school</span>
           <Search size={15} strokeWidth={1.5} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-concrete" aria-hidden="true" />
           <input
             className="p-input pl-9"
             type="search"
-            placeholder="Team name, title, student, school"
+            placeholder="Find a team by name"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />

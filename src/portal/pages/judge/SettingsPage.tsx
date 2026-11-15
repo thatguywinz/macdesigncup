@@ -181,7 +181,7 @@ export default function SettingsPage() {
                 {s.open ? "Open" : "Closed"} · close {when(s.deadline)}
                 {s.deadlineOverride ? " (moved from the default)" : ""}
               </p>
-              <p className="p-hint mt-1">No late submissions: the form locks at the deadline exactly, even mid-upload. Teams see a countdown on the form.</p>
+              <p className="p-hint mt-1">No late submissions: nothing new can start after the deadline. A team that pressed Submit entry before it may finish its uploads for 10 more minutes (its details can't change). Teams see a countdown on the form.</p>
               <div className="mt-5 flex flex-wrap items-end gap-3">
                 <label className="block">
                   <span className="p-label">Deadline</span>

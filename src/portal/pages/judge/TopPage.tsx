@@ -268,8 +268,9 @@ export default function TopPage() {
                 key={r.id}
                 className={`j-top ${podium ? "j-top--podium" : ""}`}
               >
-                <div className="j-top-rank" aria-label={`Rank ${r.rank}`}>
+                <div className="j-top-rank" aria-label={`Score rank ${r.rank}`}>
                   {r.rank}
+                  <span className="mt-1 block font-mono text-[10px] font-normal uppercase tracking-[0.08em] text-concrete">score rank</span>
                 </div>
                 <div className="j-top-body">
                   <div className="flex flex-col gap-4 sm:flex-row sm:items-start">

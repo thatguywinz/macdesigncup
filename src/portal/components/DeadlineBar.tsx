@@ -64,7 +64,7 @@ export default function DeadlineBar({
           <p className="font-body text-[13px] font-medium text-foreground/90 sm:text-sm">{title}</p>
           <p className="font-body text-[12px] text-concrete sm:text-[13px]">
             {detail}
-            {!isClosed && !overtime && left < 30 * 60e3 && <span className="text-ember"> · finish and press Submit entry</span>}
+            {!isClosed && !overtime && left < 30 * 60e3 && <span className="text-ember"> · press Submit entry before then; uploads can finish after</span>}
           </p>
         </div>
         {!isClosed && !overtime && (

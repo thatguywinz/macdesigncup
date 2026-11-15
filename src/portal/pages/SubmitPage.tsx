@@ -664,7 +664,7 @@ export default function SubmitPage() {
               ? submitted
                 ? `Submitted at ${clock(saved?.submittedAt)}. You can change it until ${until || "submissions close"}.`
                 : "Not submitted yet. Finish the steps and press Submit entry."
-              : `Three short steps. Keep it brief: judges hear the rest when you present.${until ? ` Closes at ${until}.` : ""}`}
+              : `Three short steps. Keep it brief: judges hear the rest when you present.${until ? ` Press Submit entry before ${until}; a big file can finish uploading after.` : ""}`}
           </p>
           {saved?.slot && <SlotNotice slot={saved.slot} />}
           {restored && !isEdit && (
@@ -752,7 +752,7 @@ export default function SubmitPage() {
                         )}
                       </Field>
                     )}
-                    <Field label="Team name" error={errors.teamName} counter={{ value: form.teamName.length, max: LIMITS.teamName }}>
+                    <Field label="Team name" hint="Judges find your entry by this name: use the one you registered with." error={errors.teamName} counter={{ value: form.teamName.length, max: LIMITS.teamName }}>
                       {(p) => <input {...p} className="p-input" autoComplete="off" value={form.teamName} maxLength={LIMITS.teamName + 10} onChange={(e) => set("teamName", e.target.value)} />}
                     </Field>
                     {form.members.map((m, i) => (
@@ -1117,7 +1117,7 @@ export default function SubmitPage() {
                   )}
                   {shownStepErrors && !formError && !busy && (
                     <p className="font-body text-sm text-[hsl(6_90%_66%)]" role="alert">
-                      Fill in the fields marked in red to continue.
+                      Check the fields marked in red to continue.
                     </p>
                   )}
                 </div>
@@ -1494,9 +1494,15 @@ function Done({
             You're done. You can close this page.
           </p>
           <p className="mt-2 max-w-[36rem] font-body text-[15px] leading-relaxed text-foreground/75">
-            The judges have it. Keep both links: the first shows your design to anyone, the second lets your team edit until submissions close.
+            The judges have it. Keep both links: the first shows your design {entry.shareable ? "to anyone" : "to your team and the judges"}, the second lets your team edit until submissions close.
           </p>
-          {entry.slot && <SlotNotice slot={entry.slot} />}
+          {entry.slot ? (
+            <SlotNotice slot={entry.slot} />
+          ) : (
+            <p className="mt-6 max-w-[36rem] border-l-2 border-ember pl-4 font-body text-[15px] text-foreground/90">
+              Your judging room and time appear on your edit link when submissions close{deadline ? ` at ${clock(deadline)}` : ""}.
+            </p>
+          )}
           <JudgingBriefing className="mt-8" open deadline={deadline} judging={judging} />
 
           <div className="mt-10 flex flex-col gap-8">

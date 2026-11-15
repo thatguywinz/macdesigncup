@@ -428,7 +428,7 @@ function ScoreForm({
         <p className="p-hint mt-3">
           {scoreCount >= MARKS_NEEDED && !initial
             ? `Done: this entry already has its ${MARKS_NEEDED} marks, so it doesn't need yours.`
-            : `${Math.min(scoreCount, MARKS_NEEDED)} of ${MARKS_NEEDED} marks in.`}{" "}
+            : `${Math.min(scoreCount, MARKS_NEEDED)} of ${MARKS_NEEDED} marks in from this team's judging pair.`}{" "}
           Other judges' marks stay hidden from you.
         </p>
       )}
