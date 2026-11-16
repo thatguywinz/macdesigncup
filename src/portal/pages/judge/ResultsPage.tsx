@@ -26,6 +26,7 @@ interface Row {
   rank: number | null;
   tied: boolean;
   complete: boolean;
+  room?: string | null;
 }
 
 interface Results {
@@ -70,7 +71,7 @@ export default function ResultsPage() {
       </div>
 
       {error && <p className="p-notice p-notice--bad mt-6 font-body">{error}</p>}
-      {data && <TopFive data={data} />}
+      {data && <TopByRoom data={data} />}
       {data && data.unlisted.length > 0 && (
         <p className="p-notice mt-6 font-body text-sm">
           Not counted (not on the judges list): {data.unlisted.map((u) => `${u.name} (${u.marked} marked)`).join(", ")}. Add them in Settings if they're real judges.
@@ -204,9 +205,81 @@ export default function ResultsPage() {
 }
 
 /**
+ * For the final meeting: the top 3 in each judging room (each room had its own
+ * pair of judges), so organizers can pick the overall top 3 from these. Ranks
+ * are within the room; a tie at 3rd shows every tied team. Display only.
+ */
+function TopByRoom({ data }: { data: Results }) {
+  if (!data.rows.length) return null;
+  const rooms = [...new Set(data.rows.map((r) => r.room).filter((r): r is string => !!r))].sort();
+  if (!rooms.length) return <TopFive data={data} />;
+  return (
+    <section className="mt-8 border border-[hsl(var(--ember)/0.5)] bg-[hsl(var(--ember)/0.05)] p-4 md:p-6" aria-labelledby="toproom-title">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1">
+        <h2 id="toproom-title" className="font-display text-[1.6rem] uppercase leading-none text-bone md:text-[2rem]">
+          Top 3 by room
+        </h2>
+        <p className="font-body text-sm text-concrete">Pick the overall top 3 from these. Ties show every tied team. Click a team to open its entry.</p>
+      </div>
+      <div className="mt-4 grid gap-6 lg:grid-cols-3">
+        {rooms.map((room) => {
+          const inRoom = data.rows.filter((r) => r.room === room);
+          const done = inRoom.filter((r) => r.complete && r.average !== null);
+          const waiting = inRoom.length - done.length;
+          const placed = done
+            .map((r) => {
+              const rank = done.filter((x) => (x.average as number) > (r.average as number)).length + 1;
+              const tied = done.filter((x) => x.average === r.average).length > 1;
+              return { r, rank, tied };
+            })
+            .filter((x) => x.rank <= 3)
+            .sort((a, b) => a.rank - b.rank);
+          return (
+            <div key={room}>
+              <h3 className="font-body text-[15px] font-semibold text-foreground">
+                {room}
+                <span className="ml-2 text-sm font-normal text-concrete">
+                  {done.length}/{inRoom.length} judged
+                </span>
+                {waiting > 0 && <span className="ml-2 text-sm font-normal text-ember">provisional</span>}
+              </h3>
+              {placed.length === 0 ? (
+                <p className="mt-2 font-body text-sm text-foreground/75">No team in this room has both judges' marks yet.</p>
+              ) : (
+                <ol className="mt-2 grid gap-2">
+                  {placed.map(({ r, rank, tied }) => (
+                    <li key={r.id} className="grid grid-cols-[3rem_minmax(0,1fr)_auto] items-baseline gap-3 border-t border-bone/10 pt-2">
+                      <span className={`p-mono text-lg ${tied ? "text-ember" : "text-foreground"}`}>
+                        {ordinal(rank)}
+                        {tied ? "=" : ""}
+                      </span>
+                      <span className="min-w-0">
+                        <Link to={`/judge/entry/${r.id}`} className="font-body text-[16px] font-semibold text-foreground hover:text-ember focus-ember">
+                          {r.teamName || r.title}
+                        </Link>
+                        {r.teamName && <span className="block font-body text-sm text-foreground/70">{r.title}</span>}
+                      </span>
+                      <span className="p-mono text-lg text-foreground">
+                        {r.average?.toFixed(1)}
+                        <span className="text-sm text-concrete">/{data.maxTotal}</span>
+                      </span>
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+/**
  * The top 5 for the final meeting: every fully judged team ranked 1st to 5th,
  * so a tie at 5th shows every tied team (judges decide tiebreakers). Each
  * name opens the entry, to look at the design again while deliberating.
+ * Used only when no team has a room (no schedule).
  */
 function TopFive({ data }: { data: Results }) {
   const top = data.rows.filter((r) => r.complete && r.rank !== null && r.rank <= 5);

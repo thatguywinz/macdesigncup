@@ -1158,6 +1158,7 @@ async function results(ctx: PortalContext) {
         marks: marked.map((x) => ({ judge: scores.judges[x.key].name, total: totalOf(x.score.marks) as number })),
         judgeCount: pairMarked.length,
         pair: roomJudges(slotOf(settings, e.id)?.room),
+        room: slotOf(settings, e.id)?.room ?? null,
         openReviews: openReviews(checksFor(e, Object.values(doc.entries), settings)),
       };
     })
