@@ -70,6 +70,7 @@ export default function ResultsPage() {
       </div>
 
       {error && <p className="p-notice p-notice--bad mt-6 font-body">{error}</p>}
+      {data && <TopFive data={data} />}
       {data && data.unlisted.length > 0 && (
         <p className="p-notice mt-6 font-body text-sm">
           Not counted (not on the judges list): {data.unlisted.map((u) => `${u.name} (${u.marked} marked)`).join(", ")}. Add them in Settings if they're real judges.
@@ -201,3 +202,53 @@ export default function ResultsPage() {
     </JudgeShell>
   );
 }
+
+/**
+ * The top 5 for the final meeting: every fully judged team ranked 1st to 5th,
+ * so a tie at 5th shows every tied team (judges decide tiebreakers). Each
+ * name opens the entry, to look at the design again while deliberating.
+ */
+function TopFive({ data }: { data: Results }) {
+  const top = data.rows.filter((r) => r.complete && r.rank !== null && r.rank <= 5);
+  const waiting = data.rows.filter((r) => !r.complete).length;
+  if (!data.rows.length) return null;
+  const ties = new Set(top.filter((r) => r.tied).map((r) => r.rank));
+  return (
+    <section className="mt-8 border border-[hsl(var(--ember)/0.5)] bg-[hsl(var(--ember)/0.05)] p-4 md:p-6" aria-labelledby="top5-title">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1">
+        <h2 id="top5-title" className="font-display text-[1.6rem] uppercase leading-none text-bone md:text-[2rem]">
+          Top 5{waiting > 0 ? <span className="ml-3 align-middle font-body text-sm normal-case text-ember">provisional: {waiting} still being judged</span> : null}
+        </h2>
+        <p className="font-body text-sm text-concrete">
+          {ties.size > 0 ? `Tied at ${[...ties].map((n) => ordinal(n!)).join(" and ")}: all tied teams are shown, judges decide the tiebreak.` : "Click a team to open its entry."}
+        </p>
+      </div>
+      {top.length === 0 ? (
+        <p className="mt-3 font-body text-foreground/75">No team has both judges' marks yet.</p>
+      ) : (
+        <ol className="mt-4 grid gap-2">
+          {top.map((r) => (
+            <li key={r.id} className="grid grid-cols-[3.5rem_minmax(0,1fr)_auto] items-baseline gap-3 border-t border-bone/10 pt-2">
+              <span className={`p-mono text-lg ${r.tied ? "text-ember" : "text-foreground"}`}>
+                {ordinal(r.rank!)}
+                {r.tied ? "=" : ""}
+              </span>
+              <span className="min-w-0">
+                <Link to={`/judge/entry/${r.id}`} className="font-body text-[17px] font-semibold text-foreground hover:text-ember focus-ember">
+                  {r.teamName || r.title}
+                </Link>
+                <span className="ml-2 font-body text-sm text-foreground/70">{r.title}</span>
+              </span>
+              <span className="p-mono text-lg text-foreground">
+                {r.average?.toFixed(1)}
+                <span className="text-sm text-concrete">/{data.maxTotal}</span>
+              </span>
+            </li>
+          ))}
+        </ol>
+      )}
+    </section>
+  );
+}
+
+const ordinal = (n: number) => `${n}${n % 10 === 1 && n % 100 !== 11 ? "st" : n % 10 === 2 && n % 100 !== 12 ? "nd" : n % 10 === 3 && n % 100 !== 13 ? "rd" : "th"}`;
