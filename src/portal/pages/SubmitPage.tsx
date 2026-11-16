@@ -94,6 +94,19 @@ interface Typed {
   videoMode: "link" | "upload";
   step?: number;
 }
+/** The real picture type from a file's first bytes, or null if it isn't PNG, JPEG or WebP. */
+async function pictureType(file: File): Promise<"png" | "jpg" | "webp" | null> {
+  try {
+    const b = new Uint8Array(await file.slice(0, 12).arrayBuffer());
+    if (b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47) return "png";
+    if (b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) return "jpg";
+    if (String.fromCharCode(...b.slice(0, 4)) === "RIFF" && String.fromCharCode(...b.slice(8, 12)) === "WEBP") return "webp";
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 function readTyped(): Typed | null {
   try {
     const v = JSON.parse(localStorage.getItem(TYPED_KEY) ?? "null");
@@ -232,9 +245,28 @@ export default function SubmitPage() {
   };
 
   // ── Files ─────────────────────────────────
-  const addFiles = (slot: keyof Files, list: FileList | File[]) => {
-    const picked = Array.from(list);
-    const problems: string[] = [];
+  // Pictures: read the first bytes so a JPEG saved as .png (common with
+  // screenshots) is quietly renamed instead of failing after Submit, and a
+  // PDF or other file named .png is refused right away with a clear message.
+  const addFiles = async (slot: keyof Files, list: FileList | File[]) => {
+    const raw = Array.from(list);
+    if (slot !== "image" && slot !== "progress") return addChecked(slot, raw, []);
+    const fixed: File[] = [];
+    const early: string[] = [];
+    for (const file of raw) {
+      const real = await pictureType(file);
+      if (!real) {
+        early.push(`"${file.name}" isn't a picture file. Use a PNG, JPG or WebP screenshot or render.`);
+        continue;
+      }
+      const ext = extOf(file.name);
+      const same = ext === real || (real === "jpg" && ext === "jpeg");
+      fixed.push(same ? file : new File([file], `${file.name.replace(/.[^.]*$/, "")}.${real}`, { type: real === "jpg" ? "image/jpeg" : `image/${real}` }));
+    }
+    addChecked(slot, fixed, early);
+  };
+  const addChecked = (slot: keyof Files, picked: File[], early: string[]) => {
+    const problems: string[] = [...early];
     setFiles((cur) => {
       const next = { ...cur };
       for (const file of picked) {
@@ -466,7 +498,7 @@ export default function SubmitPage() {
       } else if (finishingNow) {
         // Past the deadline, finishing an on-time Submit: details can't change, so go straight to the files.
       } else {
-        const res = await api<{ entry: OwnEntry }>(`/entries/${id}`, { method: "PUT", body: { entry: parsed.value, draft, measure: measureToSend }, editKey: key });
+        const res = await api<{ entry: OwnEntry }>(`/entries/${id}`, { method: "PUT", body: { entry: parsed.value, draft, measure: measureToSend, since: saved?.detailsAt ?? undefined }, editKey: key });
         setSaved(res.entry);
         rememberEntry({ id, key, title: parsed.value.title, at: new Date().toISOString() });
       }
@@ -549,6 +581,12 @@ export default function SubmitPage() {
       window.scrollTo({ top: 0 });
     } catch (e) {
       const err = e as ApiError;
+      // Refresh what the page knows (a Submit pressed in time may now be
+      // "finishing"; uploads may have landed), unless another device changed it.
+      if (id && key && !err.body?.stale)
+        void api<{ entry: OwnEntry }>(`/entries/${id}`, { editKey: key })
+          .then((r) => setSaved(r.entry))
+          .catch(() => {});
       const fromServer: FieldErrors = { ...(err.body?.errors ?? {}), ...(err.body?.field ? { [err.body.field]: err.message } : {}) };
       if (Object.keys(fromServer).length) showErrors(fromServer);
       setFormError(err.message || "Something went wrong. Try again.");

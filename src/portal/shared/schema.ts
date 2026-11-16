@@ -118,7 +118,8 @@ const str = (v: unknown, max: number) =>
   typeof v === "string" ? v.replace(CONTROL, "").trim().slice(0, max + 1) : "";
 
 // Deliberately plain: something@something.tld, no spaces.
-const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+// The domain can't end in a dot ("bob@school.ca." was accepted before).
+const EMAIL = /^[^\s@]+@[^\s@.]+(\.[^\s@.]+)*\.[^\s@.]{2,}$/;
 
 export function emptyEntry(): EntryInput {
   return {
@@ -308,6 +309,8 @@ export type EntryStatus = "draft" | "submitted";
 
 export interface EntryRecord extends EntryInput {
   id: string;
+  /** When the details (not files) were last saved: a save from an older copy of the page is refused. */
+  detailsAt?: string;
   /** SHA-256 of the edit key. The key itself is only ever in the team's link. */
   editKeyHash: string;
   status: EntryStatus;
@@ -380,6 +383,8 @@ export interface PublicEntry {
 /** The team's own view while editing. */
 export interface OwnEntry extends EntryInput {
   id: string;
+  /** Sent back as `since` with the next details save. */
+  detailsAt?: string | null;
   status: EntryStatus;
   submittedAt: string | null;
   late: boolean;

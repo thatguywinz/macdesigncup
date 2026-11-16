@@ -107,9 +107,13 @@ function finishing(w: Window, e: EntryRecord): boolean {
   // Submit can only be pressed while open, so a pressed Submit was in time.
   // Closing early (or ticking "Close submissions now" at 1:30) starts the same
   // finishing window from the moment it closed, instead of cancelling uploads.
+  return Date.parse(e.submitPressedAt) < w.deadline && w.now < finishEnds(w);
+}
+
+/** When the finishing window ends: 10 minutes after the deadline, or after an early close. */
+function finishEnds(w: Window): number {
   const closedAt = w.settings.closed && w.settings.closedAt ? Date.parse(w.settings.closedAt) : Infinity;
-  const cutoff = Math.min(w.deadline, closedAt);
-  return Date.parse(e.submitPressedAt) < w.deadline && w.now < cutoff + FINISH_MINUTES * 60_000;
+  return Math.min(w.deadline, closedAt) + FINISH_MINUTES * 60_000;
 }
 
 function canChange(w: Window, e: EntryRecord): boolean {
@@ -202,7 +206,8 @@ async function ownView(ctx: PortalContext, w: Window, e: EntryRecord): Promise<O
     files: await Promise.all(e.files.map((f) => fileView(ctx, f))),
     locked: !canChange(w, e) && !finishing(w, e),
     unlocked: e.unlocked,
-    finishingUntil: !canChange(w, e) && finishing(w, e) ? iso(w.deadline + FINISH_MINUTES * 60_000) : null,
+    finishingUntil: !canChange(w, e) && finishing(w, e) ? iso(finishEnds(w)) : null,
+    detailsAt: e.detailsAt ?? null,
     notices,
     videoCheck: e.videoCheck ?? null,
     slot: slotOf(w.settings, e.id),
@@ -642,6 +647,7 @@ on("POST", "/entries", async (ctx, req, res) => {
       award: "",
       unlocked: false,
       submitPressedAt: body.draft === true || !w.open ? null : now,
+      detailsAt: now,
       measure,
       reviews: {},
       videoCheck,
@@ -671,7 +677,10 @@ on("PUT", "/entries/:id", async (ctx, req, res, { id }) => {
   const e = await ctx.db.mutate("entries", (doc) => {
     const e = ownedIn(doc.entries, id, req);
     if (!canChange(w, e)) fail(409, "Submissions are closed. This entry can't be changed now.");
-    Object.assign(e, value, { updatedAt: iso(w.now) });
+    // Two devices on one edit link: the older page must not undo the newer save.
+    if (typeof body.since === "string" && e.detailsAt && body.since !== e.detailsAt)
+      fail(409, "This entry was just changed on another device. Reload the page to see the latest version, then make your change again.", { stale: true });
+    Object.assign(e, value, { updatedAt: iso(w.now), detailsAt: iso(w.now) });
     if (body.draft !== true && w.open) e.submitPressedAt = iso(w.now);
     if (measure !== undefined) e.measure = measure;
     if (!value.videoLink) e.videoCheck = null;

@@ -350,6 +350,23 @@ describe("teams", () => {
     await call("/judge/settings", { method: "PUT", body: { closed: false }, cookie: admin.cookie });
   });
 
+  it("two devices on one edit link: a save from the older page is refused, not silently undoing the newer one", async () => {
+    clock = Date.parse("2026-11-16T11:00:00-05:00");
+    const { id, key } = await create({ title: "Two Laptops" });
+    const first = (await call(`/entries/${id}`, { key })).json.entry; // both devices opened the page now
+    clock += 1000;
+    const laptop = await call(`/entries/${id}`, { method: "PUT", body: { entry: entry({ title: "New Title" }), since: first.detailsAt }, key });
+    expect(laptop.status).toBe(200);
+    clock += 1000;
+    const phone = await call(`/entries/${id}`, { method: "PUT", body: { entry: entry({ title: "Two Laptops", contactEmail: "phone@example.com" }), since: first.detailsAt }, key });
+    expect(phone.status).toBe(409);
+    expect(phone.json.stale).toBe(true);
+    expect((await call(`/entries/${id}`, { key })).json.entry.title).toBe("New Title");
+    // After reloading (fresh detailsAt) the phone's change goes through.
+    const fresh = (await call(`/entries/${id}`, { key })).json.entry;
+    expect((await call(`/entries/${id}`, { method: "PUT", body: { entry: entry({ title: "New Title", contactEmail: "phone@example.com" }), since: fresh.detailsAt }, key })).status).toBe(200);
+  });
+
   it("doesn't let declared upload sizes cheat the entry's 300 MB limit", async () => {
     const { id, key } = await create();
     const s = await call(`/entries/${id}/files`, { body: { slot: "model", name: "m.stl", size: 10 }, key });
