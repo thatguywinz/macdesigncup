@@ -83,7 +83,7 @@ export default function ResultsPage() {
         <p className="mt-12 font-body text-foreground/75">No submitted entries yet.</p>
       ) : (
         <div className="relative mt-8 overflow-x-auto">
-          <table className="j-table min-w-[760px]">
+          <table className="j-table md:min-w-[760px]">
             <thead>
               <tr>
                 <th scope="col" className="num w-10">
@@ -94,7 +94,7 @@ export default function ResultsPage() {
                   Average
                 </th>
                 {data.criteria.map((c) => (
-                  <th key={c.id} scope="col" className="num">
+                  <th key={c.id} scope="col" className="num hidden md:table-cell">
                     {c.label}
                   </th>
                 ))}
@@ -138,7 +138,7 @@ export default function ResultsPage() {
                       {!r.complete && r.average !== null && <span className="block text-[11px] text-concrete">partial</span>}
                     </td>
                     {data.criteria.map((c) => (
-                      <td key={c.id} className="num text-foreground/80">
+                      <td key={c.id} className="num hidden text-foreground/80 md:table-cell">
                         {f1(r.perCriterion[c.id])}
                       </td>
                     ))}

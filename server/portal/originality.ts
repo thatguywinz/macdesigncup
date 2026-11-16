@@ -90,7 +90,7 @@ export function originalityChecks(e: EntryRecord, all: EntryRecord[], revealAt: 
           : `The model file's metadata names ${ai[1]}, an AI 3D generator, but the form says no AI tools were used. File says: “${metaText.slice(0, 160)}”.`,
         teamNote: disclosed
           ? ""
-          : `Your model file's metadata says it was made with ${ai[1]}, an AI 3D generator, but the form says no AI tools were used. If you used it, set AI tools to "Used some" and say how.`,
+          : `Your model file's metadata says it was made with ${ai[1]}, an AI 3D generator, but the form says no AI tools were used. If you used it, set "Did you use AI tools?" to "Yes, some" and say how.`,
       });
     }
     const declared = new Set(e.software.map((s) => s.toLowerCase()));

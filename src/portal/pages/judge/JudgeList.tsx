@@ -88,8 +88,8 @@ export default function JudgeList() {
       if (active === "review" && !c.openReviews) return false;
       return true;
     });
-    // My room and To mark run in schedule order (earliest slot first), then entries without a time.
-    if (active === "room" || active === "todo") {
+    // Every view runs in schedule order (earliest slot first), then entries without a time.
+    {
       return list
         .map((c, i) => ({ c, i }))
         .sort((a, b) => (a.c.slot ? 0 : 1) - (b.c.slot ? 0 : 1) || String(a.c.slot?.at ?? "").localeCompare(String(b.c.slot?.at ?? "")) || a.i - b.i)
@@ -158,7 +158,7 @@ export default function JudgeList() {
             </Link>
           </div>
         ) : total > 0 && !data?.cards.some((c) => c.myTotal === null && c.scoreCount < MARKS_NEEDED && mine(c)) ? (
-          <p className="p-notice p-notice--calm self-center font-body text-[15px]">Nothing left for you to mark. New ones show up here as teams submit.</p>
+          <p className="p-notice p-notice--calm self-center font-body text-[15px]">{data?.open ? "Nothing left for you to mark. New ones show up here as teams submit." : "Nothing left for you to mark. Every team in your room has your marks."}</p>
         ) : (
           <span className="hidden md:block" />
         )}
@@ -233,7 +233,7 @@ export default function JudgeList() {
                     {c.teamName && <span className="jl-title">{c.title}</span>}
                     {c.slot && (
                       <span className="p-mono text-[12px]">
-                        {c.slot.room} · {clock(c.slot.at)}
+                        Judging {c.slot.room} · {clock(c.slot.at)}
                       </span>
                     )}
                     {c.late && <span className="p-tag p-tag--bad">Late</span>}
@@ -304,7 +304,7 @@ function matchRank(c: JudgeCard, q: string): number | null {
   if (team && team === q) return 0;
   if (team.startsWith(q)) return 1;
   if (team.includes(q)) return 2;
-  const others = [c.title, c.creditLine, ...c.members, ...c.schools].filter(Boolean).map((s) => fold(s));
+  const others = [c.title, c.creditLine, ...c.members, ...c.schools, c.slot?.room ?? ""].filter(Boolean).map((s) => fold(s));
   if (others.some((s) => s.startsWith(q) || s.split(" ").some((w) => w.startsWith(q)))) return 3;
   if (others.some((s) => s.includes(q))) return 4;
   const words = [team, ...others].join(" ").split(/[^a-z0-9]+/).filter(Boolean);

@@ -173,7 +173,7 @@ export default function RoomsSection({
           </button>
         )}
         <span className="font-body text-sm text-concrete">
-          {scheduled ? `${scheduled} ${scheduled === 1 ? "entry has" : "entries have"} a time. See it on Live.` : `Starts ${when(rooms.start)}.`}
+          {scheduled ? `${scheduled} ${scheduled === 1 ? "entry has" : "entries have"} a time. See it on the Schedule tab.` : `Starts ${when(rooms.start)}.`}
           {open && !scheduled ? " It's made by itself when submissions close." : ""}
         </span>
       </div>

@@ -490,10 +490,10 @@
 .sb-room-name { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; font-family: "Space Mono", ui-monospace, monospace; font-size: 1.15rem; font-weight: 700; color: hsl(var(--foreground)); margin-bottom: 0.5rem; }
 .sb-room-name span { font-size: 0.75rem; font-weight: 400; color: hsl(var(--concrete)); }
 .sb-room ol { display: flex; flex-direction: column; }
-.sb-slot { display: grid; grid-template-columns: 5.25rem minmax(0, 1fr); gap: 0.75rem; align-items: baseline; padding: 0.45rem 0.25rem; border-bottom: 1px solid hsl(var(--bone) / 0.08); }
+.sb-slot { display: grid; grid-template-columns: 5.25rem minmax(0, 1fr) auto; gap: 0.75rem; align-items: baseline; padding: 0.45rem 0.25rem; border-bottom: 1px solid hsl(var(--bone) / 0.08); }
 .sb-slot time { font-family: "Space Mono", ui-monospace, monospace; font-size: 0.85rem; color: hsl(var(--concrete)); }
 .sb-team { min-width: 0; overflow-wrap: anywhere; color: hsl(var(--foreground) / 0.92); }
-.sb-team em { display: inline-block; margin-left: 0.6rem; font-style: normal; font-size: 0.72rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: hsl(var(--background)); background: hsl(var(--ember)); padding: 0.1rem 0.4rem; }
+.sb-now { display: inline-block; align-self: center; font-style: normal; white-space: nowrap; font-size: 0.72rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: hsl(var(--background)); background: hsl(var(--ember)); padding: 0.1rem 0.4rem; }
 .sb-slot--done { opacity: 0.4; }
 .sb-slot--now { background: hsl(var(--ember) / 0.12); }
 .sb-slot--now time { color: hsl(var(--ember)); }
@@ -502,7 +502,8 @@
 .sb--big .sb-room-name { font-size: clamp(1.3rem, 2vw, 2.2rem); margin-bottom: 0.25rem; }
 .sb--big .sb-room { padding-top: 0.4rem; }
 /* --sb-fit is set from the screen height so the longest room fits without scrolling. */
-.sb--big .sb-slot { grid-template-columns: 6.2em minmax(0, 1fr); padding: 0.3em 0.4rem; font-size: min(var(--sb-fit, 1.6rem), 1.9vw); line-height: 1.15; }
+.sb--big .sb-slot { grid-template-columns: 6.2em minmax(0, 1fr) auto; padding: 0.3em 0.4rem; font-size: min(var(--sb-fit, 1.6rem), 2.6vw); line-height: 1.15; }
+.sb--big .sb-room-name span { font-size: 0.55em; }
 .sb--big .sb-slot time { font-size: 0.85em; }
 .sb--big .sb-team { font-size: 1em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.sb--big .sb-team em { font-size: 0.6em; vertical-align: middle; }
+.sb--big .sb-now { font-size: 0.6em; }

@@ -504,7 +504,8 @@ on("GET", "/schedule", async (ctx, req, res) => {
     .filter((e) => e.status === "submitted")
     .flatMap((e) => {
       const s = slotOf(w.settings, e.id);
-      return s ? [{ teamName: e.teamName || e.title, title: e.title, room: s.room, at: s.at }] : [];
+      // Organizers can also find a team by a student's name; the public board never gets names.
+      return s ? [{ teamName: e.teamName || e.title, title: e.title, room: s.room, at: s.at, ...(organizer ? { members: e.members.map((m) => m.name) } : {}) }] : [];
     })
     .sort((a, b) => a.at.localeCompare(b.at) || a.room.localeCompare(b.room));
   // Submitted teams that don't have a slot yet (organizers only).
@@ -1187,10 +1188,13 @@ const csvCell = (v: unknown) => {
   return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 };
 
+/** "Nov 16, 1:24 PM" in Toronto time for spreadsheets (an ISO UTC stamp reads as the wrong day). */
+const torontoStamp = (iso: string) => new Date(iso).toLocaleString("en-US", { timeZone: "America/Toronto", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+
 on("GET", "/judge/export.csv", async (ctx, req, res) => {
   requireAdmin(ctx.cfg, req);
   const r = await results(ctx);
-  const head = ["Rank", "Team", "Title", "Credit", "Members", "Schools", "Grades", "Contact email", "Average", ...r.criteria.map((c) => c.label), "Judges", ...r.judges.map((j) => j.name), "Late", "Award", "Submitted", "Entry id"];
+  const head = ["Rank", "Team", "Title", "Credit", "Members", "Schools", "Grades", "Contact email", "Average", ...r.criteria.map((c) => c.label), "Judges", ...r.judges.map((j) => j.name), "Judging room", "Judging time", "Submitted", "Entry id"];
   const lines = [head.map(csvCell).join(",")];
   r.rows.forEach((row, i) => {
     lines.push(
@@ -1207,9 +1211,9 @@ on("GET", "/judge/export.csv", async (ctx, req, res) => {
         ...r.criteria.map((c) => row.perCriterion[c.id]?.toFixed(2) ?? ""),
         row.judgeCount,
         ...r.judges.map((j) => row.byJudge[j.key] ?? ""),
-        row.late ? "yes" : "",
-        row.award,
-        row.submittedAt ?? "",
+        row.slot?.room ?? "",
+        row.slot ? torontoStamp(row.slot.at) : "",
+        row.submittedAt ? torontoStamp(row.submittedAt) : "",
         row.id,
       ]
         .map(csvCell)

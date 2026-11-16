@@ -39,6 +39,7 @@ import {
   parseEntry,
   publicCredit,
   type EntryInput,
+  type Grade,
   type FieldErrors,
   type FileView,
   type OwnEntry,
@@ -150,6 +151,8 @@ export default function SubmitPage() {
   const [loadError, setLoadError] = useState("");
   const [busy, setBusy] = useState<string>("");
   const [done, setDone] = useState(false);
+  // Shown on the done page after "Save changes" on an entry already submitted.
+  const [changesSaved, setChangesSaved] = useState(false);
   const [draftSaved, setDraftSaved] = useState("");
   const [measure, setMeasure] = useState<Measure | null>(null);
   /** The preview couldn't open the chosen model (damaged or renamed file). */
@@ -536,10 +539,12 @@ export default function SubmitPage() {
       }
 
       // 5. Submit.
+      const wasSubmitted = saved?.status === "submitted";
       setBusy("Submitting…");
       const final = await api<{ entry: OwnEntry }>(`/entries/${id}/submit`, { body: {}, editKey: key });
       setSaved(final.entry);
       setFiles(filesFrom(final.entry));
+      setChangesSaved(wasSubmitted);
       setDone(true);
       window.scrollTo({ top: 0 });
     } catch (e) {
@@ -578,7 +583,7 @@ export default function SubmitPage() {
     );
   }
 
-  if (done && saved && entryId) return <Done entry={saved} editKey={editKey} onEdit={() => setDone(false)} deadline={status?.deadline ?? null} judging={status?.judging} now={now} />;
+  if (done && saved && entryId) return <Done entry={saved} editKey={editKey} changesSaved={changesSaved} onEdit={() => setDone(false)} deadline={status?.deadline ?? null} judging={status?.judging} now={now} />;
 
   // A new entry waits for the status: whether there's a code step, or the form isn't open yet.
   if (!isEdit && !status) {
@@ -657,7 +662,7 @@ export default function SubmitPage() {
     1: `1 to ${TEAM_MAX} people, as registered.`,
     2: "What judges read before you present.",
     3: "At least one picture, or your 3D model.",
-    4: isEdit ? (submitted ? `Submitted at ${clock(saved?.submittedAt)}. You can change it until ${until || "submissions close"}.` : finishing ? null : "Not submitted yet.") : null,
+    4: isEdit ? (submitted ? locked ? `Submitted at ${clock(saved?.submittedAt)}.` : `Submitted at ${clock(saved?.submittedAt)}. You can change it until ${until || "submissions close"}.` : finishing ? null : "Not submitted yet.") : null,
   };
   const softwareLine = form.software.map((s) => (s === "Other" && form.softwareOther ? form.softwareOther : s)).join(", ");
   const filesLine = [
@@ -811,6 +816,11 @@ export default function SubmitPage() {
                               <Field label="Grade" error={errors[`members.${i}.grade`]}>
                                 {(p) => (
                                   <select {...p} className="p-select" value={m.grade} onChange={(e) => setMember(i, { grade: e.target.value as (typeof GRADES)[number] })}>
+                                    {!m.grade && (
+                                      <option value="" disabled>
+                                        Pick
+                                      </option>
+                                    )}
                                     {GRADES.map((g) => (
                                       <option key={g} value={g}>
                                         {g}
@@ -832,7 +842,7 @@ export default function SubmitPage() {
                         <button
                           type="button"
                           className="btn-ghost p-btn p-btn-sm self-start"
-                          onClick={() => set("members", [...form.members, { name: "", school: form.members[0]?.school ?? "", grade: form.members[0]?.grade ?? "10" }])}
+                          onClick={() => set("members", [...form.members, { name: "", school: form.members[0]?.school ?? "", grade: form.members[0]?.grade ?? ("" as Grade) }])}
                         >
                           <Plus size={15} strokeWidth={1.5} aria-hidden="true" /> Add a teammate
                         </button>
@@ -1104,7 +1114,9 @@ export default function SubmitPage() {
                               </label>
                             </div>
                             <p className="p-hint mt-2">
-                              Shown as <span className="text-foreground">{publicCredit(form) || "your first names"}</span>. Never surnames, schools or emails.
+                              Shown as <span className="text-foreground">{publicCredit(form) || "your first names"}</span>
+                              {/* "Priya S." already ends in a full stop. */}
+                              {(publicCredit(form) || "x").endsWith(".") ? "" : "."} Never surnames, schools or emails.
                             </p>
                           </fieldset>
                           <label className="flex cursor-pointer items-start gap-3 font-body text-[15px] text-foreground/85">
@@ -1640,6 +1652,7 @@ function FileRow({
 function Done({
   entry,
   editKey,
+  changesSaved = false,
   onEdit,
   deadline,
   judging,
@@ -1647,6 +1660,7 @@ function Done({
 }: {
   entry: OwnEntry;
   editKey: string;
+  changesSaved?: boolean;
   onEdit: () => void;
   deadline: string | null;
   judging?: PortalStatus["judging"] | null;
@@ -1674,6 +1688,11 @@ function Done({
             <span className="sf-done-mark" aria-hidden="true">
               <Check size={30} strokeWidth={2.4} />
             </span>
+            {changesSaved && (
+              <p className="p-notice font-body" role="status">
+                Your changes are saved.
+              </p>
+            )}
             <h1 className="sf-title">You're submitted.</h1>
             <p className="sf-sub">
               <span className="text-foreground">{entry.title}</span> was submitted at {clock(entry.submittedAt)}.

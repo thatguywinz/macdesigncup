@@ -10,6 +10,8 @@ export interface ScheduleSlot {
   title: string;
   room: string;
   at: string;
+  /** Organizers only: the students' names, for search. */
+  members?: string[];
 }
 
 export interface ScheduleData {
@@ -61,7 +63,7 @@ export default function ScheduleBoard({ data, big = false, search = true }: { da
   const now = clock + skew;
   const step = data.slotMinutes * 60_000;
 
-  const found = q.trim() ? data.slots.filter((s) => fold(s.teamName).includes(fold(q)) || fold(s.title).includes(fold(q))) : [];
+  const found = q.trim() ? data.slots.filter((s) => fold(s.teamName).includes(fold(q)) || fold(s.title).includes(fold(q)) || (s.members ?? []).some((n) => fold(n).includes(fold(q)))) : [];
 
   // Every room that has a team, even one renamed in Settings after slots were given out.
   const rooms = [...new Set([...data.rooms, ...data.slots.map((x) => x.room)])].sort();
@@ -78,7 +80,7 @@ export default function ScheduleBoard({ data, big = false, search = true }: { da
       const top = board ? board.getBoundingClientRect().top + window.scrollY : 220;
       const room = window.innerHeight - top - 70; // room-name header and a margin
       // A row is about 1.75x its font size tall.
-      setFit(Math.max(11, Math.min(34, Math.floor(room / longest / 1.75))));
+      setFit(Math.max(11, Math.min(52, Math.floor(room / longest / 1.75))));
     };
     size();
     // Fine-tune: step down until the page no longer scrolls.
@@ -116,7 +118,7 @@ export default function ScheduleBoard({ data, big = false, search = true }: { da
           {q.trim() && (
             <div className="sb-found" role="status">
               {found.length === 0 ? (
-                <p className="font-body text-foreground/75">No team called "{q.trim()}". Check the spelling, or find an organizer.</p>
+                <p className="font-body text-foreground/75">No team called "{q.trim()}". Type your team name (it's at the top of your edit link), or ask an organizer.</p>
               ) : (
                 <ul>
                   {found.slice(0, 5).map((s) => (
@@ -154,10 +156,8 @@ export default function ScheduleBoard({ data, big = false, search = true }: { da
                     return (
                       <li key={s.at} className={`sb-slot ${state ? `sb-slot--${state}` : ""} ${hit ? "sb-slot--hit" : ""}`}>
                         <time dateTime={s.at}>{time(s.at)}</time>
-                        <span className="sb-team">
-                          {s.teamName}
-                          {state === "now" && <em>Presenting now</em>}
-                        </span>
+                        <span className="sb-team">{s.teamName}</span>
+                        {state === "now" ? <em className="sb-now">Presenting now</em> : <span />}
                       </li>
                     );
                   })}

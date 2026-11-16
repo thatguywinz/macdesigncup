@@ -163,11 +163,11 @@ export default function JudgeEntryPage({ practice = false }: { practice?: boolea
       {/* Header: who this is, where and when, how many marks are in, and where to go. */}
       <div className="jd-head">
         <div className="jd-nav">
-          <Link to="/judge" className="jd-navlink focus-ember">
+          <Link to="/judge" className="jd-navlink focus-ember" onClick={guardLeave}>
             <ArrowLeft size={15} strokeWidth={1.5} /> All entries
           </Link>
           {nextTeam && (
-            <Link to={`/judge/entry/${nextTeam}`} className="jd-navlink focus-ember" title={`${data?.toMark ?? 0} left for you to mark`}>
+            <Link to={`/judge/entry/${nextTeam}`} className="jd-navlink focus-ember" onClick={guardLeave} title={`${data?.toMark ?? 0} left for you to mark`}>
               Next team{data && data.toMark > 0 ? ` (${data.toMark} left)` : ""} <ArrowRight size={15} strokeWidth={1.5} />
             </Link>
           )}
@@ -190,7 +190,6 @@ export default function JudgeEntryPage({ practice = false }: { practice?: boolea
                 </span>
               )}
               {e.late && <span className="p-tag p-tag--bad">Submitted late</span>}
-              {reviews > 0 && <span className="p-tag p-tag--ember">Originality check to review</span>}
               {e.award && <span className="p-tag p-tag--solid">{e.award}</span>}
               {e.status !== "submitted" && <span className="p-tag">Draft</span>}
             </p>
@@ -228,7 +227,6 @@ export default function JudgeEntryPage({ practice = false }: { practice?: boolea
                   onClick={() => setTab(t)}
                 >
                   {label}
-                  {t === "details" && reviews > 0 && <span className="jd-dot" aria-label="(an originality check to review)" />}
                 </button>
               ))}
             </div>
@@ -286,7 +284,7 @@ export default function JudgeEntryPage({ practice = false }: { practice?: boolea
                   spec={data?.spec ?? null}
                   prev={data?.prev ?? null}
                   next={data?.next ?? null}
-                  onNavigate={(to) => navigate(`/judge/entry/${to}`)}
+                  onNavigate={(to) => guardLeave() && navigate(`/judge/entry/${to}`)}
                   onChange={(entry) => setData((d) => (d ? { ...d, entry } : d))}
                 />
               )}
@@ -420,6 +418,16 @@ function TeamDetails({
 // Marks not saved yet, kept on this device per entry, so moving to another
 // entry (or a refresh) mid-presentation doesn't lose them.
 const unsavedKey = (id: string) => `mdc-marks-${id}`;
+
+// Marks changed but not saved yet: links off the page ask first.
+let unsavedNow = false;
+const LEAVE_MSG = "Your marks for this team aren't saved yet. Leave without saving?";
+/** For a link off the entry: stops it if there are unsaved marks and the judge says no. */
+function guardLeave(e?: { preventDefault: () => void }): boolean {
+  if (!unsavedNow || window.confirm(LEAVE_MSG)) return true;
+  e?.preventDefault();
+  return false;
+}
 function readUnsaved(id: string): { marks: Record<string, number>; notes: string } | null {
   try {
     const v = JSON.parse(sessionStorage.getItem(unsavedKey(id)) ?? "null");
@@ -472,7 +480,13 @@ function ScoreForm({
     if (dirty && !practice) writeUnsaved(entryId, { marks, notes });
   }, [dirty, entryId, marks, notes, practice]);
 
-  // Unsaved marks: warn before leaving the tab.
+  // Unsaved marks: warn before leaving the tab, and before any link off the page.
+  useEffect(() => {
+    unsavedNow = dirty && !practice;
+    return () => {
+      unsavedNow = false;
+    };
+  }, [dirty, practice]);
   useEffect(() => {
     if (!dirty || practice) return;
     const warn = (e: BeforeUnloadEvent) => {

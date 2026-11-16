@@ -124,7 +124,8 @@ export function emptyEntry(): EntryInput {
   return {
     title: "",
     teamName: "",
-    members: [{ name: "", school: "", grade: "10" }],
+    // No grade picked yet: students choose it (a preset one got submitted unchanged).
+    members: [{ name: "", school: "", grade: "" as Grade }],
     contactEmail: "",
     software: [],
     softwareOther: "",
