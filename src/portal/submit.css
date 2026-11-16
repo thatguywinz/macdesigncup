@@ -476,3 +476,9 @@
   .sf-more-icon,
   .sf-more-chev { transition: none; }
 }
+/* The smallest phones (320px): drop the "5 of 5" count so Submit fits. */
+@media (max-width: 359px) {
+  .sf-bar-row { grid-template-columns: auto 1fr; }
+  .sf-count { display: none; }
+  .sf-submit { min-width: 0; }
+}

@@ -503,9 +503,9 @@ export default function ModelViewer({
               type="button"
               className="viewer-upright focus-ember"
               onClick={() => onUpAxisChange(upAxis === "y" ? "z" : "y")}
-              aria-label={`Model lying down? Switch to ${upAxis === "y" ? "Z" : "Y"} up`}
+              aria-label="Model on its side? Turn it upright"
             >
-              Lying down? Stand it up ({upAxis === "y" ? "Y" : "Z"} up)
+              Model on its side? Turn it upright
             </button>
           )}
         </ViewerBoundary>
