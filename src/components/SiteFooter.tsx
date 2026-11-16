@@ -1,4 +1,5 @@
 import { useId, type MouseEvent, type ReactNode } from "react";
+import { useSubmitClosed } from "@/hooks/useSubmitClosed";
 import { Link } from "react-router-dom";
 import { ArrowUp, ArrowUpRight } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -68,6 +69,7 @@ function BackToTop({ className, children }: { className: string; children: React
  * /register. The lion is the still frame.
  */
 export default function SiteFooter() {
+  const closed = useSubmitClosed();
   const noteId = useId();
 
   return (
@@ -164,7 +166,7 @@ export default function SiteFooter() {
                     aria-describedby={noteId}
                     className={cn(LINK, "text-foreground/75 hover:text-foreground")}
                   >
-                    {CTA.submit}
+                    {closed ? CTA.slots : CTA.submit}
                   </a>
                   <SubmitSr id={noteId} />
                 </li>

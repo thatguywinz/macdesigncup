@@ -1,4 +1,5 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState, type MouseEvent } from "react";
+import { useSubmitClosed } from "@/hooks/useSubmitClosed";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { m, useMotionValue, useMotionValueEvent, useScroll, useSpring } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -44,6 +45,7 @@ const useIsoLayoutEffect = typeof window === "undefined" ? useEffect : useLayout
  * are router links to `/#id`. Nothing here reads the window during render.
  */
 export default function SiteNav() {
+  const closed = useSubmitClosed();
   const location = useLocation();
   const navigate = useNavigate();
   const isHome = location.pathname === "/";
@@ -119,7 +121,7 @@ export default function SiteNav() {
     { label: NAV.resources, to: RESOURCES_PATH, arrow: true, current: location.pathname === RESOURCES_PATH },
     { label: CTA.partner, to: PARTNER_PATH, arrow: true },
     {
-      label: CTA.submit,
+      label: closed ? CTA.slots : CTA.submit,
       to: SUBMIT_PATH,
       document: true,
       accent: true,

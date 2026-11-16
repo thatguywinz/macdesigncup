@@ -1,6 +1,7 @@
 import { Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SUBMIT } from "@/content/copy";
+import { useSubmitClosed } from "@/hooks/useSubmitClosed";
 
 /**
  * The one tiny note beside a Submit here button: "Closes 1:30 PM · No late
@@ -8,6 +9,14 @@ import { SUBMIT } from "@/content/copy";
  * `url` adds the address on a second line, for people who type it.
  */
 export function SubmitNote({ id, url = false, className }: { id?: string; url?: boolean; className?: string }) {
+  const closed = useSubmitClosed();
+  if (closed)
+    return (
+      <span id={id} className={cn("inline-flex items-center gap-2 font-body text-[13px] leading-none", className)}>
+        <Clock aria-hidden="true" size={14} strokeWidth={1.5} className="shrink-0 text-ember" />
+        <span className="text-foreground/70">{SUBMIT.closedNote}</span>
+      </span>
+    );
   return (
     <span id={id} className={cn("inline-flex items-center gap-2 font-body text-[13px] leading-none", className)}>
       <Clock aria-hidden="true" size={14} strokeWidth={1.5} className="shrink-0 text-ember" />

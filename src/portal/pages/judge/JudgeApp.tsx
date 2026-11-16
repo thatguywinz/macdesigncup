@@ -12,6 +12,7 @@ import ResultsPage from "./ResultsPage";
 import LivePage from "./LivePage";
 import SettingsPage from "./SettingsPage";
 import TopPage from "./TopPage";
+import SchedulePage from "./SchedulePage";
 
 export default function JudgeApp() {
   const [me, setMe] = useState<Me | null | undefined>(undefined);
@@ -53,6 +54,7 @@ export default function JudgeApp() {
         <Route path="practice" element={<JudgeEntryPage practice />} />
         <Route path="live" element={me.role === "admin" ? <LivePage /> : <OrganizersOnly />} />
         <Route path="top" element={me.role === "admin" ? <TopPage /> : <OrganizersOnly />} />
+        <Route path="schedule" element={me.role === "admin" ? <SchedulePage /> : <OrganizersOnly />} />
         <Route path="results" element={me.role === "admin" ? <ResultsPage /> : <OrganizersOnly />} />
         <Route path="settings" element={me.role === "admin" ? <SettingsPage /> : <OrganizersOnly />} />
         <Route path="*" element={<JudgeList />} />

@@ -69,6 +69,8 @@ const HOUR = (t: string) => t.replace(":00 ", " ");
 export const CTA = {
   /** The day's one call to action: to /submit. */
   submit: "Submit here",
+  /** The same button once submissions close: /submit then shows every team's room and time. */
+  slots: "Time slots here",
   /** Plain links to /register (registration closed Nov 9; the page stays). */
   registration: "Registration",
   enter: "Enter the hall",
@@ -86,6 +88,8 @@ export const CTA = {
  */
 export const SUBMIT = {
   note: `Closes ${TIMES.submit} · No late entries`,
+  /** Beside the button once submissions close. */
+  closedNote: "Submissions closed · Find your room and time",
   sr: `Submit your design at ${SUBMIT_URL_SHORT}. Submissions close ${SUBMIT_DEADLINE_SHORT}. No late entries.`,
   /** The line under the QR code. */
   scan: "Scan to submit",

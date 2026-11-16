@@ -662,6 +662,46 @@ describe("judging schedule", () => {
   });
 });
 
+describe("public schedule board (/schedule)", () => {
+  it("stays empty for the public until submissions close, then lists every team's room and time without student names", async () => {
+    const admin = await login("admin-demo", "Organizer");
+    await call("/judge/schedule", { body: { action: "clear", force: true }, cookie: admin.cookie });
+    await call("/judge/settings", { method: "PUT", body: { closed: false }, cookie: admin.cookie });
+    const { id, key } = await create({ title: "Board Test Lamp", teamName: "Board Testers" });
+    expect((await call(`/entries/${id}/submit`, { body: {}, key })).status).toBe(200);
+
+    // Open: the public sees no slots; organizers see who's waiting.
+    let pub = await call("/schedule");
+    expect(pub.status).toBe(200);
+    expect(pub.json.closed).toBe(false);
+    expect(pub.json.slots).toEqual([]);
+    const org = await call("/schedule", { cookie: admin.cookie });
+    expect(org.json.waiting).toBeGreaterThan(0);
+
+    // Close: the board makes the schedule itself and shows it to everyone.
+    await call("/judge/settings", { method: "PUT", body: { closed: true }, cookie: admin.cookie });
+    pub = await call("/schedule");
+    expect(pub.json.closed).toBe(true);
+    const mine = pub.json.slots.find((s: { teamName: string }) => s.teamName === "Board Testers");
+    expect(mine).toBeTruthy();
+    expect(mine.title).toBe("Board Test Lamp");
+    expect(pub.json.rooms).toContain(mine.room);
+    expect(Number.isNaN(Date.parse(mine.at))).toBe(false);
+    // Only team names, titles, rooms and times: no student names, emails or schools.
+    expect(pub.text).not.toMatch(/@|Avery|Okafor|Mackenzie CI/);
+    for (const s of pub.json.slots) expect(Object.keys(s).sort()).toEqual(["at", "room", "teamName", "title"]);
+    // In time order.
+    const times = pub.json.slots.map((s: { at: string }) => s.at);
+    expect([...times].sort()).toEqual(times);
+    // The team's edit link shows the same slot.
+    expect((await call(`/entries/${id}`, { key })).json.entry.slot.room).toBe(mine.room);
+
+    await call(`/judge/entries/${id}`, { method: "DELETE", cookie: admin.cookie });
+    await call("/judge/settings", { method: "PUT", body: { closed: false }, cookie: admin.cookie });
+    await call("/judge/schedule", { body: { action: "clear", force: true }, cookie: admin.cookie });
+  });
+});
+
 describe("day of (organizers, 2026-11-14)", () => {
   const marks = (n: number) => ({ marks: { originality: n, technical: n, theme: n, communication: n } });
 

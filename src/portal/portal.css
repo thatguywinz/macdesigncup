@@ -467,3 +467,40 @@
   .j-top-body *, .j-top-rank { color: #000 !important; }
   .j-top-grid, .j-top-grid > div { background: #fff; border-color: #ccc; }
 }
+
+/* ── Judging schedule board (/submit after close, organizers' Schedule, big screen) ── */
+.sb { display: flex; flex-direction: column; gap: 1.75rem; }
+.sb-search { display: flex; flex-direction: column; gap: 0.5rem; max-width: 34rem; }
+.sb-search-label { font-family: var(--font-body, inherit); font-weight: 600; font-size: 1rem; color: hsl(var(--foreground)); }
+.sb-search-box { position: relative; display: flex; align-items: center; }
+.sb-search-box > svg { position: absolute; left: 0.85rem; color: hsl(var(--concrete)); pointer-events: none; }
+.sb-search-box .p-input { padding-left: 2.6rem; padding-right: 2.6rem; width: 100%; font-size: 1.05rem; min-height: 3.25rem; }
+.sb-clear { position: absolute; right: 0.5rem; display: grid; place-items: center; width: 2.25rem; height: 2.25rem; color: hsl(var(--concrete)); }
+.sb-clear:hover { color: hsl(var(--foreground)); }
+.sb-found ul { display: flex; flex-direction: column; gap: 0.4rem; }
+.sb-found li { display: flex; flex-wrap: wrap; gap: 0.25rem 0.9rem; align-items: baseline; padding: 0.75rem 1rem; border: 1px solid hsl(var(--ember) / 0.7); background: hsl(var(--ember) / 0.08); }
+.sb-found strong { font-size: 1.05rem; color: hsl(var(--foreground)); }
+.sb-found li span { font-family: "Space Mono", ui-monospace, monospace; color: hsl(var(--ember)); }
+.sb-empty { color: hsl(var(--foreground) / 0.75); }
+.sb-rooms { display: grid; grid-template-columns: repeat(var(--sb-cols, 3), minmax(0, 1fr)); gap: 1.25rem; }
+@media (max-width: 860px) { .sb-rooms { grid-template-columns: minmax(0, 1fr); } }
+.sb-room { min-width: 0; border-top: 2px solid hsl(var(--ember)); padding-top: 0.75rem; }
+.sb-room-name { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; font-family: "Space Mono", ui-monospace, monospace; font-size: 1.15rem; font-weight: 700; color: hsl(var(--foreground)); margin-bottom: 0.5rem; }
+.sb-room-name span { font-size: 0.75rem; font-weight: 400; color: hsl(var(--concrete)); }
+.sb-room ol { display: flex; flex-direction: column; }
+.sb-slot { display: grid; grid-template-columns: 5.25rem minmax(0, 1fr); gap: 0.75rem; align-items: baseline; padding: 0.45rem 0.25rem; border-bottom: 1px solid hsl(var(--bone) / 0.08); }
+.sb-slot time { font-family: "Space Mono", ui-monospace, monospace; font-size: 0.85rem; color: hsl(var(--concrete)); }
+.sb-team { min-width: 0; overflow-wrap: anywhere; color: hsl(var(--foreground) / 0.92); }
+.sb-team em { display: inline-block; margin-left: 0.6rem; font-style: normal; font-size: 0.72rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: hsl(var(--background)); background: hsl(var(--ember)); padding: 0.1rem 0.4rem; }
+.sb-slot--done { opacity: 0.4; }
+.sb-slot--now { background: hsl(var(--ember) / 0.12); }
+.sb-slot--now time { color: hsl(var(--ember)); }
+.sb-slot--hit { outline: 2px solid hsl(var(--ember)); outline-offset: -2px; }
+/* Big screen: readable from the back of the room. */
+.sb--big .sb-room-name { font-size: clamp(1.3rem, 2vw, 2.2rem); margin-bottom: 0.25rem; }
+.sb--big .sb-room { padding-top: 0.4rem; }
+/* --sb-fit is set from the screen height so the longest room fits without scrolling. */
+.sb--big .sb-slot { grid-template-columns: 6.2em minmax(0, 1fr); padding: 0.3em 0.4rem; font-size: min(var(--sb-fit, 1.6rem), 1.9vw); line-height: 1.15; }
+.sb--big .sb-slot time { font-size: 0.85em; }
+.sb--big .sb-team { font-size: 1em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sb--big .sb-team em { font-size: 0.6em; vertical-align: middle; }

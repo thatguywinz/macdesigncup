@@ -17,7 +17,7 @@ export function useMe() {
   return v;
 }
 
-/** The judge pages' frame: nav between dashboard / results / settings. */
+/** The judge pages' frame: nav between entries / schedule / leaderboard / settings. */
 export function JudgeShell({ children, section = "Judging" }: { children: ReactNode; section?: string }) {
   const { me, signOut } = useMe();
   const tab = ({ isActive }: { isActive: boolean }) =>
@@ -34,14 +34,11 @@ export function JudgeShell({ children, section = "Judging" }: { children: ReactN
             </NavLink>
             {me.role === "admin" && (
               <>
-                <NavLink to="/judge/live" className={tab}>
-                  Live
-                </NavLink>
-                <NavLink to="/judge/top" className={tab}>
-                  Top 5
+                <NavLink to="/judge/schedule" className={tab}>
+                  Schedule
                 </NavLink>
                 <NavLink to="/judge/results" className={tab}>
-                  Results
+                  Leaderboard
                 </NavLink>
                 <NavLink to="/judge/settings" className={tab}>
                   Settings
@@ -65,14 +62,11 @@ export function JudgeShell({ children, section = "Judging" }: { children: ReactN
           <NavLink to="/judge" end className={tab}>
             Entries
           </NavLink>
-          <NavLink to="/judge/live" className={tab}>
-            Live
-          </NavLink>
-          <NavLink to="/judge/top" className={tab}>
-            Top 5
+          <NavLink to="/judge/schedule" className={tab}>
+            Schedule
           </NavLink>
           <NavLink to="/judge/results" className={tab}>
-            Results
+            Leaderboard
           </NavLink>
           <NavLink to="/judge/settings" className={tab}>
             Settings

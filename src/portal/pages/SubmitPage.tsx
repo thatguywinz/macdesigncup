@@ -21,6 +21,7 @@ import VideoPlayer, { captureVideoFrame } from "../components/VideoPlayer";
 import { VideoChoice, VideoGuide } from "../components/VideoStep";
 import { JudgingBriefing, SlotNotice } from "../components/Briefing";
 import DeadlineBar from "../components/DeadlineBar";
+import ScheduleBoard, { FullscreenButton, useSchedule } from "../components/ScheduleBoard";
 import { parseVideoLink } from "../shared/video";
 import Shell from "../components/Shell";
 import { Field, Progress } from "../components/fields";
@@ -611,17 +612,9 @@ export default function SubmitPage() {
   }
 
   // A Submit pressed in time keeps its page until it finishes (it may still be uploading).
-  if (!isEdit && closedForNew && status && !busy) {
-    return (
-      <Shell section="Submit your design">
-        <div className="max-w-[40rem] py-20">
-          <h1 className="display-scene">Submissions are closed</h1>
-          <p className="mt-4 font-body text-lg text-foreground/75">They closed at {clock(status.deadline)}. If you've already submitted, open your edit link to see your entry. If you were in the middle of submitting, find an organizer now.</p>
-          <SavedList />
-        </div>
-      </Shell>
-    );
-  }
+  // After the deadline /submit becomes the judging schedule (and, with
+  // ?screen, the big-screen version organizers project).
+  if (!isEdit && closedForNew && status && !busy) return <ClosedSchedule deadline={status.deadline} />;
 
   const until = deadline ? clock(status?.deadline) : "";
   const shownStepErrors = Object.entries(errors).some(([k, v]) => v && stepOf(k) === step);
@@ -1327,6 +1320,48 @@ function PreviewEmpty() {
 }
 
 /** Entries started on this laptop, and a way for the next team to start clean. */
+/**
+ * /submit after the deadline: every team's judging room and time, with
+ * "Find your team". `?screen` is the big-screen version for the projector
+ * (larger type, no search, full screen button).
+ */
+function ClosedSchedule({ deadline }: { deadline: string }) {
+  const { data, error } = useSchedule();
+  const screen = new URLSearchParams(useLocation().search).has("screen");
+  return (
+    <Shell section={screen ? "Judging schedule" : "Submissions closed"} wide={screen}>
+      <div className={screen ? "-mb-20 pt-4" : "py-12 md:py-16"}>
+        {screen ? (
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <p className="font-body text-[clamp(1rem,1.6vw,1.6rem)] text-foreground/85">
+              <strong className="text-foreground">Find your team&apos;s room and time.</strong> Be at the door 5 minutes early with your laptop ready.
+            </p>
+            <FullscreenButton />
+          </div>
+        ) : (
+          <div>
+            <h1 className="display-scene">Your judging time</h1>
+            <p className="mt-3 max-w-[44rem] font-body text-lg text-foreground/75">
+              Submissions closed at {clock(deadline)}. Find your team below: be at your room 5 minutes early with your laptop ready to present.
+            </p>
+          </div>
+        )}
+        <div className={screen ? "mt-4" : "mt-8"}>
+          {error && !data && <p className="p-notice p-notice--bad font-body">Couldn't load the schedule. Refresh the page.</p>}
+          {!data ? (
+            !error && <p className="font-body text-concrete" role="status">Loading the schedule…</p>
+          ) : data.slots.length === 0 ? (
+            <p className="p-notice font-body">Rooms and times are being set. This page updates by itself.</p>
+          ) : (
+            <ScheduleBoard data={data} big={screen} search={!screen} />
+          )}
+        </div>
+        {!screen && <SavedList />}
+      </div>
+    </Shell>
+  );
+}
+
 function SavedList({ compact = false }: { compact?: boolean }) {
   const [list, setList] = useState(savedEntries);
   if (!list.length) return null;

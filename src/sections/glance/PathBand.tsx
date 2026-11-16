@@ -1,9 +1,10 @@
 import { useId } from "react";
+import { useSubmitClosed } from "@/hooks/useSubmitClosed";
 import { Link } from "react-router-dom";
 import { ArrowRight } from "lucide-react";
 import Reveal from "@/components/motion/Reveal";
 import { SUBMIT_PATH } from "@/config/site";
-import { PATHS } from "@/content/copy";
+import { CTA, PATHS } from "@/content/copy";
 import { cn } from "@/lib/utils";
 
 const TITLE = "font-body text-xl font-semibold tracking-[-0.01em] text-foreground md:text-2xl";
@@ -22,6 +23,7 @@ const ACTION =
 export default function PathBand({ className }: { className?: string }) {
   const r = PATHS.routes;
   const submitLine = useId();
+  const closed = useSubmitClosed();
   const partnerLine = useId();
   return (
     <nav aria-label={PATHS.label} className={cn("relative", className)}>
@@ -30,11 +32,11 @@ export default function PathBand({ className }: { className?: string }) {
           <div className="min-w-0">
             <p className={TITLE}>{r.submit.label}</p>
             <p id={submitLine} className={LINE}>
-              {r.submit.line}
+              {closed ? "Submissions are closed. Find your room and time." : r.submit.line}
             </p>
           </div>
           <a href={SUBMIT_PATH} aria-describedby={submitLine} className={cn(ACTION, "shrink-0")}>
-            <span className="max-md:sr-only">{r.submit.cta}</span>
+            <span className="max-md:sr-only">{closed ? CTA.slots : r.submit.cta}</span>
             <ArrowRight aria-hidden="true" size={18} strokeWidth={1.5} className="text-ember" />
           </a>
         </Reveal>

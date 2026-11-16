@@ -62,7 +62,6 @@ export default function MobileSubmitBar() {
           <SubmitNote id={captionId} url className="min-w-0 flex-1" />
         )}
         <SubmitButton
-          variant={closed ? "ghost" : "solid"}
           aria-describedby={captionId}
           className="min-h-[48px] shrink-0 px-5 py-3.5 text-[13px]"
         />

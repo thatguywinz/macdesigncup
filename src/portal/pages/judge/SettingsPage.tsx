@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 import { ApiError, api, when } from "../../api";
 import { JudgeShell, useMe } from "./context";
-import { RevealInput, SpecSection } from "./specSettings";
 import RoomsSection, { type RoomsSettings, type ScheduleResult } from "./RoomsSection";
 import type { Spec } from "../../shared/checks";
 import "../../judge.css";
@@ -220,57 +219,6 @@ export default function SettingsPage() {
             </section>
 
             <section className="border-t border-bone/10 py-7">
-              <h2 className="p-block-title">Public submissions page</h2>
-              <p className="p-hint mt-1 max-w-[38rem]">
-                What <span className="p-mono">macdesigncup.ca/submissions</span> shows: each entry's video, 3D model and description. Scores, notes and contact details are never
-                public. Entries whose team turned off public viewing, or that you hid, never appear.
-              </p>
-              <div className="mt-4 flex flex-col gap-2 font-body text-[15px] text-foreground/90">
-                {(
-                  [
-                    ["off", "Off", "The page says submissions aren't public yet."],
-                    ["all", "Every submitted entry", "Good once judging is done."],
-                    ["selected", "Only the ones I pick", "Tick \"Pick for the public page\" on an entry to add it."],
-                  ] as const
-                ).map(([value, label, hint]) => (
-                  <label key={value} className="flex cursor-pointer items-start gap-3">
-                    <input
-                      type="radio"
-                      name="publicListing"
-                      className="mt-1 h-4 w-4 accent-[hsl(24_100%_54%)]"
-                      checked={s.publicListing === value}
-                      disabled={busy}
-                      onChange={() => put({ publicListing: value }, "Public page updated.")}
-                    />
-                    <span>
-                      {label}
-                      <span className="p-hint block">{hint}</span>
-                    </span>
-                  </label>
-                ))}
-              </div>
-              <a href="/submissions" target="_blank" rel="noopener" className="p-link focus-ember mt-4 inline-block font-body text-sm">
-                Open the public page
-              </a>
-            </section>
-
-            <SpecSection
-              settings={s}
-              busy={busy}
-              onSave={async (body, msg) => {
-                await put(body, msg);
-              }}
-            />
-
-            <section className="border-t border-bone/10 py-7">
-              <h2 className="p-block-title">Theme reveal</h2>
-              <p className="p-hint mt-1 max-w-[38rem]">
-                Model files that say they were created before this time are flagged for review (with two hours of slack for clocks). Default: the 9:10 AM opening.
-              </p>
-              <RevealInput value={s.revealAt} busy={busy} onSave={(v) => put({ revealAt: v }, "Reveal time saved.")} />
-            </section>
-
-            <section className="border-t border-bone/10 py-7">
               <h2 className="p-block-title">Judges</h2>
               <p className="p-hint mt-1 max-w-[38rem]">
                 One name per line, the way each judge will type it. Once there are names here, only these people can sign in as judges and only their marks count
@@ -300,59 +248,9 @@ export default function SettingsPage() {
             </section>
 
             <RoomsSection rooms={s.rooms} judges={s.judges} scheduled={s.scheduled} scheduleEnds={s.scheduleEnds} open={s.open} busy={busy} onSave={put} onSchedule={schedule} />
-
-            <SheetSection path={s.sheetPath} />
-
-
-            <section className="border-t border-bone/10 py-7">
-              <h2 className="p-block-title">Storage</h2>
-              <p className="mt-2 font-body text-[15px] text-foreground/85">
-                {s.storage === "r2" ? "Cloudflare R2 (private bucket)" : s.storage === "blob" ? "Vercel Blob (private store)" : "This computer (.data/portal). Local preview only."}
-              </p>
-              {s.devDefaults && <p className="p-notice mt-4 font-body text-sm">Running with the local preview passcodes. The deployed site refuses to start without real ones.</p>}
-            </section>
           </div>
         )}
       </div>
     </JudgeShell>
-  );
-}
-
-/** The live Google Sheet: IMPORTDATA of a secret CSV link (schedule, pairs, marks, ranking; no emails). */
-function SheetSection({ path }: { path: string }) {
-  const [copied, setCopied] = useState(false);
-  const url = `${window.location.origin}${path}`;
-  const formula = `=IMPORTDATA("${url}")`;
-  const copy = () =>
-    navigator.clipboard
-      .writeText(formula)
-      .then(() => {
-        setCopied(true);
-        window.setTimeout(() => setCopied(false), 2000);
-      })
-      .catch(() => {});
-  return (
-    <section className="border-t border-bone/10 py-7">
-      <h2 className="p-block-title">Google Sheet</h2>
-      <p className="p-hint mt-1 max-w-[38rem]">
-        A live sheet of every submission. Make a new Google Sheet and paste this into cell A1. Keep the link private: anyone with it can see team names.
-      </p>
-      <details className="j-more">
-        <summary className="focus-ember">More details</summary>
-        <p className="p-hint mt-1 max-w-[38rem]">
-          It lists time, room, judging pair, team, members, marks in, pair average and rank, and fills itself (Google refreshes it about every hour;
-          reopen the sheet to refresh sooner). No contact emails.
-        </p>
-      </details>
-      <div className="mt-4 flex flex-col gap-2 sm:flex-row">
-        <input className="p-input p-mono min-w-0 flex-1 text-[13px]" readOnly value={formula} onFocus={(e) => e.currentTarget.select()} aria-label="Formula for cell A1" />
-        <button type="button" className="btn-ghost p-btn shrink-0" onClick={copy}>
-          {copied ? "Copied" : "Copy formula"}
-        </button>
-      </div>
-      <a href={path} className="p-link focus-ember mt-3 inline-block font-body text-sm" download="mdc-2026-schedule.csv">
-        Or download it as a CSV
-      </a>
-    </section>
   );
 }

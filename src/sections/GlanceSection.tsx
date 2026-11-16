@@ -45,7 +45,6 @@ export default function GlanceSection() {
                 note and QR go. */}
             <div className="mt-7 hidden flex-wrap items-center gap-x-6 gap-y-3 md:flex">
               <SubmitButton
-                variant={closed ? "ghost" : "solid"}
                 aria-describedby={closed ? undefined : noteId}
                 className="min-h-[48px] px-7 py-3 text-[15px]"
               />

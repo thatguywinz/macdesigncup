@@ -44,28 +44,28 @@ export default function ResultsPage() {
   const [open, setOpen] = useState<string | null>(null);
 
   useEffect(() => {
-    api<Results>("/judge/results")
-      .then(setData)
-      .catch((e: ApiError) => (e.status === 401 ? signOut() : setError(e.message)));
+    const load = () =>
+      api<Results>("/judge/results")
+        .then(setData)
+        .catch((e: ApiError) => (e.status === 401 ? signOut() : setError(e.message)));
+    load();
+    const id = setInterval(load, 20_000);
+    return () => clearInterval(id);
   }, [signOut]);
 
   const f1 = (n: number | null | undefined) => (n === null || n === undefined ? "—" : n.toFixed(1));
 
   return (
-    <JudgeShell section="Results">
+    <JudgeShell section="Leaderboard">
       <div className="flex flex-col gap-4 pt-10 md:flex-row md:items-end md:justify-between md:pt-12">
         <div>
-          <h1 className="display-scene">Results</h1>
+          <h1 className="display-scene">Leaderboard</h1>
           <p className="mt-3 max-w-[40rem] font-body text-[15px] text-foreground/75">
-            Every entry, ranked by its judging pair's average total. An entry gets a rank once both of its pair's {data?.marksNeeded ?? 2} marks are in; the{" "}
-            <Link to="/judge/top" className="p-link focus-ember">
-              Top 5
-            </Link>{" "}
-            page is for the final meeting.
+            Every team, ranked by the average of its two judges' marks (out of {data?.maxTotal ?? 100}). A team is ranked once both judges in its room have marked it; teams with the same average share a place. Updates every 20 seconds.
           </p>
         </div>
         <a href="/api/portal/judge/export.csv" className="btn-ghost p-btn self-start focus-ember" download>
-          <Download size={15} strokeWidth={1.5} /> Download CSV
+          <Download size={15} strokeWidth={1.5} /> Download spreadsheet
         </a>
       </div>
 
@@ -112,7 +112,7 @@ export default function ResultsPage() {
                   {!r.complete && (i === 0 || data.rows[i - 1].complete) && (
                     <tr>
                       <th scope="rowgroup" colSpan={data.criteria.length + 5} className="!pt-6 text-left font-body text-[13px] font-medium text-concrete">
-                        Still being judged: no rank until both of the pair's marks are in. Averages here are partial.
+                        Still being judged: ranked once both judges have marked. Averages here are partial.
                       </th>
                     </tr>
                   )}
@@ -129,8 +129,6 @@ export default function ResultsPage() {
                       <div className="mt-0.5 text-[13px] text-concrete">
                         {r.members.map((m) => m.name).join(", ")}
                         {r.late && <span className="p-tag p-tag--bad ml-2">Late</span>}
-                        {r.openReviews > 0 && <span className="p-tag p-tag--ember ml-2">Needs review</span>}
-                        {r.award && <span className="p-tag p-tag--solid ml-2">{r.award}</span>}
                         {!r.complete && <span className="p-tag p-tag--bad ml-2">Not finished</span>}
                       </div>
                     </td>

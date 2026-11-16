@@ -108,9 +108,6 @@ export default function JudgeList() {
   const filters: [Filter, string][] = [
     ...(roomCount ? ([["room", `My room · ${myRoom}`]] as [Filter, string][]) : []),
     ["all", "All rooms"],
-    ["todo", "To mark"],
-    ["done", "Fully judged"],
-    ["review", "Needs review"],
   ];
 
   return (
@@ -240,10 +237,7 @@ export default function JudgeList() {
                       </span>
                     )}
                     {c.late && <span className="p-tag p-tag--bad">Late</span>}
-                    {c.openReviews > 0 && <span className="p-tag p-tag--ember">Needs review</span>}
-                    {!!c.specFails && <span className="p-tag p-tag--bad">Outside spec</span>}
                     {c.award && <span className="p-tag p-tag--solid">{c.award}</span>}
-                    {c.hidden && <span className="p-tag">Hidden</span>}
                   </span>
                 </span>
                 <span className="jl-status">

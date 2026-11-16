@@ -488,6 +488,30 @@ on("GET", "/status", async (ctx, _req, res) => {
   sendJson(res, 200, body);
 });
 
+// The judging schedule, public once submissions close: /submit shows it, and
+// organizers put it on the big screen. Only team names, design titles, rooms
+// and times (no student names).
+on("GET", "/schedule", async (ctx, req, res) => {
+  const w = await ensureSchedule(ctx, await windowOf(ctx));
+  const r = roomsOf(w.settings);
+  const closed = w.settings.closed || w.now >= w.deadline;
+  const base = { closed, rooms: r.names, slotMinutes: r.slotMinutes, start: iso(Date.parse(r.start)), end: iso(Date.parse(r.end)), now: iso(w.now) };
+  // Organizers see the slots as they're made, even before submissions close.
+  const organizer = readSession(ctx.cfg, req)?.role === "admin";
+  if (!closed && !organizer) return sendJson(res, 200, { ...base, slots: [] });
+  const doc = await ctx.db.read("entries");
+  const slots = Object.values(doc.entries)
+    .filter((e) => e.status === "submitted")
+    .flatMap((e) => {
+      const s = slotOf(w.settings, e.id);
+      return s ? [{ teamName: e.teamName || e.title, title: e.title, room: s.room, at: s.at }] : [];
+    })
+    .sort((a, b) => a.at.localeCompare(b.at) || a.room.localeCompare(b.room));
+  // Submitted teams that don't have a slot yet (organizers only).
+  const waiting = organizer ? Object.values(doc.entries).filter((e) => e.status === "submitted" && !slotOf(w.settings, e.id)).length : 0;
+  sendJson(res, 200, { ...base, slots, waiting });
+});
+
 // "Check link" on the form: is the video viewable without signing in?
 on("POST", "/video-check", async (ctx, req, res) => {
   rateLimit(`vcheck:${clientIp(req)}`, 60, 10 * 60 * 1000);

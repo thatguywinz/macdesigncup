@@ -11,10 +11,10 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { ArrowDown, ArrowLeft, ArrowRight, ChevronDown, Download, ExternalLink } from "lucide-react";
 import { ApiError, api, clock } from "../../api";
 import { formatBytes, isViewable, type ViewableExt } from "../../shared/formats";
-import { AWARDS, CRITERIA, MARK_MAX, MARKS_NEEDED, MAX_TOTAL, levelOf, totalOf, type Criterion } from "../../shared/judging";
+import { CRITERIA, MARK_MAX, MARKS_NEEDED, MAX_TOTAL, levelOf, totalOf, type Criterion } from "../../shared/judging";
 import type { JudgeEntry, Score } from "../../shared/schema";
 import type { Measure, Spec } from "../../shared/checks";
-import { ChecksPanel, MeasurePanel, ProcessPanel } from "./panels";
+import { MeasurePanel } from "./panels";
 import ModelViewer from "../../viewer/ModelViewer";
 import VideoPlayer from "../../components/VideoPlayer";
 import { parseVideoLink } from "../../shared/video";
@@ -398,10 +398,8 @@ function TeamDetails({
           </ul>
           {admin && <p className="p-hint mt-3">Contact: {e.contactEmail}</p>}
 
-          <ChecksPanel entry={e} admin={admin} onChange={onChange} />
           {hasModel && <MeasurePanel measure={liveMeasure} spec={spec} reported={e.measure} />}
           {hasModel && !liveMeasure && <p className="p-hint mt-1">Open the 3D model tab to measure it.</p>}
-          <ProcessPanel entry={e} />
 
           <div className="mt-8 flex flex-wrap gap-2 border-t border-bone/10 pt-5">
             <button type="button" className="btn-ghost p-btn p-btn-sm" disabled={!prev} onClick={() => prev && onNavigate(prev)}>
@@ -764,24 +762,11 @@ function AdminPanel({ entry, onChange }: { entry: JudgeEntry; onChange: (e: Judg
     <details className="jd-org group">
       <summary className="focus-ember">
         Organizer
-        <span className="font-normal text-concrete">award, public page, edit, late, delete</span>
+        <span className="font-normal text-concrete">let the team edit again, delete</span>
         <ChevronDown size={16} strokeWidth={1.5} className="jd-chev" aria-hidden="true" />
       </summary>
       <div className="mt-4 flex flex-col gap-5">
-        <label className="block max-w-[18rem]">
-          <span className="p-label">Award</span>
-          <select className="p-select mt-2" value={entry.award} disabled={busy} onChange={(e) => patch({ award: e.target.value })}>
-            {AWARDS.map((a) => (
-              <option key={a} value={a}>
-                {a || "None"}
-              </option>
-            ))}
-          </select>
-        </label>
-        {toggle("Pick for the public page", "Shown on /submissions when Settings is set to \"Only the ones I pick\", if the team allowed public viewing.", entry.gallery, "gallery")}
-        {toggle("Hide from the public", "The share link stops working for everyone but judges.", entry.hidden, "hidden")}
         {toggle("Let the team edit again", "Reopens their edit link after the deadline.", entry.unlocked, "unlocked")}
-        {toggle("Mark as late", "Judges see the late flag on the card.", entry.late, "late")}
         {error && <p className="p-notice p-notice--bad font-body text-sm">{error}</p>}
         <div className="mt-2 border border-[hsl(var(--destructive)/0.35)] p-4">
           <p className="font-body text-sm text-foreground/85">Delete this entry, its files and every judge's marks. This can't be undone.</p>
