@@ -77,13 +77,15 @@ export class R2Storage implements Storage {
   }
 
   async getDoc<T>(path: string): Promise<StoredDoc<T> | null> {
-    const res = await this.call(path, { method: "GET", headers: { "cache-control": "no-cache" } });
+    const res = await this.call(path, { method: "GET", headers: { "cache-control": "no-cache", "accept-encoding": "identity" } });
     if (res.status === 404) {
       await res.body?.cancel().catch(() => {});
       return null;
     }
     if (!res.ok) return this.fail(res, `GET ${path}`);
-    const etag = res.headers.get("etag") ?? "";
+    // A compressed reply carries a weak ETag (W/"..."), which If-Match
+    // rejects. The object's own ETag is the quoted part.
+    const etag = (res.headers.get("etag") ?? "").replace(/^W\//, "");
     const value = (await res.json()) as T;
     return { value, etag };
   }
