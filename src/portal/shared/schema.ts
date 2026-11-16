@@ -185,8 +185,10 @@ export function parseEntry(raw: unknown, opts: { draft?: boolean } = {}): Parsed
     tooLong(`members.${i}.name`, name, LIMITS.name, "A name");
     if (!school) need(`members.${i}.school`, "Which school?");
     tooLong(`members.${i}.school`, school, LIMITS.school, "A school name");
-    if (!grade) errors[`members.${i}.grade`] = "Pick a grade.";
-    return { name, school, grade: grade ?? "9" };
+    // Blank is fine in a draft (kept blank, never guessed); submitting needs a real grade.
+    const blank = o.grade === undefined || o.grade === null || String(o.grade) === "";
+    if (!grade && !(blank && draft)) errors[`members.${i}.grade`] = "Pick a grade.";
+    return { name, school, grade: grade ?? ("" as Grade) };
   });
   if (members.length === 0) need("members", "Add at least one team member.");
 
