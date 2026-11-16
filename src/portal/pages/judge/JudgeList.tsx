@@ -5,6 +5,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowRight, Search } from "lucide-react";
+import { hasDraft } from "./unsaved";
 import { ApiError, api, clock, closesLabel } from "../../api";
 import { countdown, useNow } from "../../hooks";
 import { MARKS_NEEDED } from "../../shared/judging";
@@ -241,7 +242,9 @@ export default function JudgeList() {
                   </span>
                 </span>
                 <span className="jl-status">
-                  {c.myTotal !== null ? (
+                  {hasDraft(me.name, c.id) ? (
+                    <span className="p-tag p-tag--bad" title="You changed marks on this team without saving. Open it and press Save.">Not saved</span>
+                  ) : c.myTotal !== null ? (
                     <span className="p-tag p-mono">You: {c.myTotal}</span>
                   ) : c.scoreCount >= MARKS_NEEDED ? (
                     <span className="p-tag jl-chip-done">Done</span>

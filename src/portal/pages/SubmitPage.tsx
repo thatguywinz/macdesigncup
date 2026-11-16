@@ -1341,7 +1341,7 @@ function ClosedSchedule({ deadline }: { deadline: string }) {
   const { data, error } = useSchedule();
   const screen = new URLSearchParams(useLocation().search).has("screen");
   return (
-    <Shell section={screen ? "Judging schedule" : "Submissions closed"} wide={screen}>
+    <Shell section={screen ? "Judging schedule" : "Submissions closed"} full={screen}>
       <div className={screen ? "-mb-20 pt-4" : "py-12 md:py-16"}>
         {screen ? (
           <div className="flex flex-wrap items-center justify-between gap-4">

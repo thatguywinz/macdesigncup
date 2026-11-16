@@ -3,6 +3,7 @@ import { createContext, useContext, type ReactNode } from "react";
 import { NavLink } from "react-router-dom";
 import { LogOut } from "lucide-react";
 import Shell from "../../components/Shell";
+import { guardLeave } from "./unsaved";
 
 export interface Me {
   role: "judge" | "admin";
@@ -29,18 +30,18 @@ export function JudgeShell({ children, section = "Judging" }: { children: ReactN
       right={
         <>
           <nav aria-label="Judging" className="hidden items-center md:flex">
-            <NavLink to="/judge" end className={tab}>
+            <NavLink to="/judge" end className={tab} onClick={guardLeave}>
               Entries
             </NavLink>
             {me.role === "admin" && (
               <>
-                <NavLink to="/judge/schedule" className={tab}>
+                <NavLink to="/judge/schedule" className={tab} onClick={guardLeave}>
                   Schedule
                 </NavLink>
-                <NavLink to="/judge/results" className={tab}>
+                <NavLink to="/judge/results" className={tab} onClick={guardLeave}>
                   Leaderboard
                 </NavLink>
-                <NavLink to="/judge/settings" className={tab}>
+                <NavLink to="/judge/settings" className={tab} onClick={guardLeave}>
                   Settings
                 </NavLink>
               </>
@@ -51,7 +52,7 @@ export function JudgeShell({ children, section = "Judging" }: { children: ReactN
             {me.name}
             {me.role === "admin" && <span className="ml-1.5 text-ember">organizer</span>}
           </span>
-          <button type="button" className="btn-ghost p-btn p-btn-sm ml-1" onClick={signOut} aria-label="Sign out">
+          <button type="button" className="btn-ghost p-btn p-btn-sm ml-1" onClick={() => guardLeave() && signOut()} aria-label="Sign out">
             <LogOut size={15} strokeWidth={1.5} />
           </button>
         </>
@@ -59,16 +60,16 @@ export function JudgeShell({ children, section = "Judging" }: { children: ReactN
     >
       {me.role === "admin" && (
         <nav aria-label="Judging" className="-mx-1 flex gap-0.5 overflow-x-auto border-b border-bone/10 py-2 md:hidden">
-          <NavLink to="/judge" end className={tab}>
+          <NavLink to="/judge" end className={tab} onClick={guardLeave}>
             Entries
           </NavLink>
-          <NavLink to="/judge/schedule" className={tab}>
+          <NavLink to="/judge/schedule" className={tab} onClick={guardLeave}>
             Schedule
           </NavLink>
-          <NavLink to="/judge/results" className={tab}>
+          <NavLink to="/judge/results" className={tab} onClick={guardLeave}>
             Leaderboard
           </NavLink>
-          <NavLink to="/judge/settings" className={tab}>
+          <NavLink to="/judge/settings" className={tab} onClick={guardLeave}>
             Settings
           </NavLink>
         </nav>

@@ -15,6 +15,7 @@ import { CRITERIA, MARK_MAX, MARKS_NEEDED, MAX_TOTAL, levelOf, totalOf, type Cri
 import type { JudgeEntry, Score } from "../../shared/schema";
 import type { Measure, Spec } from "../../shared/checks";
 import { MeasurePanel } from "./panels";
+import { guardLeave, readDraft, setUnsavedNow, writeDraft } from "./unsaved";
 import ModelViewer from "../../viewer/ModelViewer";
 import VideoPlayer from "../../components/VideoPlayer";
 import { parseVideoLink } from "../../shared/video";
@@ -415,35 +416,7 @@ function TeamDetails({
   );
 }
 
-// Marks not saved yet, kept on this device per entry, so moving to another
-// entry (or a refresh) mid-presentation doesn't lose them.
-const unsavedKey = (id: string) => `mdc-marks-${id}`;
-
-// Marks changed but not saved yet: links off the page ask first.
-let unsavedNow = false;
-const LEAVE_MSG = "Your marks for this team aren't saved yet. Leave without saving?";
-/** For a link off the entry: stops it if there are unsaved marks and the judge says no. */
-function guardLeave(e?: { preventDefault: () => void }): boolean {
-  if (!unsavedNow || window.confirm(LEAVE_MSG)) return true;
-  e?.preventDefault();
-  return false;
-}
-function readUnsaved(id: string): { marks: Record<string, number>; notes: string } | null {
-  try {
-    const v = JSON.parse(sessionStorage.getItem(unsavedKey(id)) ?? "null");
-    return v && typeof v === "object" && v.marks ? v : null;
-  } catch {
-    return null;
-  }
-}
-function writeUnsaved(id: string, v: { marks: Record<string, number>; notes: string } | null) {
-  try {
-    if (v) sessionStorage.setItem(unsavedKey(id), JSON.stringify(v));
-    else sessionStorage.removeItem(unsavedKey(id));
-  } catch {
-    /* fine */
-  }
-}
+// Unsaved marks live in ./unsaved (per judge, per entry).
 
 function ScoreForm({
   entryId,
@@ -461,7 +434,7 @@ function ScoreForm({
   const navigate = useNavigate();
   const { me } = useMe();
   const leaving = useRef(false);
-  const [unsaved] = useState(() => (practice ? null : readUnsaved(entryId)));
+  const [unsaved] = useState(() => (practice ? null : readDraft(me.name, entryId)));
   const [marks, setMarks] = useState<Record<string, number>>(unsaved?.marks ?? initial?.marks ?? {});
   const [notes, setNotes] = useState(unsaved?.notes ?? initial?.notes ?? "");
   const [savedAt, setSavedAt] = useState(initial?.updatedAt ?? "");
@@ -477,15 +450,13 @@ function ScoreForm({
   const sum = CRITERIA.reduce((n, c) => n + (typeof marks[c.id] === "number" ? marks[c.id] : 0), 0);
 
   useEffect(() => {
-    if (dirty && !practice) writeUnsaved(entryId, { marks, notes });
+    if (dirty && !practice) writeDraft(me.name, entryId, { marks, notes });
   }, [dirty, entryId, marks, notes, practice]);
 
   // Unsaved marks: warn before leaving the tab, and before any link off the page.
   useEffect(() => {
-    unsavedNow = dirty && !practice;
-    return () => {
-      unsavedNow = false;
-    };
+    setUnsavedNow(dirty && !practice);
+    return () => setUnsavedNow(false);
   }, [dirty, practice]);
   useEffect(() => {
     if (!dirty || practice) return;
@@ -510,7 +481,7 @@ function ScoreForm({
       const r = await api<{ score: Score }>(`/judge/entries/${entryId}/score`, { method: "PUT", body: { marks, notes } });
       setSavedAt(r.score.updatedAt);
       setDirty(false);
-      writeUnsaved(entryId, null);
+      writeDraft(me.name, entryId, null);
       noteSavedOnce();
       if (goNext && next) navigate(`/judge/entry/${next}`);
     } catch (e) {
@@ -521,7 +492,7 @@ function ScoreForm({
       } else if (status === 404) {
         setFailure("removed");
         setDirty(false);
-        writeUnsaved(entryId, null);
+        writeDraft(me.name, entryId, null);
         setError("Organizers removed this team. Your marks weren't needed.");
       } else setError((e as Error).message);
     } finally {
@@ -531,7 +502,7 @@ function ScoreForm({
 
   // Reload this entry's page: the sign-in screen shows first, then the entry with the kept marks.
   const signInAgain = () => {
-    writeUnsaved(entryId, { marks, notes });
+    writeDraft(me.name, entryId, { marks, notes });
     leaving.current = true;
     window.location.assign(`${window.location.pathname}?as=${encodeURIComponent(me.name)}`);
   };
