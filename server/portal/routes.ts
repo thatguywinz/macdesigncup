@@ -103,8 +103,13 @@ const FINISH_MINUTES = 10;
 
 /** A draft whose Submit was pressed in time, still finishing its uploads. */
 function finishing(w: Window, e: EntryRecord): boolean {
-  if (e.status !== "draft" || !e.submitPressedAt || w.settings.closed) return false;
-  return Date.parse(e.submitPressedAt) < w.deadline && w.now < w.deadline + FINISH_MINUTES * 60_000;
+  if (e.status !== "draft" || !e.submitPressedAt) return false;
+  // Submit can only be pressed while open, so a pressed Submit was in time.
+  // Closing early (or ticking "Close submissions now" at 1:30) starts the same
+  // finishing window from the moment it closed, instead of cancelling uploads.
+  const closedAt = w.settings.closed && w.settings.closedAt ? Date.parse(w.settings.closedAt) : Infinity;
+  const cutoff = Math.min(w.deadline, closedAt);
+  return Date.parse(e.submitPressedAt) < w.deadline && w.now < cutoff + FINISH_MINUTES * 60_000;
 }
 
 function canChange(w: Window, e: EntryRecord): boolean {
@@ -1380,7 +1385,11 @@ on("PUT", "/judge/settings", async (ctx, req, res) => {
       else if (typeof v === "string" && !Number.isNaN(Date.parse(v))) st.deadlineOverride = new Date(Date.parse(v)).toISOString();
       else fail(422, "That deadline isn't a valid date.");
     }
-    if (typeof body.closed === "boolean") st.closed = body.closed;
+    if (typeof body.closed === "boolean") {
+      if (body.closed && !st.closed) st.closedAt = iso(ctx.now?.() ?? Date.now());
+      if (!body.closed) delete st.closedAt;
+      st.closed = body.closed;
+    }
     if (Array.isArray(body.judges)) {
       const seen = new Set<string>();
       st.judges = body.judges

@@ -90,6 +90,8 @@ export interface SettingsDoc {
   deadlineOverride: string | null;
   /** Organizer closed submissions early, whatever the clock says. */
   closed: boolean;
+  /** When "Close submissions now" was ticked: an on-time Submit may still finish for FINISH_MINUTES after it. */
+  closedAt?: string;
 }
 
 /** Return this from a mutate() callback that decided not to change anything. */

@@ -740,7 +740,11 @@ export default function SubmitPage() {
                 </p>
               )}
               {locked &&
-                (saved?.status === "draft" ? (
+                (saved?.status === "draft" && busy ? (
+                  <p className="p-notice sf-alert font-body" role="status">
+                    Keep this page open: your files are still uploading. You pressed Submit before the deadline, so it counts.
+                  </p>
+                ) : saved?.status === "draft" ? (
                   <p className="p-notice p-notice--bad sf-alert font-body" role="alert">
                     Submissions closed before this entry was submitted, so judges won't see it. Find an organizer right away.
                   </p>
@@ -1339,6 +1343,11 @@ function PreviewEmpty() {
  */
 function ClosedSchedule({ deadline }: { deadline: string }) {
   const { data, error } = useSchedule();
+  // Someone was part-way through the form on this laptop when it closed.
+  const [unsent] = useState(() => {
+    const t = readTyped();
+    return !!t && !!(t.form.teamName || t.form.title || t.form.members.some((m) => m.name));
+  });
   const screen = new URLSearchParams(useLocation().search).has("screen");
   return (
     <Shell section={screen ? "Judging schedule" : "Submissions closed"} full={screen}>
@@ -1357,6 +1366,11 @@ function ClosedSchedule({ deadline }: { deadline: string }) {
               Submissions closed at {clock(deadline)}. Find your team below: be at your room 5 minutes early with your laptop ready to present.
             </p>
           </div>
+        )}
+        {!screen && unsent && (
+          <p className="p-notice p-notice--bad mt-6 font-body" role="alert">
+            The entry started on this laptop wasn't submitted before {clock(deadline)}, so it isn't in the schedule. Find an organizer now.
+          </p>
         )}
         <div className={screen ? "mt-4" : "mt-8"}>
           {error && !data && <p className="p-notice p-notice--bad font-body">Couldn't load the schedule. Refresh the page.</p>}
@@ -1702,11 +1716,15 @@ function Done({
             {entry.slot ? (
               <SlotNotice slot={entry.slot} className="" />
             ) : (
-              <p className="sf-room">Your judging room and time appear on your edit link{deadline ? ` at ${clock(deadline)}` : " when submissions close"}.</p>
+              <p className="sf-room">
+                {deadline && now >= Date.parse(deadline)
+                  ? "Your judging room and time are being set now: they appear on your edit link and at macdesigncup.ca/submit in a moment."
+                  : `Your judging room and time appear on your edit link${deadline ? ` at ${clock(deadline)}` : " when submissions close"}.`}
+              </p>
             )}
 
             <div className="sf-done-edit">
-              <p className="sf-sub text-foreground">Copy your edit link, then you can close this page. It shows your judging room and time, and lets your team make changes until submissions close.</p>
+              <p className="sf-sub text-foreground">Copy your edit link, then you can close this page. It shows your judging room and time{deadline && now >= Date.parse(deadline) ? "." : ", and lets your team make changes until submissions close."}</p>
               <CopyButton url={edit} label="Copy edit link" className="btn-portal p-btn sf-done-main" />
               <p className="p-hint">Keep it private: anyone with it can change your entry.</p>
               <input readOnly value={edit} className="p-input p-mono sf-done-url" onFocus={(e) => e.currentTarget.select()} aria-label="Edit link" />

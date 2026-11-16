@@ -319,6 +319,37 @@ describe("teams", () => {
     expect((await call(`/entries/${b.id}/submit`, { body: {}, key: b.key })).status).toBe(409);
   });
 
+  it("ticking 'Close submissions now' at 1:30 doesn't cancel an on-time Submit still uploading", async () => {
+    const admin = await login("admin-demo", "Organizer");
+    clock = Date.parse("2026-11-16T13:29:55-05:00");
+    const { id, key } = await create({ title: "Last Second" }); // Submit pressed in time
+    const s = await call(`/entries/${id}/files`, { body: { slot: "model", name: "big.stl", size: tinyStl().length }, key });
+    expect(s.status).toBe(200);
+    // 1:30:05: an organizer ticks "Close submissions now" to be safe.
+    clock = Date.parse("2026-11-16T13:30:05-05:00");
+    await call("/judge/settings", { method: "PUT", body: { closed: true }, cookie: admin.cookie });
+    // The upload lands at 1:32 and the entry still submits, on time.
+    clock = Date.parse("2026-11-16T13:32:00-05:00");
+    await fetch(new URL(s.json.ticket.url, base), { method: "PUT", body: tinyStl(), headers: { "X-Portal": "1" } });
+    expect((await call(`/entries/${id}/files/${s.json.fileId}/complete`, { body: {}, key })).status).toBe(200);
+    const sub = await call(`/entries/${id}/submit`, { body: {}, key });
+    expect(sub.status).toBe(200);
+    expect(sub.json.entry.late).toBe(false);
+    // Closing early still stops brand-new entries.
+    expect((await call("/entries", { body: { code: "MDC-DEMO", entry: entry() } })).status).toBe(409);
+    await call("/judge/settings", { method: "PUT", body: { closed: false }, cookie: admin.cookie });
+  });
+
+  it("closing early (before 1:30) gives in-time Submits 10 minutes from the close, not from 1:30", async () => {
+    const admin = await login("admin-demo", "Organizer");
+    clock = Date.parse("2026-11-16T12:00:00-05:00");
+    const { id, key } = await create({ title: "Early Close" });
+    await call("/judge/settings", { method: "PUT", body: { closed: true }, cookie: admin.cookie });
+    clock = Date.parse("2026-11-16T12:11:00-05:00"); // 11 minutes after the early close
+    expect((await call(`/entries/${id}/submit`, { body: {}, key })).status).toBe(409);
+    await call("/judge/settings", { method: "PUT", body: { closed: false }, cookie: admin.cookie });
+  });
+
   it("doesn't let declared upload sizes cheat the entry's 300 MB limit", async () => {
     const { id, key } = await create();
     const s = await call(`/entries/${id}/files`, { body: { slot: "model", name: "m.stl", size: 10 }, key });
