@@ -585,7 +585,9 @@ export default function SubmitPage() {
       // "finishing"; uploads may have landed), unless another device changed it.
       if (id && key && !err.body?.stale)
         void api<{ entry: OwnEntry }>(`/entries/${id}`, { editKey: key })
-          .then((r) => setSaved(r.entry))
+          // Keep the revision the form was built on, so a retry can't pass the
+          // two-device check with older fields than the server now has.
+          .then((r) => setSaved((prev) => ({ ...r.entry, detailsAt: prev?.detailsAt ?? r.entry.detailsAt })))
           .catch(() => {});
       const fromServer: FieldErrors = { ...(err.body?.errors ?? {}), ...(err.body?.field ? { [err.body.field]: err.message } : {}) };
       if (Object.keys(fromServer).length) showErrors(fromServer);
