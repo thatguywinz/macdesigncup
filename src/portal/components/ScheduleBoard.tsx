@@ -63,7 +63,8 @@ export default function ScheduleBoard({ data, big = false, search = true }: { da
 
   const found = q.trim() ? data.slots.filter((s) => fold(s.teamName).includes(fold(q)) || fold(s.title).includes(fold(q))) : [];
 
-  const rooms = data.rooms.slice().sort();
+  // Every room that has a team, even one renamed in Settings after slots were given out.
+  const rooms = [...new Set([...data.rooms, ...data.slots.map((x) => x.room)])].sort();
   const byRoom = new Map(rooms.map((r) => [r, data.slots.filter((s) => s.room === r)]));
 
   // Big screen: size the rows so the longest room fits the screen without
@@ -136,7 +137,7 @@ export default function ScheduleBoard({ data, big = false, search = true }: { da
       {data.slots.length === 0 ? (
         <p className="sb-empty font-body">No teams scheduled yet.</p>
       ) : (
-        <div className="sb-rooms" style={{ ["--sb-cols" as string]: rooms.length }}>
+        <div className="sb-rooms" style={{ ["--sb-cols" as string]: rooms.length } as CSSProperties}>
           {rooms.map((room) => {
             const list = byRoom.get(room) ?? [];
             return (

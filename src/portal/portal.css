@@ -484,6 +484,8 @@
 .sb-empty { color: hsl(var(--foreground) / 0.75); }
 .sb-rooms { display: grid; grid-template-columns: repeat(var(--sb-cols, 3), minmax(0, 1fr)); gap: 1.25rem; }
 @media (max-width: 860px) { .sb-rooms { grid-template-columns: minmax(0, 1fr); } }
+/* The projector keeps one column per room at any width, so the fit sizing holds. */
+@media (min-width: 600px) { .sb--big .sb-rooms { grid-template-columns: repeat(var(--sb-cols, 3), minmax(0, 1fr)); gap: 0.75rem; } }
 .sb-room { min-width: 0; border-top: 2px solid hsl(var(--ember)); padding-top: 0.75rem; }
 .sb-room-name { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; font-family: "Space Mono", ui-monospace, monospace; font-size: 1.15rem; font-weight: 700; color: hsl(var(--foreground)); margin-bottom: 0.5rem; }
 .sb-room-name span { font-size: 0.75rem; font-weight: 400; color: hsl(var(--concrete)); }
