@@ -502,7 +502,7 @@
 .sb--big .sb-room-name { font-size: clamp(1.3rem, 2vw, 2.2rem); margin-bottom: 0.25rem; }
 .sb--big .sb-room { padding-top: 0.4rem; }
 /* --sb-fit is set from the screen height so the longest room fits without scrolling. */
-.sb--big .sb-slot { grid-template-columns: 6.2em minmax(0, 1fr) auto; padding: 0.3em 0.4rem; font-size: min(var(--sb-fit, 1.6rem), 2.6vw); line-height: 1.15; }
+.sb--big .sb-slot { grid-template-columns: 4.8em minmax(0, 1fr) auto; padding: 0.3em 0.4rem; font-size: var(--sb-fit, 1.6rem); line-height: 1.15; }
 .sb--big .sb-room-name span { font-size: 0.55em; }
 .sb--big .sb-slot time { font-size: 0.85em; }
 .sb--big .sb-team { font-size: 1em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

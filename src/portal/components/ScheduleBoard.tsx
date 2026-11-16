@@ -79,8 +79,13 @@ export default function ScheduleBoard({ data, big = false, search = true }: { da
       const board = document.querySelector(".sb--big .sb-rooms");
       const top = board ? board.getBoundingClientRect().top + window.scrollY : 220;
       const room = window.innerHeight - top - 70; // room-name header and a margin
-      // A row is about 1.75x its font size tall.
-      setFit(Math.max(11, Math.min(52, Math.floor(room / longest / 1.75))));
+      // A row is about 1.75x its font size tall...
+      const byHeight = room / longest / 1.75;
+      // ...and a column must hold the time (about 4.6em) plus an 18-character
+      // team name (about 9.5em at this face) without cutting it off.
+      const colWidth = board ? board.getBoundingClientRect().width / Math.max(1, rooms.length) : 500;
+      const byWidth = colWidth / 15;
+      setFit(Math.max(11, Math.min(52, Math.floor(Math.min(byHeight, byWidth)))));
     };
     size();
     // Fine-tune: step down until the page no longer scrolls.
@@ -97,7 +102,7 @@ export default function ScheduleBoard({ data, big = false, search = true }: { da
       window.removeEventListener("resize", size);
       document.removeEventListener("fullscreenchange", size);
     };
-  }, [big, longest]);
+  }, [big, longest, rooms.length]);
 
   return (
     <div className={`sb ${big ? "sb--big" : ""}`} style={big && fit ? ({ ["--sb-fit" as string]: `${fit}px` } as CSSProperties) : undefined}>
@@ -157,7 +162,7 @@ export default function ScheduleBoard({ data, big = false, search = true }: { da
                       <li key={s.at} className={`sb-slot ${state ? `sb-slot--${state}` : ""} ${hit ? "sb-slot--hit" : ""}`}>
                         <time dateTime={s.at}>{time(s.at)}</time>
                         <span className="sb-team">{s.teamName}</span>
-                        {state === "now" ? <em className="sb-now">Presenting now</em> : <span />}
+                        {state === "now" ? <em className="sb-now" title="Presenting now">Now</em> : <span />}
                       </li>
                     );
                   })}

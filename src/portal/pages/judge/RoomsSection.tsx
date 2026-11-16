@@ -153,6 +153,13 @@ export default function RoomsSection({
         className="btn-ghost p-btn mt-4"
         disabled={busy || !roomList.length || !start || !end}
         onClick={async () => {
+          if (
+            scheduled > 0 &&
+            !window.confirm(
+              `${scheduled} ${scheduled === 1 ? "team already has" : "teams already have"} a room and time. Saving won't move them: a renamed room leaves its teams under the old name, and a new start time or slot length only applies to teams scheduled after this. Save anyway?`,
+            )
+          )
+            return;
           const ok = await onSave(
             { rooms: { names: roomList, start: new Date(start).toISOString(), end: new Date(end).toISOString(), slotMinutes: Number(minutes), judgeRooms: Object.fromEntries(Object.entries(seats).filter(([, r]) => r)) } },
             "Rooms saved.",

@@ -1087,7 +1087,7 @@ async function results(ctx: PortalContext) {
   const judges = counted.map(([key, j]) => ({ key, name: j.name }));
   // Marks from people not on the list: shown so organizers notice, never averaged.
   const unlisted = Object.entries(scores.judges)
-    .filter(([key]) => !countedKeys.has(key))
+    .filter(([key, j]) => !countedKeys.has(key) && j.role !== "admin")
     .map(([key, j]) => ({ key, name: j.name, marked: Object.values(j.scores).filter((x) => totalOf(x.marks) !== null).length }));
   const rows = Object.values(doc.entries)
     .filter((e) => e.status === "submitted")
@@ -1194,12 +1194,13 @@ const torontoStamp = (iso: string) => new Date(iso).toLocaleString("en-US", { ti
 on("GET", "/judge/export.csv", async (ctx, req, res) => {
   requireAdmin(ctx.cfg, req);
   const r = await results(ctx);
-  const head = ["Rank", "Team", "Title", "Credit", "Members", "Schools", "Grades", "Contact email", "Average", ...r.criteria.map((c) => c.label), "Judges", ...r.judges.map((j) => j.name), "Judging room", "Judging time", "Submitted", "Entry id"];
+  const head = ["Rank", "Status", "Team", "Title", "Credit", "Members", "Schools", "Grades", "Contact email", "Average", ...r.criteria.map((c) => c.label), "Judges", ...r.judges.map((j) => j.name), "Judging room", "Judging time", "Submitted", "Entry id"];
   const lines = [head.map(csvCell).join(",")];
   r.rows.forEach((row, i) => {
     lines.push(
       [
-        row.rank ?? i + 1,
+        row.rank ? `${row.rank}${row.tied ? "=" : ""}` : "",
+        row.complete ? "Ranked" : `Still being judged (${row.judgeCount} of ${r.marksNeeded} marks)`,
         row.teamName,
         row.title,
         row.creditLine,

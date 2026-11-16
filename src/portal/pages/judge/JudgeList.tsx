@@ -122,7 +122,7 @@ export default function JudgeList() {
         </div>
         {data && (
           <p className={`p-mono text-[12px] ${left && deadline - now < 30 * 60 * 1000 ? "text-ember" : "text-concrete"}`}>
-            Submissions {closesLabel(data.deadline, now, left).replace(/^Closes/, "close").replace(/^Closed/, "closed")}
+            {data.open ? `Submissions ${closesLabel(data.deadline, now, left).replace(/^Closes/, "close").replace(/^Closed/, "closed")}` : "Submissions closed"}
           </p>
         )}
       </div>
