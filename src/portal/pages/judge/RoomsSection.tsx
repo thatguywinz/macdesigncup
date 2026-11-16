@@ -117,10 +117,11 @@ export default function RoomsSection({
           <span className="p-label">Judging ends</span>
           <input type="datetime-local" className="p-input mt-2 w-auto" value={end} onChange={(e) => setEnd(e.target.value)} />
         </label>
-        <label className="block">
+        <div className="block">
           <span className="p-label">Minutes per team</span>
-          <input type="number" min={1} max={30} className="p-input mt-2 w-24" value={minutes} onChange={(e) => setMinutes(e.target.value)} />
-        </label>
+          <p className="mt-2 font-body text-[15px] text-foreground/85">{scheduled ? `${minutes} (set at 1:30)` : "Set at 1:30"}</p>
+          <p className="p-hint mt-1 max-w-[16rem]">Worked out from the number of teams so everyone fits before judging ends; at least 2 minutes.</p>
+        </div>
       </div>
 
       {judges.length > 0 && (

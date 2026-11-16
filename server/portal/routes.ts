@@ -395,13 +395,30 @@ function inMyQueue(settings: SettingsDoc, judge: string, id: string): boolean {
  * least-busy room. Entries already scheduled keep theirs, so a late change
  * never moves a team that was told its time.
  */
+/** The shortest judging slot: a 1-minute pitch plus a minute to mark and change over. */
+const MIN_SLOT_MINUTES = 2;
+
 function fillSchedule(st: SettingsDoc, entries: Record<string, EntryRecord>) {
-  const r = roomsOf(st);
+  let r = roomsOf(st);
   const schedule: Record<string, { room: string; at: string }> = {};
   // Keep slots for entries that still exist, are submitted and whose room is still a room.
   for (const [id, s] of Object.entries(st.schedule ?? {})) {
     const e = Object.hasOwn(entries, id) ? entries[id] : null;
     if (e && e.status === "submitted" && r.names.includes(s.room)) schedule[id] = s;
+  }
+  // A fresh schedule picks one slot length for everyone: as long as the
+  // window allows so every team fits between start and end, never under
+  // MIN_SLOT_MINUTES (past that it runs late, and the Schedule tab says so).
+  // Teams added later reuse the same length and go at the end.
+  if (!Object.keys(schedule).length) {
+    const n = Object.values(entries).filter((e) => e.status === "submitted").length;
+    const perRoom = Math.ceil(n / Math.max(1, r.names.length));
+    const windowMin = (Date.parse(r.end) - Date.parse(r.start)) / 60_000;
+    if (perRoom > 0 && windowMin > 0) {
+      const minutes = Math.max(MIN_SLOT_MINUTES, Math.floor(windowMin / perRoom));
+      st.rooms = { ...r, slotMinutes: minutes };
+      r = roomsOf(st);
+    }
   }
   const step = r.slotMinutes * 60_000;
   const next = new Map(r.names.map((n) => [n, Date.parse(r.start)]));

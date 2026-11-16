@@ -675,7 +675,10 @@ describe("judging schedule", () => {
     expect(Math.abs(r1 - r2)).toBeLessThanOrEqual(1); // balanced
     const r2times = slots.filter((s: { room: string }) => s.room === "R2").map((s: { at: string }) => Date.parse(s.at)).sort();
     expect(r2times[0]).toBe(Date.parse("2026-11-16T14:10:00-05:00"));
-    expect(r2times[1] - r2times[0]).toBe(5 * 60_000);
+    // The slot length is worked out from the team count (at least 2 minutes) and used for every slot.
+    const minutes = (await call("/judge/settings", { cookie: admin.cookie })).json.rooms.slotMinutes;
+    expect(minutes).toBeGreaterThanOrEqual(2);
+    expect(r2times[1] - r2times[0]).toBe(minutes * 60_000);
     expect(Date.parse(st.json.scheduleEnds)).toBeGreaterThan(Date.parse("2026-11-16T14:10:00-05:00"));
 
     // A new entry is added after the others; nobody already scheduled moves.
@@ -707,6 +710,53 @@ describe("judging schedule", () => {
 
     await call("/judge/schedule", { body: { action: "clear", force: true }, cookie: admin.cookie });
     await call("/judge/settings", { method: "PUT", body: { judges: [], rooms: { names: ["WFL632", "WFL634", "WFL637"], judgeRooms: {} } }, cookie: admin.cookie });
+  });
+});
+
+describe("slot length fits every team between 2:00 and 3:00", () => {
+  async function scheduleWith(n: number) {
+    const admin = await login("admin-demo", "Organizer");
+    await call("/judge/schedule", { body: { action: "clear", force: true }, cookie: admin.cookie });
+    for (const id of Object.keys((await ctx.db.read("entries", { fresh: true })).entries)) await call(`/judge/entries/${id}`, { method: "DELETE", cookie: admin.cookie });
+    await call("/judge/settings", {
+      method: "PUT",
+      body: { judges: [], rooms: { names: ["WFL632", "WFL634", "WFL637"], start: "2026-11-16T14:00:00-05:00", end: "2026-11-16T15:00:00-05:00", slotMinutes: 2, judgeRooms: {} } },
+      cookie: admin.cookie,
+    });
+    for (let i = 0; i < n; i++) {
+      const { id, key } = await create({ title: `Fit ${i}`, teamName: `Fit Team ${i}` });
+      await call(`/entries/${id}/submit`, { body: {}, key });
+    }
+    await call("/judge/schedule", { body: { action: "make" }, cookie: admin.cookie });
+    const st = await ctx.db.read("settings", { fresh: true });
+    const ats = Object.values(st.schedule ?? {}).map((s) => Date.parse(s.at));
+    const minutes = st.rooms!.slotMinutes;
+    return { minutes, lastEnds: Math.max(...ats) + minutes * 60_000, admin };
+  }
+  const THREE = Date.parse("2026-11-16T15:00:00-05:00");
+
+  it("35 teams: 12 a room, 5-minute slots, all done by 3:00", async () => {
+    const r = await scheduleWith(35);
+    expect(r.minutes).toBe(5);
+    expect(r.lastEnds).toBeLessThanOrEqual(THREE);
+  });
+
+  it("6 teams: longer slots (30 minutes), still ending by 3:00", async () => {
+    const r = await scheduleWith(6);
+    expect(r.minutes).toBe(30);
+    expect(r.lastEnds).toBeLessThanOrEqual(THREE);
+  });
+
+  it("never under 2 minutes, and a late addition reuses the same length", async () => {
+    const r = await scheduleWith(100);
+    expect(r.minutes).toBe(2);
+    const { id, key } = await create({ title: "Late Add" });
+    await call(`/entries/${id}/submit`, { body: {}, key });
+    await call("/judge/schedule", { body: { action: "make" }, cookie: r.admin.cookie });
+    const st = await ctx.db.read("settings", { fresh: true });
+    expect(st.rooms!.slotMinutes).toBe(2);
+    expect(st.schedule![id]).toBeTruthy();
+    await call("/judge/schedule", { body: { action: "clear", force: true }, cookie: r.admin.cookie });
   });
 });
 

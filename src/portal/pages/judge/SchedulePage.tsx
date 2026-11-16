@@ -49,7 +49,7 @@ export default function SchedulePage() {
           <h1 className="display-scene">Schedule</h1>
           <p className="mt-3 max-w-[44rem] font-body text-[15px] text-foreground/75">
             {data
-              ? `Judging ${clock(data.start)} to ${clock(data.end)} in ${data.rooms.length} rooms, ${data.slotMinutes} minutes per team. When submissions close, every submitted team gets a room and time by itself, in the order they submitted. Teams see theirs on macdesigncup.ca/submit and on their edit link.`
+              ? `Judging ${clock(data.start)} to ${clock(data.end)} in ${data.rooms.length} rooms. ${data.slots.length ? `${data.slotMinutes} minutes per team.` : "The minutes per team are worked out at 1:30 so every team fits by " + clock(data.end) + " (at least 2 minutes each)."} When submissions close, every submitted team gets a room and time by itself, in the order they submitted. Teams see theirs on macdesigncup.ca/submit and on their edit link.`
               : "Loading…"}
           </p>
         </div>

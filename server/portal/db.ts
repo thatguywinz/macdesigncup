@@ -49,9 +49,11 @@ export interface RoomsSetup {
 export const DEFAULT_ROOMS: RoomsSetup = {
   names: ["WFL632", "WFL634", "WFL637"],
   start: "2026-11-16T14:00:00-05:00", // judging starts 2:00 PM (organizers, 2026-11-14)
-  end: "2026-11-16T15:20:00-05:00",
-  // A 1-minute pitch, then 1 to 2 minutes of scoring while the next team sets up.
-  slotMinutes: 3,
+  end: "2026-11-16T15:00:00-05:00", // every team fits between 2:00 and 3:00 PM (organizers, 2026-11-16)
+  // Worked out when the schedule is made (see fillSchedule in routes.ts):
+  // the window divided by the busiest room's team count, at least
+  // MIN_SLOT_MINUTES. This is what an empty schedule shows until then.
+  slotMinutes: 2,
   judgeRooms: {},
 };
 

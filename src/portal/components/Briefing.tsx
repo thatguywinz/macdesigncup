@@ -35,7 +35,7 @@ export function JudgingBriefing({
           <CalendarClock size={18} strokeWidth={1.5} className="mt-0.5 shrink-0 text-ember" aria-hidden="true" />
           <span>
             Judging runs{" "}
-            <span className="text-foreground">{judging ? `${clock(judging.start).replace(/ PM$/, "")} to ${clock(judging.end)}` : "2:00 to 3:20 PM"}</span> in {roomList}. You get your room and time after
+            <span className="text-foreground">{judging ? `${clock(judging.start).replace(/ PM$/, "")} to ${clock(judging.end)}` : "2:00 to 3:00 PM"}</span> in {roomList}. You get your room and time after
             submissions close{deadline ? ` at ${clock(deadline)}` : ""}. It shows on your entry's edit page too.
           </span>
         </li>

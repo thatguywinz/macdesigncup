@@ -52,7 +52,7 @@ export function OrganizerGuide({ marksCount, deadline }: { marksCount: boolean |
             </li>
             <li>
               <span className="p-mono mr-2 text-ember">2</span>On the entry: sees the team's pictures and model, reads their few words, and listens to the
-              1-minute pitch. There's no timer on their screen; the room schedule (minutes per team, set in Settings) keeps time.
+              1-minute pitch. There's no timer on their screen; the room schedule keeps time (the minutes per team are set at 1:30 so everyone fits by 3:00).
             </li>
             <li>
               <span className="p-mono mr-2 text-ember">3</span>For each of the 4 categories, taps the description that fits, then the points. Then{" "}
