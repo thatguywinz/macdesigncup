@@ -1,7 +1,7 @@
 // /submissions (and the old /gallery): the public page of entries, when
 // organizers switch it on in Settings: every submitted entry that allows
 // sharing, or only the ones they picked. The placed teams (1st to 5th, as
-// announced at the closing ceremony) lead in a Winners section; scores and
+// announced at the closing ceremony) lead on a podium (1st to 3rd) with 4th and 5th below; scores and
 // the full ranking never appear here. Each card opens the entry's page.
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
@@ -39,9 +39,9 @@ export default function GalleryPage() {
     [all],
   );
   const q = query.trim().toLowerCase();
-  // Searching looks through every design, winners included, in one list.
+  // The full list includes the winners too (with their place tag); search filters it.
   const shown = useMemo(
-    () => (q ? all.filter((e) => [e.title, e.credit, ...e.software].some((s) => s.toLowerCase().includes(q))) : all.filter((e) => !placeOf(e.award))),
+    () => (q ? all.filter((e) => [e.title, e.credit, ...e.software].some((s) => s.toLowerCase().includes(q))) : all),
     [all, q],
   );
   const open = data && data.mode !== "off";
@@ -67,29 +67,24 @@ export default function GalleryPage() {
         <>
           <Notes />
 
-          {winners.length > 0 && !q && (
+          {winners.length > 0 && (
             <section aria-labelledby="winners" className="mt-16">
               <h2 id="winners" className="font-display text-[clamp(2rem,4vw,3rem)] uppercase leading-none text-bone">
                 Winners
               </h2>
-              <p className="mt-3 max-w-[40rem] font-body text-foreground/70">The top five, as announced at the closing ceremony.</p>
-              <ol className="mt-8 grid gap-6 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
-                {winners[0] && (
-                  <li className="lg:row-span-2">
-                    <WinnerCard e={winners[0]} big />
-                  </li>
-                )}
-                {winners.slice(1, 3).map((e) => (
-                  <li key={e.id}>
-                    <WinnerCard e={e} />
+              <p className="mt-3 max-w-[40rem] font-body text-foreground/70">The top five, as announced at the closing ceremony. Click a design to see it up close.</p>
+              <ol className="mx-auto mt-10 grid max-w-[60rem] gap-6 md:grid-cols-[1fr_1.15fr_1fr] md:items-end md:gap-0">
+                {winners.slice(0, 3).map((e) => (
+                  <li key={e.id} className={PODIUM_ORDER[placeOf(e.award)]}>
+                    <PodiumSpot e={e} />
                   </li>
                 ))}
               </ol>
               {winners.length > 3 && (
-                <ol className="mt-6 grid gap-6 sm:grid-cols-2">
+                <ol className="mx-auto mt-8 grid max-w-[60rem] gap-4 md:grid-cols-2">
                   {winners.slice(3).map((e) => (
                     <li key={e.id}>
-                      <WinnerCard e={e} />
+                      <RunnerUp e={e} />
                     </li>
                   ))}
                 </ol>
@@ -100,7 +95,7 @@ export default function GalleryPage() {
           <section aria-labelledby="all-designs" className="mt-20">
             <div className="flex flex-col gap-5 border-t border-bone/10 pt-8 md:flex-row md:items-end md:justify-between">
               <h2 id="all-designs" className="font-display text-[clamp(2rem,4vw,3rem)] uppercase leading-none text-bone">
-                {q ? "Search" : winners.length ? "Every other design" : "Every design"}
+                All submissions
               </h2>
               {all.length > 6 && (
                 <label className="relative block md:w-80">
@@ -171,33 +166,65 @@ function Badges({ e }: { e: PublicEntry }) {
   );
 }
 
-function WinnerCard({ e, big }: { e: PublicEntry; big?: boolean }) {
+// Podium: 2nd left, 1st centre and tallest, 3rd right (on phones they stack
+// 1st, 2nd, 3rd). The plinths sit edge to edge so they read as one podium.
+const PODIUM_ORDER = ["", "md:order-2", "md:order-1", "md:order-3"];
+const PLINTH = [
+  "",
+  "bg-ember text-background md:h-44",
+  "bg-bone/[0.09] text-bone md:h-32",
+  "bg-bone/[0.05] text-bone/80 md:h-24",
+];
+
+function PodiumSpot({ e }: { e: PublicEntry }) {
   const place = placeOf(e.award);
   const cover = coverOf(e);
   return (
-    <Link to={`/entry/${e.id}`} className="j-card focus-ember group h-full" aria-label={`${e.award}: ${e.title} by ${e.credit}`}>
-      <div className={`relative overflow-hidden bg-[#0d0e10] ${big ? "aspect-[4/3] lg:aspect-auto lg:min-h-0 lg:flex-1" : "aspect-[16/10]"}`}>
+    <Link to={`/entry/${e.id}`} className="focus-ember group flex flex-col-reverse gap-2 md:flex-col md:gap-4" aria-label={`${e.award}: ${e.title} by ${e.credit}`}>
+      <div className="j-card transition-transform duration-300 group-hover:-translate-y-1 group-hover:border-bone/30 md:mx-3">
+        <div className="relative aspect-[4/3] overflow-hidden bg-[#0d0e10]">
+          {cover ? (
+            <img src={cover.url} alt="" loading="eager" className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.04]" />
+          ) : (
+            <div className="grid h-full place-items-center text-concrete">
+              <Box size={28} strokeWidth={1.2} aria-hidden="true" />
+            </div>
+          )}
+          <Badges e={e} />
+        </div>
+        <div className="flex flex-col gap-1 p-4">
+          <span className={`font-body font-semibold leading-snug tracking-[-0.01em] text-bone ${place === 1 ? "text-xl" : "text-lg"}`}>{e.title}</span>
+          <span className="font-body text-sm text-concrete">by {e.credit}</span>
+        </div>
+      </div>
+      <div aria-hidden="true" className={`flex items-center justify-center py-2 md:items-start md:py-5 ${PLINTH[place]}`}>
+        <span className={`font-display uppercase leading-none ${place === 1 ? "text-[clamp(3rem,5vw,4.5rem)]" : "text-[clamp(2.5rem,4vw,3.5rem)]"}`}>{ORDINAL[place]}</span>
+      </div>
+    </Link>
+  );
+}
+
+function RunnerUp({ e }: { e: PublicEntry }) {
+  const place = placeOf(e.award);
+  const cover = coverOf(e);
+  return (
+    <Link to={`/entry/${e.id}`} className="j-card focus-ember group flex-row items-center" aria-label={`${e.award}: ${e.title} by ${e.credit}`}>
+      <div className="relative aspect-[4/3] w-32 shrink-0 overflow-hidden bg-[#0d0e10] sm:w-40">
         {cover ? (
-          <img src={cover.url} alt="" loading={place <= 3 ? "eager" : "lazy"} className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]" />
+          <img src={cover.url} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.04]" />
         ) : (
           <div className="grid h-full place-items-center text-concrete">
-            <Box size={28} strokeWidth={1.2} aria-hidden="true" />
+            <Box size={24} strokeWidth={1.2} aria-hidden="true" />
           </div>
         )}
-        <Badges e={e} />
       </div>
-      <div className="flex items-start gap-4 p-5">
-        <span
-          aria-hidden="true"
-          className={`font-display uppercase leading-[0.85] ${place === 1 ? "text-[clamp(3rem,6vw,4.5rem)] text-ember" : place <= 3 ? "text-[2.75rem] text-ember" : "text-[2.25rem] text-bone/70"}`}
-        >
-          {ORDINAL[place]}
-        </span>
-        <span className="flex min-w-0 flex-col gap-1 pt-1">
-          <span className={`font-body font-semibold tracking-[-0.01em] text-bone ${big ? "text-2xl" : "text-lg"}`}>{e.title}</span>
-          <span className="font-body text-sm text-concrete">by {e.credit}</span>
-        </span>
-      </div>
+      <span aria-hidden="true" className="pl-5 font-display text-[2.25rem] uppercase leading-none text-bone/70">
+        {ORDINAL[place]}
+      </span>
+      <span className="flex min-w-0 flex-col gap-1 px-4 py-3">
+        <span className="font-body text-lg font-semibold leading-snug tracking-[-0.01em] text-bone">{e.title}</span>
+        <span className="font-body text-sm text-concrete">by {e.credit}</span>
+      </span>
     </Link>
   );
 }
