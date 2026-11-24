@@ -103,6 +103,12 @@ export const SUBMIT_URL_SHORT = `${SITE_HOST}${SUBMIT_PATH}`;
  * on in the portal's Settings.
  */
 export const GALLERY_OPEN = true;
+/**
+ * What happened on the day, for the recap copy. Counted from the submitted
+ * entries in the portal on 2026-11-23: students named on a submitted entry,
+ * and submitted entries. Not attendance (some who came didn't submit).
+ */
+export const RECAP = { students: 66, designs: 41 } as const;
 export const GALLERY_PATH = "/submissions";
 /** Where a closed Submit button goes: the gallery once it's open, else the time slots. */
 export const CLOSED_PATH = GALLERY_OPEN ? GALLERY_PATH : SUBMIT_PATH;
