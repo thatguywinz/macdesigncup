@@ -24,6 +24,7 @@
 // immersive, cutting-edge design experience."
 // ─────────────────────────────────────────────
 import {
+  GALLERY_OPEN,
   CLUB,
   CLUB_SCHOOL,
   CONTACT_EMAIL,
@@ -69,8 +70,8 @@ const HOUR = (t: string) => t.replace(":00 ", " ");
 export const CTA = {
   /** The day's one call to action: to /submit. */
   submit: "Submit here",
-  /** The same button once submissions close: /submit then shows every team's room and time. */
-  slots: "Time slots here",
+  /** The same button once submissions close: the gallery (GALLERY_OPEN), else /submit's room and time board. */
+  slots: GALLERY_OPEN ? "See the submissions" : "Time slots here",
   /** Plain links to /register (registration closed Nov 9; the page stays). */
   registration: "Registration",
   enter: "Enter the hall",
@@ -89,7 +90,9 @@ export const CTA = {
 export const SUBMIT = {
   note: `Closes ${TIMES.submit} · No late entries`,
   /** Beside the button once submissions close. */
-  closedNote: "Submissions closed · Find your room and time",
+  closedNote: GALLERY_OPEN ? "Every 2026 design and the winners" : "Submissions closed · Find your room and time",
+  /** The screen-reader description once submissions close. */
+  closedSr: GALLERY_OPEN ? "Every design from the Mackenzie Design Cup 2026, and the winners." : "Submissions are closed. Find your room and time.",
   sr: `Submit your design at ${SUBMIT_URL_SHORT}. Submissions close ${SUBMIT_DEADLINE_SHORT}. No late entries.`,
   /** The line under the QR code. */
   scan: "Scan to submit",
@@ -162,8 +165,8 @@ export const SECTIONS = {
       units: { days: "Days", hours: "Hrs", mins: "Min", secs: "Sec" },
       until: "Submissions close in",
       when: SUBMIT_DEADLINE_SHORT,
-      done: "Submissions are closed.",
-      doneWhen: `Closed ${SUBMIT_DEADLINE_SHORT}`,
+      done: GALLERY_OPEN ? "The designs are in." : "Submissions are closed.",
+      doneWhen: GALLERY_OPEN ? "Every design is up, winners first." : `Closed ${SUBMIT_DEADLINE_SHORT}`,
     },
   },
   prizes: {

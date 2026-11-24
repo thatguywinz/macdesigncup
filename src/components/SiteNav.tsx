@@ -3,7 +3,7 @@ import { useSubmitClosed } from "@/hooks/useSubmitClosed";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { m, useMotionValue, useMotionValueEvent, useScroll, useSpring } from "framer-motion";
 import { cn } from "@/lib/utils";
-import { EVENT_FULL, RESOURCES_PATH, SUBMIT_PATH } from "@/config/site";
+import { CLOSED_PATH, EVENT_FULL, RESOURCES_PATH, SUBMIT_PATH } from "@/config/site";
 import { CTA, NAV } from "@/content/copy";
 import { useReducedMotionSafe } from "@/hooks/useReducedMotionSafe";
 import LionMark from "./LionMark";
@@ -122,7 +122,7 @@ export default function SiteNav() {
     { label: CTA.partner, to: PARTNER_PATH, arrow: true },
     {
       label: closed ? CTA.slots : CTA.submit,
-      to: SUBMIT_PATH,
+      to: closed ? CLOSED_PATH : SUBMIT_PATH,
       document: true,
       accent: true,
       arrow: true,

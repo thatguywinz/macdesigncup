@@ -960,6 +960,12 @@ describe("pairs (review fixes)", () => {
     const docNow = await ctx.db.read("entries", { fresh: true });
     expect(docNow.entries[a.id].award).toBe("");
     expect(docNow.entries[lone.id].award).toBe("1st place");
+    // 4th and 5th place are single places too.
+    await call(`/judge/entries/${a.id}`, { method: "PATCH", body: { award: "4th place" }, cookie: admin.cookie });
+    await call(`/judge/entries/${lone.id}`, { method: "PATCH", body: { award: "4th place" }, cookie: admin.cookie });
+    const docFourth = await ctx.db.read("entries", { fresh: true });
+    expect(docFourth.entries[a.id].award).toBe("");
+    expect(docFourth.entries[lone.id].award).toBe("4th place");
     // Inherited property names are not entries.
     expect((await call("/judge/entries/constructor", { method: "PATCH", body: { hidden: true }, cookie: admin.cookie })).status).toBe(404);
     expect((await call("/judge/entries/toString", { method: "DELETE", cookie: admin.cookie })).status).toBe(404);

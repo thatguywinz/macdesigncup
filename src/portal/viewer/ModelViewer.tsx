@@ -35,6 +35,12 @@ interface ModelViewerProps {
   className?: string;
   /** Accessible description of what is being shown. */
   label: string;
+  /**
+   * Size readout and dimension lines (default on). The public share page
+   * turns them off: many exports carry no units, so sizes there can read
+   * "0.3 mm" for a model that's really 30 cm.
+   */
+  measurements?: boolean;
   /** What to show before any model is chosen. */
   empty?: ReactNode;
   /** Told when the model can't be opened (a message for the team), or null once it opens. */
@@ -271,6 +277,7 @@ export default function ModelViewer({
   className,
   label,
   empty,
+  measurements = true,
 }: ModelViewerProps) {
   const [raw, setRaw] = useState<{ object: THREE.Object3D; hasMaterials: boolean } | null>(null);
   const [status, setStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
@@ -278,7 +285,7 @@ export default function ModelViewer({
   const [error, setError] = useState("");
   const [autoRotate, setAutoRotate] = useState(false);
   const [wire, setWire] = useState(false);
-  const [dims, setDims] = useState(true);
+  const [dims, setDims] = useState(measurements);
   const [full, setFull] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
   const controlsRef = useRef<OrbitControlsImpl | null>(null);
@@ -461,7 +468,7 @@ export default function ModelViewer({
           </Canvas>
 
           <div className="viewer-readout" aria-live="polite">
-            {measure && (
+            {measure && measurements && (
               <>
                 <span>{formatMeasure(measure)}</span>
                 <span className="text-concrete">
@@ -485,9 +492,11 @@ export default function ModelViewer({
             <ToolButton label="Wireframe" pressed={wire} onClick={() => setWire((v) => !v)}>
               <Box size={17} strokeWidth={1.5} />
             </ToolButton>
-            <ToolButton label="Dimensions" pressed={dims} onClick={() => setDims((v) => !v)}>
-              <Ruler size={17} strokeWidth={1.5} />
-            </ToolButton>
+            {measurements && (
+              <ToolButton label="Dimensions" pressed={dims} onClick={() => setDims((v) => !v)}>
+                <Ruler size={17} strokeWidth={1.5} />
+              </ToolButton>
+            )}
             {hasSpec(spec) && (
               <ToolButton label="Size limit box" pressed={showSpec} onClick={() => setShowSpec((v) => !v)}>
                 <Package size={17} strokeWidth={1.5} />

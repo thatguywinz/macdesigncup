@@ -1327,8 +1327,8 @@ on("PATCH", "/judge/entries/:id", async (ctx, req, res, { id }) => {
     if (typeof body.award === "string") {
       if (!(AWARDS as readonly string[]).includes(body.award)) fail(422, "Unknown award.");
       e.award = body.award;
-      // One entry per place: giving "1st place" here takes it from anyone else.
-      if (/^\d(st|nd|rd) place$/.test(body.award)) {
+      // One entry per place (1st to 5th): giving "1st place" here takes it from anyone else.
+      if (/^\d(st|nd|rd|th) place$/.test(body.award)) {
         for (const other of Object.values(doc.entries)) if (other.id !== id && other.award === body.award) other.award = "";
       }
     }

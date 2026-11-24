@@ -1,6 +1,6 @@
 import type { ComponentPropsWithoutRef, ReactNode } from "react";
 import { cn } from "@/lib/utils";
-import { SUBMIT_PATH } from "@/config/site";
+import { CLOSED_PATH, SUBMIT_PATH } from "@/config/site";
 import { CTA } from "@/content/copy";
 import { useSubmitClosed } from "@/hooks/useSubmitClosed";
 
@@ -27,12 +27,12 @@ export default function SubmitButton({
   className,
   ...rest
 }: SubmitButtonProps) {
-  // After the deadline /submit shows the judging schedule, so the button says so.
+  // After the deadline the button goes to the gallery (GALLERY_OPEN) or /submit's schedule, and says so.
   const closed = useSubmitClosed();
   return (
     <a
       {...rest}
-      href={SUBMIT_PATH}
+      href={closed ? CLOSED_PATH : SUBMIT_PATH}
       className={cn(variant === "solid" ? "btn-portal" : "btn-ghost", "focus-ember", className)}
     >
       {children ?? (closed ? CTA.slots : CTA.submit)}

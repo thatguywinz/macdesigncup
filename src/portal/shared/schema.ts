@@ -271,11 +271,23 @@ export function parseEntry(raw: unknown, opts: { draft?: boolean } = {}): Parsed
   };
 }
 
-/** "Avery Lin" -> "Avery L."; one word stays as it is. */
+/**
+ * A name typed all in lower case or all in capitals gets a capital first
+ * letter ("xavi" -> "Xavi", "ARIAN" -> "Arian"); mixed case ("McIntyre") is
+ * left as typed. Each part of a hyphenated or apostrophe name counts alone.
+ */
+export function tidyCase(word: string): string {
+  return word.replace(/[^\s\-']+/g, (w) => {
+    if (w !== w.toLowerCase() && w !== w.toUpperCase()) return w;
+    return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase();
+  });
+}
+
+/** "Avery Lin" -> "Avery L."; one word stays as it is (case tidied). */
 export function shortName(full: string): string {
   const parts = full.trim().split(/\s+/);
-  if (parts.length < 2) return parts[0] ?? "";
-  return `${parts[0]} ${parts[parts.length - 1][0].toUpperCase()}.`;
+  if (parts.length < 2) return tidyCase(parts[0] ?? "");
+  return `${tidyCase(parts[0])} ${parts[parts.length - 1][0].toUpperCase()}.`;
 }
 
 /** The credit line the share page shows. Never surnames, schools or emails. */
