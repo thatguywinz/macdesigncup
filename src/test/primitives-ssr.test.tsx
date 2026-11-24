@@ -58,15 +58,17 @@ describe("primitives render on the server", () => {
     expect(solid).toMatch(/d="M[-\d.]+ [-\d.]+L/);
   });
 
-  it("SubmitBlock: a plain link to /submit with the verbatim CTA and the deadline note", () => {
+  it("SubmitBlock: after the event, a plain link to the submissions gallery with its note", () => {
     const html = renderToString(
       <MemoryRouter>
         <SubmitBlock />
       </MemoryRouter>,
     );
-    expect(html).toContain('href="/submit"');
-    expect(html).toContain(CTA.submit);
-    expect(html).toContain(SUBMIT.note);
+    expect(html).toContain('href="/submissions"');
+    expect(html).toContain(CTA.slots);
+    expect(CTA.slots).toBe("See the submissions");
+    expect(html).toContain(SUBMIT.closedNote);
+    expect(html).not.toContain('href="/submit"');
     expect(html).not.toContain('href="/register"');
     expect(SUBMIT.note).toContain("1:30 PM");
   });
@@ -89,14 +91,14 @@ describe("primitives render on the server", () => {
     expect(html).toContain('href="/partner"');
   });
 
-  it("PathBand: the submit route and the partner route", () => {
+  it("PathBand: the gallery route (after the event) and the partner route", () => {
     const html = renderToString(
       <MemoryRouter>
         <PathBand />
       </MemoryRouter>,
     );
-    expect(html).toContain(PATHS.routes.submit.line);
-    expect(html).toContain('href="/submit"');
+    expect(html).toContain("The designs are in. See every one, and the winners.");
+    expect(html).toContain('href="/submissions"');
     expect(html).toContain('href="/partner"');
     expect(html).not.toContain('href="#teachers"');
   });

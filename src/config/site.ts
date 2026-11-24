@@ -95,6 +95,23 @@ export const SUBMIT_PATH = "/submit";
 export const SUBMIT_URL = `${SITE_URL}${SUBMIT_PATH}`;
 /** "www.macdesigncup.ca/submit": the URL as people type it. */
 export const SUBMIT_URL_SHORT = `${SITE_HOST}${SUBMIT_PATH}`;
+/**
+ * After the event: the public page of every design (/submissions, served by
+ * the portal build). With GALLERY_OPEN every Submit / Time slots button and
+ * link on the main site points there instead, from the first render (so the
+ * prerendered HTML already says so). Organizers also switch the page itself
+ * on in the portal's Settings.
+ */
+export const GALLERY_OPEN = true;
+/**
+ * What happened on the day, for the recap copy. Counted from the submitted
+ * entries in the portal on 2026-11-23: students named on a submitted entry,
+ * and submitted entries. Not attendance (some who came didn't submit).
+ */
+export const RECAP = { students: 66, designs: 41 } as const;
+export const GALLERY_PATH = "/submissions";
+/** Where a closed Submit button goes: the gallery once it's open, else the time slots. */
+export const CLOSED_PATH = GALLERY_OPEN ? GALLERY_PATH : SUBMIT_PATH;
 export const SUBMIT_DEADLINE = "2026-11-16T13:30:00-05:00";
 /** "Mon, Nov 16, 1:30 PM" */
 export const SUBMIT_DEADLINE_SHORT = `${EVENT_WEEKDAY.slice(0, 3)}, Nov 16, ${TIMES.submit}`;

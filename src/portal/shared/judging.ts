@@ -123,4 +123,4 @@ export function cleanMarks(raw: unknown): Record<string, number> {
 }
 
 /** Award labels an organizer can pin to an entry. */
-export const AWARDS = ["", "1st place", "2nd place", "3rd place", "Honourable mention", "Judges' pick"] as const;
+export const AWARDS = ["", "1st place", "2nd place", "3rd place", "4th place", "5th place", "Honourable mention", "Judges' pick"] as const;

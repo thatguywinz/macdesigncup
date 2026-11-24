@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { SUBMIT_DEADLINE } from "@/config/site";
+import { GALLERY_OPEN, SUBMIT_DEADLINE } from "@/config/site";
 
 /** setTimeout's ceiling (~24.8 days); anything longer is re-armed. */
 const MAX_DELAY = 2_147_483_647;
@@ -51,7 +51,8 @@ function subscribe(f: (v: PortalView) => void) {
  * which organizers can move; SUBMIT_DEADLINE until it answers), or organizers
  * closed early. `false` on the server and the first client render (so
  * hydration always matches), then flips by itself, even if the portal stops
- * answering.
+ * answering. With GALLERY_OPEN (after the event) it is `true` everywhere,
+ * server render included, and never asks the portal.
  *
  * @example
  * const closed = useSubmitClosed();
@@ -60,6 +61,7 @@ export function useSubmitClosed(): boolean {
   const [view, setView] = useState<PortalView | null>(null);
   const [now, setNow] = useState(0);
   useEffect(() => {
+    if (GALLERY_OPEN) return;
     setView(portal);
     setNow(Date.now());
     return subscribe(setView);
@@ -72,6 +74,7 @@ export function useSubmitClosed(): boolean {
     const id = setTimeout(() => setNow(Date.now()), Math.min(left + 50, MAX_DELAY));
     return () => clearTimeout(id);
   }, [view, now]);
+  if (GALLERY_OPEN) return true;
   if (!view) return false;
   return view.closedEarly || Math.max(now, Date.now()) >= view.deadline;
 }

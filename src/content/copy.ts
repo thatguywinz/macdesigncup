@@ -23,7 +23,11 @@
 // its charger." Does not sound like: "Unlock your creative potential at an
 // immersive, cutting-edge design experience."
 // ─────────────────────────────────────────────
+import { SPONSORS } from "@/config/sponsors";
 import {
+  GALLERY_OPEN,
+  GALLERY_PATH,
+  RECAP,
   CLUB,
   CLUB_SCHOOL,
   CONTACT_EMAIL,
@@ -69,8 +73,8 @@ const HOUR = (t: string) => t.replace(":00 ", " ");
 export const CTA = {
   /** The day's one call to action: to /submit. */
   submit: "Submit here",
-  /** The same button once submissions close: /submit then shows every team's room and time. */
-  slots: "Time slots here",
+  /** The same button once submissions close: the gallery (GALLERY_OPEN), else /submit's room and time board. */
+  slots: GALLERY_OPEN ? "See the submissions" : "Time slots here",
   /** Plain links to /register (registration closed Nov 9; the page stays). */
   registration: "Registration",
   enter: "Enter the hall",
@@ -89,7 +93,9 @@ export const CTA = {
 export const SUBMIT = {
   note: `Closes ${TIMES.submit} · No late entries`,
   /** Beside the button once submissions close. */
-  closedNote: "Submissions closed · Find your room and time",
+  closedNote: GALLERY_OPEN ? "Every 2026 design and the winners" : "Submissions closed · Find your room and time",
+  /** The screen-reader description once submissions close. */
+  closedSr: GALLERY_OPEN ? "Every design from the Mackenzie Design Cup 2026, and the winners." : "Submissions are closed. Find your room and time.",
   sr: `Submit your design at ${SUBMIT_URL_SHORT}. Submissions close ${SUBMIT_DEADLINE_SHORT}. No late entries.`,
   /** The line under the QR code. */
   scan: "Scan to submit",
@@ -102,7 +108,7 @@ export const HERO = {
   eyebrow: `${EVENT_DATE_SHORT} · ${VENUE_BUILDING}, ${VENUE_CITY}`,
   h1: ["Mackenzie", "Design Cup"],
   /** One line: the pool (set in ember), then the rest. */
-  prize: { pool: PRIZE_POOL, rest: "in prizes · 1st place wins a 3D printer" },
+  prize: { pool: PRIZE_POOL, rest: `in prizes · ${RECAP.students} students · ${RECAP.designs} designs` },
 } as const;
 
 /**
@@ -120,14 +126,14 @@ export const SUMMARY = {
 // so the band shows it once and says the rule in a line.
 export const PATHS = {
   /** Accessible name of the two-route nav (not shown). */
-  label: "Submit or partner",
+  label: "See the designs or partner",
   routes: {
     submit: {
       label: "Competitors",
       line: `Submit your design by ${TIMES.submit} on the day. No late entries.`,
       cta: CTA.submit,
     },
-    partners: { label: "Partners", line: "Back TDSB students in design", cta: CTA.partner },
+    partners: { label: "Partners", line: "Back the next one", cta: CTA.partner },
   },
 } as const;
 
@@ -145,14 +151,14 @@ export interface DayStep {
 // Short and factual: a heading names the section, the line under it says the fact.
 export const SECTIONS = {
   glance: {
-    lines: ["At a glance"],
-    body: `The theme stays secret until ${EVENT_MONTH_DAY}. Build it in any 3D software.`,
+    lines: ["How it went"],
+    body: `On ${EVENT_WEEKDAY}, ${EVENT_MONTH_DAY}, ${RECAP.students} TDSB students modelled ${RECAP.designs} designs in a single day, to a theme they first heard that morning, backed by ${SPONSORS.length} sponsors and partners. Photos and video from the day are coming soon.`,
     // The four-cell spec strip: values only (Where keeps its map link).
     spec: {
-      when: { label: "When", value: `${EVENT_WEEKDAY.slice(0, 3)}, ${EVENT_MONTH_DAY.replace("November", "Nov")} · ${TIMES.start} check-in` },
+      when: { label: "When", value: `${EVENT_WEEKDAY.slice(0, 3)}, ${EVENT_MONTH_DAY.replace("November", "Nov")}, 2026` },
       where: { label: "Where", value: VENUE_BUILDING },
-      who: { label: "Who", value: `TDSB, grades ${GRADES}` },
-      cost: { label: "Cost", value: "Free" },
+      who: { label: "Students", value: `${RECAP.students} · grades ${GRADES}` },
+      cost: { label: "Designs", value: `${RECAP.designs}, made in one day` },
     },
     // Accessible name for the Where cell's map link (visible text is CTA.map).
     mapLabel: `${CTA.map}: ${VENUE_BUILDING}, ${VENUE_STREET} (opens in a new tab)`,
@@ -162,8 +168,8 @@ export const SECTIONS = {
       units: { days: "Days", hours: "Hrs", mins: "Min", secs: "Sec" },
       until: "Submissions close in",
       when: SUBMIT_DEADLINE_SHORT,
-      done: "Submissions are closed.",
-      doneWhen: `Closed ${SUBMIT_DEADLINE_SHORT}`,
+      done: GALLERY_OPEN ? "The designs are in." : "Submissions are closed.",
+      doneWhen: GALLERY_OPEN ? "Every design is up, winners first." : `Closed ${SUBMIT_DEADLINE_SHORT}`,
     },
   },
   prizes: {
@@ -177,22 +183,22 @@ export const SECTIONS = {
     runnersUp: { label: "2nd and 3rd place", item: RUNNER_UP_PRIZE },
     figureAlt: "Line drawing of a desktop 3D printer laying down its first layer",
     groups: {
-      extras: "Also up for grabs",
-      everyBuilder: "Every builder gets",
+      extras: "Also on the prize table",
+      everyBuilder: "Every builder got",
       floor: "On the floor",
     },
   },
   sponsors: {
     lines: ["Sponsors"],
-    slot: { kicker: "Your logo here", cta: CTA.partner },
+    slot: { kicker: "Your logo here next time", cta: CTA.partner },
   },
   day: {
     lines: ["The day"],
     bring: {
-      title: "Bring",
-      items: ["Your own laptop", "Charger", "3D software"],
-      /** Under the list (organizer, 2026-10-24). */
-      note: "Not a Chromebook: you'll present from your laptop, and the screens take HDMI or USB-C.",
+      title: "Everyone brought",
+      items: ["Their own laptop", "A charger", "Their 3D software"],
+      /** Under the list. */
+      note: "No Chromebooks: everyone modelled and presented on their own laptop, plugged in over HDMI or USB-C.",
       guides: "Study guides",
     },
     // The one label on the scroll drawing of the cup (decorative, aria-hidden).
@@ -208,8 +214,8 @@ export const SECTIONS = {
       },
       { time: TIMES.start, title: "Check-in and opening", note: `Theme revealed at the ${TIMES.opening} opening` },
       { time: TIMES.design, title: "Design sprint", note: "Lunch at noon" },
-      { time: TIMES.submit, title: "Submit, then judging", note: `Submissions close · present to your judges from ${TIMES.judging}` },
-      { time: TIMES.closing, title: "Closing and awards", note: `Done by ${TIMES.end}` },
+      { time: TIMES.submit, title: "Submissions, then judging", note: `Teams presented to their judges from ${TIMES.judging}` },
+      { time: TIMES.closing, title: "Closing and awards", note: "Top five announced" },
     ] as readonly DayStep[],
   },
   // From the organizers' notes (2026-10-22: teams of 1 to 4, solo recommended,
@@ -217,31 +223,31 @@ export const SECTIONS = {
   // the club 2026-10-25.
   rules: {
     lines: ["Rules"],
-    body: "Short list. Ask us if anything's unclear.",
+    body: "What every team built to on the day.",
     items: [
       {
         title: `Teams of 1 to ${TEAM_MAX}`,
-        body: "Teams are optional, and we recommend going solo: one 3D model is hard to split between people. Every team member registers on their own.",
+        body: "Teams were optional, and we recommended going solo: one 3D model is hard to split between people. Every team member registered on their own.",
       },
       {
         title: "Bring a teacher",
-        body: `Every student comes with a teacher from their own school. WLMAC students: that's ${WLMAC_TEACHER}.`,
+        body: "Every student came with a teacher from their own school.",
       },
       {
         title: "Build it on the day",
-        body: `Everything you submit is modelled at the event, after the theme reveal at the opening ceremony. No models made before the day.`,
+        body: "Everything submitted was modelled at the event, after the theme reveal at the opening ceremony. No models made before the day.",
       },
       {
         title: "Any 3D software",
-        body: "Blender, Fusion 360, Onshape, Tinkercad, Maya: whatever you build fastest in.",
+        body: "Blender, Fusion 360, Onshape, Tinkercad, Maya: whatever each student built fastest in.",
       },
       {
         title: "Assistive tooling",
-        body: "Permitted at your discretion. Minimal reliance is encouraged; original authorship is expected.",
+        body: "Permitted at each student's discretion, with minimal reliance encouraged and original authorship expected.",
       },
       {
         title: "Submit before judging",
-        body: `Submit at ${SUBMIT_URL_SHORT} by ${TIMES.submit}. No late submissions.`,
+        body: "Every design was submitted online before judging began. No late submissions.",
       },
     ],
   },
@@ -260,11 +266,11 @@ export const SECTIONS = {
   // The closer (#register). Registration closed Nov 9, so it now points at
   // the day's one action: submitting.
   register: {
-    lines: ["Submit"],
+    lines: ["See the designs"],
     /** The line under the heading. */
-    status: `Registration has closed. On the day, submit your design by ${TIMES.submit}. No late entries.`,
+    status: `All ${RECAP.designs} designs are up, winners first. We'd love to run it again; nothing is confirmed for next year yet, so email us to hear first.`,
     /** The mono line under the button, joined with " · ". */
-    meta: [EVENT_DATE_SHORT, `${TIMES.start} check-in`, `${VENUE_BUILDING}, ${VENUE_CITY}`],
+    meta: [EVENT_DATE_SHORT, `${VENUE_BUILDING}, ${VENUE_CITY}`, CONTACT_EMAIL],
   },
 } as const;
 
@@ -287,107 +293,52 @@ export const FAQS: Faq[] = [
   {
     for: "everyone",
     q: "What is the Mackenzie Design Cup?",
-    a: `The Mackenzie Design Cup is a one-day 3D design competition for TDSB high school students in grades ${GRADES}, on ${EVENT_WEEKDAY}, ${EVENT_DATE_LABEL}, at ${VENUE_NAME}, in ${VENUE_CITY}. We're the ${CLUB} at ${CLUB_SCHOOL}, and we run it.`,
+    a: `The Mackenzie Design Cup is a one-day 3D design competition for TDSB high school students in grades ${GRADES}. This year's ran on ${EVENT_WEEKDAY}, ${EVENT_DATE_LABEL}, at ${VENUE_NAME}, in ${VENUE_CITY}. We're the ${CLUB} at ${CLUB_SCHOOL}, and we run it.`,
   },
   {
     for: "everyone",
-    q: "Who can enter?",
-    a: `Any Toronto District School Board (TDSB) high school student in grades ${GRADES} can enter the Mackenzie Design Cup. You don't need to be in a design club or have competed before. You do need a teacher from your school to come with you on the day.`,
+    q: "How did it go?",
+    a: `${RECAP.students} students modelled ${RECAP.designs} designs in a single day, to a theme revealed at the opening ceremony that morning. Each team presented to a pair of judges, and the top five were announced at the closing ceremony.`,
   },
   {
     for: "everyone",
-    q: "What does it cost?",
-    a: "The Mackenzie Design Cup is free to enter for TDSB students.",
+    q: "Who won?",
+    a: `First place went to Prosthetic Eye, second to I.M. Maddy (Intuitive Medicine), third to Automatic Food Maker, fourth to Trialcore (survival kit) and fifth to Skintifity. Every design, winners first, is at ${SITE_HOST}${GALLERY_PATH}.`,
+  },
+  {
+    for: "everyone",
+    q: "Where can I see the designs?",
+    a: `All ${RECAP.designs} designs are at ${SITE_HOST}${GALLERY_PATH}. Open one to see the team's pictures and turn their 3D model around.`,
   },
   {
     for: "students",
-    q: "Can I register myself?",
-    a: "Yes. Pick Student on the registration form and fill in your details. It asks for the name and email of the teacher from your school who will come with you.",
+    q: "I placed. When do I get my prize?",
+    a: `Prizes are on their way, and we'll be in touch with winners by email. If you placed and haven't heard from us in 1 to 2 weeks, email ${CONTACT_EMAIL}.`,
+  },
+  {
+    for: "everyone",
+    q: "When will photos and video be posted?",
+    a: "Soon. Our photographers are sorting through them so that only people who gave media consent appear.",
+  },
+  {
+    for: "everyone",
+    q: "Will there be another Mackenzie Design Cup?",
+    a: `We'd love to run it again. Nothing is confirmed for next year yet. Email ${CONTACT_EMAIL} to hear first, or to back the next one as a sponsor, judge or mentor.`,
   },
   {
     for: "students",
-    q: "Which teacher do I put on the form?",
-    a: `If you're at ${CLUB_SCHOOL} (WLMAC), put ${WLMAC_TEACHER}. If you're at another school, put any teacher you think would be willing to come with you on the day. Ask them first if you can; if you're not sure, put them down anyway and we can contact them after you sign up.`,
+    q: "What software did students use?",
+    a: "Onshape was the most common, then Tinkercad, Blender and Fusion 360. Any 3D software was allowed.",
   },
   {
     for: "teachers",
-    q: "How do I register my students?",
-    a: `Pick Teacher on the registration form at ${SITE_HOST}${REGISTER_PATH}, and one form covers your whole group. It asks for your school, how many students you're bringing, and their names and grades; student emails are optional.`,
-  },
-  {
-    for: "everyone",
-    q: "Do students need a teacher with them?",
-    a: `Yes. Every student at the Mackenzie Design Cup needs a teacher from their own school with them on the day. For WLMAC students, that's ${WLMAC_TEACHER}.`,
-  },
-  {
-    for: "everyone",
-    q: "When does registration close?",
-    a: `Registration for the Mackenzie Design Cup closes on ${REGISTRATION_CLOSES_LABEL}, one week before the event.`,
-  },
-  {
-    for: "everyone",
-    q: "When is it?",
-    a: `The Mackenzie Design Cup is on ${EVENT_WEEKDAY}, ${EVENT_DATE_LABEL}, at ${VENUE_BUILDING}. Check-in opens at ${TIMES.start}, the opening ceremony starts at ${TIMES.opening}, and we're done by ${TIMES.end}.`,
-  },
-  {
-    for: "everyone",
-    q: "Where is it?",
-    a: `The Mackenzie Design Cup is at ${VENUE_BUILDING}, ${VENUE_ADDRESS}, on ${VENUE_INSTITUTION}'s ${VENUE_CAMPUS}. Before the day, we email directions to everyone who registers.`,
-    map: true,
-  },
-  {
-    for: "teachers",
-    q: "What time does the day end?",
-    a: `The Mackenzie Design Cup is done by ${TIMES.end} on ${EVENT_WEEKDAY}, ${EVENT_DATE_LABEL}. Students design from ${TIMES.design} until submissions close at ${TIMES.submit}, with lunch at noon. Judging runs from ${TIMES.judging}, and the closing ceremony and awards start at ${TIMES.closing}.`,
+    q: "Who could enter?",
+    a: `Any TDSB high school student in grades ${GRADES}, with a teacher from their own school there on the day. Entry was free, and students competed solo or in teams of up to ${TEAM_MAX}.`,
   },
   {
     for: "students",
-    q: "What can I win?",
-    a: `First place at the Mackenzie Design Cup takes home a ${GRAND_PRIZE_ITEM} valued at ${GRAND_PRIZE_VALUE}, plus ${GRAND_PRIZE_EXTRA} to keep it running, from ${GRAND_PRIZE_FROM}. Second and third place win ${RUNNER_UP_PRIZE}. That tops a ${PRIZE_POOL} prize table that also has ${list(
-      PRIZE_EXTRAS.filter((p) => p.from !== "Ansys").map((p) => p.item),
-    )} up for grabs. Builders also get ${list([
-      "50 seats of Ansys Discovery / Mechanical",
-      ...EVERY_BUILDER.map((p) =>
-        p.from === "Siemens & TriMech"
-          ? `${p.item} from Siemens and TriMech`
-          : p.item.replace(/^Your /, "their ").replace(/^\w/, (c) => c.toLowerCase()),
-      ),
-    ])}.`,
-  },
-  {
-    for: "students",
-    q: "Do I need to know 3D software?",
-    a: "You should have some 3D design knowledge: enough to open a tool and model a simple object. Beyond that, you're free to use any software you want. Blender, Fusion 360, Onshape, Tinkercad, Maya: if you can build in it, you can compete in it.",
-  },
-  {
-    for: "everyone",
-    q: "Can students compete in teams?",
-    a: `Yes, in teams of 1 to ${TEAM_MAX}, but teams are optional and we recommend going solo: one 3D model is hard to split between people. Every team member registers on their own.`,
-  },
-  {
-    for: "students",
-    q: "Can I use AI?",
-    a: "Assistive and generative tooling is permitted at the Mackenzie Design Cup, at your discretion. Minimal reliance is encouraged; original authorship is expected.",
-  },
-  {
-    for: "students",
-    q: "What will I build?",
-    a: "You get the Mackenzie Design Cup's theme on the morning of the event and design a 3D response to it, start to finish: concept, blockout, model, final render. What it becomes is your call: a product, a space, a creature, a machine.",
-  },
-  {
-    for: "everyone",
-    q: "What do students need to bring?",
-    a: "Every student at the Mackenzie Design Cup brings their own laptop, its charger and the 3D software they build fastest in, already installed. Your own laptop works best; we don't recommend a school Chromebook. You'll plug your laptop in to present your model. The screens connect by HDMI or USB-C, so check your laptop has one of those ports. Not sure? Email us and we'll help you figure it out.",
-  },
-  {
-    for: "students",
-    q: "How can I prepare?",
-    a: `Read our free study guides at ${SITE_HOST}${RESOURCES_PATH}: one each for ${list(RESOURCE_GUIDES.map((g) => g.software))}, written by the ${CLUB}.`,
-  },
-  {
-    for: "everyone",
-    q: "Is food provided for students?",
-    a: `Yes. Every student competing gets food all day at ${VENUE_BUILDING}, from ${VENUE_INSTITUTION}.`,
+    q: "How can I prepare for next time?",
+    a: `Our free study guides are at ${SITE_HOST}${RESOURCES_PATH}: one each for ${list(RESOURCE_GUIDES.map((g) => g.software))}, written by the ${CLUB}.`,
   },
   {
     for: "everyone",
@@ -441,7 +392,7 @@ export const FOOTER = {
   descriptor: `Run by the ${CLUB} at William Lyon Mackenzie CI.`,
   labels: { where: "Where", when: "When", contact: "Contact", sections: "On this site" },
   addressLines: [VENUE_BUILDING, VENUE_INSTITUTION, VENUE_STREET, `${VENUE_CITY}, ${VENUE_REGION} ${VENUE_POSTAL}`],
-  when: `${EVENT_WEEKDAY}, ${EVENT_DATE_LABEL} · Check-in ${TIMES.start}`,
+  when: `${EVENT_WEEKDAY}, ${EVENT_DATE_LABEL}`,
   backToTop: "Back to top",
   copyright: "© 2026 Mac Design Cup",
 } as const;

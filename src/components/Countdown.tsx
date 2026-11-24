@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useHydrated } from "@/hooks/useHydrated";
 import { useReducedMotionSafe } from "@/hooks/useReducedMotionSafe";
-import { SUBMIT_DEADLINE } from "@/config/site";
+import { GALLERY_OPEN, SUBMIT_DEADLINE } from "@/config/site";
 import { useSubmitClosed } from "@/hooks/useSubmitClosed";
 import { SECTIONS } from "@/content/copy";
 import { cn } from "@/lib/utils";
@@ -63,7 +63,8 @@ export default function Countdown({ className = "" }: { className?: string }) {
   const closedEarly = useSubmitClosed();
   const live = hydrated && left;
 
-  if (live && (left.done || closedEarly)) {
+  // After the event (GALLERY_OPEN) closedEarly is true from the server render on.
+  if (GALLERY_OPEN || (live && (left.done || closedEarly))) {
     return (
       <aside className={cn("relative", className)} aria-label={C.aria}>
         <p className="font-body text-2xl font-semibold tracking-[-0.01em] text-foreground md:text-[2rem]">{C.done}</p>

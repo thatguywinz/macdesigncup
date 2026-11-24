@@ -3,7 +3,7 @@ import { useSubmitClosed } from "@/hooks/useSubmitClosed";
 import { Link } from "react-router-dom";
 import { ArrowUp, ArrowUpRight } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { CONTACT_EMAIL, EVENT_FULL, REGISTER_PATH, RESOURCES_PATH, SUBMIT_PATH, VENUE_MAP_URL } from "@/config/site";
+import { CONTACT_EMAIL, EVENT_FULL, REGISTER_PATH, RESOURCES_PATH, CLOSED_PATH, SUBMIT_PATH, VENUE_MAP_URL } from "@/config/site";
 import { CTA, FOOTER, NAV } from "@/content/copy";
 import LionMark from "./LionMark";
 import SectionLink from "./SectionLink";
@@ -162,13 +162,13 @@ export default function SiteFooter() {
                 </li>
                 <li>
                   <a
-                    href={SUBMIT_PATH}
+                    href={closed ? CLOSED_PATH : SUBMIT_PATH}
                     aria-describedby={noteId}
                     className={cn(LINK, "text-foreground/75 hover:text-foreground")}
                   >
                     {closed ? CTA.slots : CTA.submit}
                   </a>
-                  <SubmitSr id={noteId} />
+                  <SubmitSr id={noteId} closed={closed} />
                 </li>
               </ul>
             </nav>

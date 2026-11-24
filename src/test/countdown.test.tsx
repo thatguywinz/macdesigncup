@@ -3,7 +3,7 @@
 import { act, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import Countdown from "@/components/Countdown";
-import { SUBMIT_DEADLINE, TIMES } from "@/config/site";
+import { GALLERY_OPEN, SUBMIT_DEADLINE, TIMES } from "@/config/site";
 import { SECTIONS } from "@/content/copy";
 
 const C = SECTIONS.glance.countdown;
@@ -20,7 +20,18 @@ describe("Countdown", () => {
     expect(C.when).toBe("Mon, Nov 16, 1:30 PM");
   });
 
-  it("counts down to the deadline", () => {
+  // After the event (GALLERY_OPEN) the clock never counts: it says the designs are in.
+  it("after the event: says the designs are in, from the server render on", () => {
+    expect(GALLERY_OPEN).toBe(true);
+    vi.useFakeTimers({ toFake: ["Date", "setInterval", "clearInterval"] });
+    vi.setSystemTime(DEADLINE - 86_400_000);
+    render(<Countdown />);
+    expect(screen.queryByRole("timer")).not.toBeInTheDocument();
+    expect(screen.getByText(C.done)).toBeInTheDocument();
+    expect(C.done).toBe("The designs are in.");
+  });
+
+  it.skipIf(GALLERY_OPEN)("counts down to the deadline", () => {
     vi.useFakeTimers({ toFake: ["Date", "setInterval", "clearInterval"] });
     // 1 day, 2 hours, 3 minutes and 4 seconds before.
     vi.setSystemTime(DEADLINE - (86_400_000 + 2 * 3_600_000 + 3 * 60_000 + 4_000));
@@ -34,7 +45,7 @@ describe("Countdown", () => {
     expect(cells).toContain("04");
   });
 
-  it("says submissions are closed once the deadline passes, never zeros", () => {
+  it.skipIf(GALLERY_OPEN)("says submissions are closed once the deadline passes, never zeros", () => {
     vi.useFakeTimers({ toFake: ["Date", "setInterval", "clearInterval"] });
     vi.setSystemTime(DEADLINE - 1_500);
     render(<Countdown />);

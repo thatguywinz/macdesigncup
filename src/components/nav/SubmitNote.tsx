@@ -33,10 +33,10 @@ export function SubmitNote({ id, url = false, className }: { id?: string; url?: 
 }
 
 /** The same note for screen readers only, for a Submit link with no room for it. */
-export function SubmitSr({ id }: { id: string }) {
+export function SubmitSr({ id, closed = false }: { id: string; closed?: boolean }) {
   return (
     <span id={id} className="sr-only">
-      {SUBMIT.sr}
+      {closed ? SUBMIT.closedSr : SUBMIT.sr}
     </span>
   );
 }

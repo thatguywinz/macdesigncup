@@ -3,8 +3,8 @@
 // credit line (first names or team name), software, their description and
 // images. Never surnames, schools, emails or the project file.
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
-import { Check, Link2 } from "lucide-react";
+import { Link, useParams } from "react-router-dom";
+import { ArrowLeft, Check, Link2 } from "lucide-react";
 import Shell from "../components/Shell";
 import { ApiError, api } from "../api";
 import { isViewable, type ViewableExt } from "../shared/formats";
@@ -32,7 +32,10 @@ export default function EntryPage() {
         <div className="max-w-[40rem] py-24">
           <h1 className="display-scene">Not available</h1>
           <p className="mt-4 font-body text-lg text-foreground/75">{error}</p>
-          <p className="mt-8 font-body">
+          <p className="mt-8 flex gap-6 font-body">
+            <Link to="/submissions" className="p-link focus-ember">
+              All submissions
+            </Link>
             <a href="/" className="p-link focus-ember">
               Mackenzie Design Cup
             </a>
@@ -46,7 +49,10 @@ export default function EntryPage() {
 
   return (
     <Shell section="Design" wide right={entry ? <CopyLink /> : null}>
-      <div className="grid items-start gap-8 pt-6 md:pt-8 lg:grid-cols-[minmax(0,1fr)_24rem] lg:gap-12 xl:grid-cols-[minmax(0,1fr)_27rem]">
+      <Link to="/submissions" className="focus-ember mt-5 inline-flex min-h-[2.75rem] items-center gap-2 font-body text-sm text-concrete transition-colors hover:text-bone">
+        <ArrowLeft size={15} strokeWidth={1.6} aria-hidden="true" /> All submissions
+      </Link>
+      <div className="grid items-start gap-8 pt-2 md:pt-3 lg:grid-cols-[minmax(0,1fr)_24rem] lg:gap-12 xl:grid-cols-[minmax(0,1fr)_27rem]">
         <div className="flex min-w-0 flex-col gap-6">
           {/* The team's cover picture leads, then their video, then the 3D model. */}
           {entry && entry.images[0] && (
@@ -59,6 +65,7 @@ export default function EntryPage() {
             <ModelViewer
               source={model ? { kind: "url", url: model.url, ext: model.ext as ViewableExt } : null}
               upAxis={entry?.upAxis ?? "y"}
+              measurements={false}
               label={entry ? `${entry.title}, 3D model` : "3D model"}
               className={entry && (entry.video || entry.videoLink || entry.images.length) ? "aspect-[16/10] w-full" : "h-[62vh] min-h-[340px] w-full lg:h-[calc(100dvh-7.5rem)]"}
               empty={<span className="font-body text-sm text-concrete">{entry ? "No model to show." : ""}</span>}

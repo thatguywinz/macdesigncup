@@ -22,6 +22,7 @@ import {
   EVENT_NAME,
   EVENT_WEEKDAY,
   PRIZE_POOL,
+  RECAP,
   RESOURCES_PATH,
   SITE_URL,
   VENUE_CITY,
@@ -36,7 +37,7 @@ import { BREADCRUMBS, NOT_FOUND } from "@/content/copy";
  * never a build-time `new Date()` (Google drops a lastmod it can see is false).
  */
 export const CONTENT_DATES = {
-  home: "2026-10-25",
+  home: "2026-11-23",
   register: "2026-10-25",
   resources: "2026-10-25",
   partner: "2026-10-25",
@@ -97,7 +98,7 @@ export const HOME_ROUTE: RouteDef = {
   file: "index.html",
   title: `${EVENT_FULL} · Toronto High School 3D Design Competition`,
   // The prize leads: a phone SERP cuts the snippet near 120 characters.
-  description: `${PRIZE_POOL} in prizes: our one-day 3D design competition for TDSB high school students and their teachers is ${EVENT_WEEKDAY}, ${EVENT_DATE_LABEL}, at ${VENUE_INSTITUTION}.`,
+  description: `${RECAP.students} TDSB students modelled ${RECAP.designs} designs in one day at our 3D design competition on ${EVENT_DATE_LABEL}, for ${PRIZE_POOL} in prizes. See every design and the winners.`,
   sitemap: true,
   dateModified: CONTENT_DATES.home,
 };

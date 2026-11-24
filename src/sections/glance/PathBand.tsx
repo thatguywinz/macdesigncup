@@ -3,7 +3,7 @@ import { useSubmitClosed } from "@/hooks/useSubmitClosed";
 import { Link } from "react-router-dom";
 import { ArrowRight } from "lucide-react";
 import Reveal from "@/components/motion/Reveal";
-import { SUBMIT_PATH } from "@/config/site";
+import { CLOSED_PATH, GALLERY_OPEN, SUBMIT_PATH } from "@/config/site";
 import { CTA, PATHS } from "@/content/copy";
 import { cn } from "@/lib/utils";
 
@@ -32,10 +32,10 @@ export default function PathBand({ className }: { className?: string }) {
           <div className="min-w-0">
             <p className={TITLE}>{r.submit.label}</p>
             <p id={submitLine} className={LINE}>
-              {closed ? "Submissions are closed. Find your room and time." : r.submit.line}
+              {closed ? (GALLERY_OPEN ? "The designs are in. See every one, and the winners." : "Submissions are closed. Find your room and time.") : r.submit.line}
             </p>
           </div>
-          <a href={SUBMIT_PATH} aria-describedby={submitLine} className={cn(ACTION, "shrink-0")}>
+          <a href={closed ? CLOSED_PATH : SUBMIT_PATH} aria-describedby={submitLine} className={cn(ACTION, "shrink-0")}>
             <span className="max-md:sr-only">{closed ? CTA.slots : r.submit.cta}</span>
             <ArrowRight aria-hidden="true" size={18} strokeWidth={1.5} className="text-ember" />
           </a>
